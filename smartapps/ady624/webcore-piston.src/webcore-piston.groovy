@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update October 31, 2020 for Hubitat
+ * Last update November 6, 2020 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -4184,7 +4184,8 @@ private Long vcmd_httpRequest(Map rtD, device, List params){
 			query: useQueryString ? data:null,
 			headers: (auth ? (((Boolean)auth.startsWith('{') && (Boolean)auth.endsWith('}'))? (new groovy.json.JsonSlurper().parseText(auth)):[Authorization: auth]):[:]),
 			requestContentType: requestContentType,
-			body: !useQueryString ? data:null
+			body: !useQueryString ? data:null,
+			timeout: 20
 		]
 		String func=sBLK
 		switch(method){
@@ -6095,7 +6096,8 @@ private Map getWeather(Map rtD, String name){
 private Map getNFLDataFeature(String dataFeature){
 	Map requestParams=[
 		uri: "https://api.webcore.co/nfl/$dataFeature".toString(),
-		query: method=="GET" ? data:null
+		query: method=="GET" ? data:null,
+		timeout: 20
 	]
 	httpGet(requestParams){ response ->
 		if(response.status==200 && response.data){
