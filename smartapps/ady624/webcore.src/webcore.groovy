@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated October 25, 2020 for Hubitat
+ * Last Updated November 20, 2020 for Hubitat
 */
 static String version(){ return "v0.3.110.20191009" }
 static String HEversion(){ return "v0.3.110.20201015_HE" }
@@ -329,7 +329,8 @@ private pageFinishInstall(){
 				paragraph "Excellent! You are now ready to use webCoRE"
 			}
 			section("Note"){
-				paragraph "After you tap Done, go to 'Apps', and open the '"+(String)app.label+"' App to access the dashboard.", required: true
+				String myN= (String)app.label ?: (String)app.name
+				paragraph "After you tap Done, go to 'Apps', and open the '"+myN+"' App to access the dashboard.", required: true
 				paragraph "You can also access the dashboard on any another device by entering ${domain()} in the address bar of your browser.", required: true
 			}
 			section(){
@@ -1214,7 +1215,8 @@ private api_intf_dashboard_piston_create(){
 		Boolean found=false
 		while(!found){
 			for(app in apps){
-				if((String)app.label == pname){
+				String myN= (String)app.label ?: (String)app.name
+				if(myN == pname){
 					found=true
 					break
 				}
@@ -1363,7 +1365,8 @@ private api_intf_dashboard_piston_backup(){
 				if(piston){
 					Map pd=(Map)piston.get(true)
 					if(pd){
-						pd.instance=[id: getInstanceSid(), name: (String)app.label]
+						String myN= (String)app.label ?: (String)app.name
+						pd.instance=[id: getInstanceSid(), name: myN]
 						Boolean a=result.pistons.push(pd)
 						if(!isCustomEndpoint() || !(Boolean)localHubUrl){
 							String jsonData=groovy.json.JsonOutput.toJson(result)
@@ -2120,7 +2123,8 @@ private getStorageApp(Boolean install=false){
 */
 	}
 
-	String label=(String)app.label + ' Storage'
+	String myN= (String)app.label ?: (String)app.name
+	String label=myN + ' Storage'
 	if(storageApp!=null){
 		if(label != storageApp.label){
 			storageApp.updateLabel(label)
@@ -2157,7 +2161,8 @@ private getStorageApp(Boolean install=false){
 private getDashboardApp(Boolean install=false){
 	if(!settings.enableDashNotifications) return null
 	String name=handle() + ' Dashboard'
-	String label=(String)app.label + ' (dashboard)'
+	String myN= (String)app.label ?: (String)app.name
+	String label=myN + ' (dashboard)'
 	def dashboardApp=getChildApps().find{ (String)it.name == name }
 	if(dashboardApp!=null){
 		if(!settings.enableDashNotifications){
@@ -2170,7 +2175,7 @@ private getDashboardApp(Boolean install=false){
 		return dashboardApp
 	}
 	try{
-		dashboardApp=addChildApp("ady624", name, (String)app.label)
+		dashboardApp=addChildApp("ady624", name, myN)
 	} catch (all){
 		return null
 	}
@@ -2374,7 +2379,8 @@ private String createSecurityToken(){
 }
 
 private void ping(){
-	sendLocationEvent( [name: handle(), value: 'ping', isStateChange: true, displayed: false, linkText: "${handle()} ping reply", descriptionText: "${handle()} has received a ping reply and is replying with a pong", data: [id: getInstanceSid(), name: (String)app.label]] )
+	String myN= (String)app.label ?: (String)app.name
+	sendLocationEvent( [name: handle(), value: 'ping', isStateChange: true, displayed: false, linkText: "${handle()} ping reply", descriptionText: "${handle()} has received a ping reply and is replying with a pong", data: [id: getInstanceSid(), name: myN]] )
 }
 
 private void startDashboard(){
@@ -2502,8 +2508,9 @@ String generatePistonName(){
 	while (true){
 		String name=bname + i.toString()
 		Boolean found=false
-		for (app in apps){
-			if((String)app.label == name){
+		for (mapp in apps){
+			String myN= (String)mapp.label ?: (String)mapp.name
+			if(myN == name){
 				found=true
 				break
 			}
@@ -2667,7 +2674,8 @@ Map getWData(){
 
 private void sendVariableEvent(Map variable, Boolean onlyChildren=false){
 	String myId=getInstanceSid()
-	String myLabel=(String)app.label
+	String myN= (String)app.label ?: (String)app.name
+	String myLabel=myN
 	String varN=(String)variable.name
 	Map theEvent=[
 		value: varN, isStateChange: true, displayed: false,
@@ -2690,6 +2698,7 @@ private void sendVariableEvent(Map variable, Boolean onlyChildren=false){
 }
 
 void broadcastPistonList(){
+	String myN= (String)app.label ?: (String)app.name
 	sendLocationEvent(
 		[
 			name: handle(),
@@ -2698,7 +2707,7 @@ void broadcastPistonList(){
 			displayed: false,
 			data: [
 				id: getInstanceSid(),
-				name: (String)app.label,
+				name: myN,
 				pistons: getChildApps().findAll{ (String)it.name == (handle()+' Piston') }.collect{
 					[
 						id: hashId(it.id),
@@ -2710,7 +2719,7 @@ void broadcastPistonList(){
 
 def webCoREHandler(event){
 // receive notification of super Global change
-	if(!event || (!event.name.endsWith(handle()))) return
+	if(!event || (!event.name.startsWith(handle()) && !event.name.endsWith(handle()) )) return
 	def data=event.jsonData ?: null
 //log.error "GOT EVENT WITH DATA $data"
 	if(data && data.variable && ((String)data.event == 'variable') && event.value && event.value.startsWith('@@')){
@@ -2859,6 +2868,7 @@ void startHandler(evt){
 void startWork(){
 	checkWeather()
 	recoveryHandler()
+	broadcastPistonList()
 }
 
 
@@ -3239,10 +3249,10 @@ Map getChildAttributes(){
 	speedUSC			: [ n: "speed (usc)",			t: sDEC,	r: [null, null],	u: "ft/s",						],
 	speedMetric			: [ n: "speed (metric)",		t: sDEC,	r: [null, null],	u: "m/s",						],
 	bearing				: [ n: "bearing",			t: sDEC,	r: [0, 360],		u: "°",							],
-	doubleTapped			: [ n: "double tapped button",		t: sINT,	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
-	held				: [ n: "held button",			t: sINT,	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
-	released			: [ n: "released button",		t: sINT,	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
-	pushed				: [ n: "pushed button",			t: sINT,	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			]
+	doubleTapped			: [ n: "double tapped button",		t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
+	held				: [ n: "held button",			t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
+	released			: [ n: "released button",		t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
+	pushed				: [ n: "pushed button",			t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			]
 ]
 
 /*private Map attributes(){

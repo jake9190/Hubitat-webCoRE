@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update November 6, 2020 for Hubitat
+ * Last update November 9, 2020 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -5418,6 +5418,7 @@ private void subscribeAll(Map rtD, Boolean doit=true){
 				List avals=[]
 				if(ct==sTRIG || comparisonType==sTRIG){
 					ct=sTRIG
+					hasTriggers=true
 
 					allowAval= subscriptions[subsId]?.allowA==null ? true : (Boolean)subscriptions[subsId].allowA
 					String attrVal=sNULL
@@ -5499,6 +5500,7 @@ private void subscribeAll(Map rtD, Boolean doit=true){
 				String ct=(String)subscriptions[subsId]?.t ?: sNULL
 				if(ct==sTRIG || comparisonType==sTRIG){
 					ct=sTRIG
+					hasTriggers=true
 				}else{
 					ct=ct ?: comparisonType
 				}
@@ -5514,6 +5516,7 @@ private void subscribeAll(Map rtD, Boolean doit=true){
 				String ct=(String)subscriptions[subsId]?.t ?: sNULL
 				if(ct==sTRIG || comparisonType==sTRIG){
 					ct=sTRIG
+					hasTriggers=true
 				}else{
 					ct=ct ?: comparisonType
 				}
