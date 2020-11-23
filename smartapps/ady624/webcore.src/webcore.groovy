@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated November 20, 2020 for Hubitat
+ * Last Updated November 23, 2020 for Hubitat
 */
 static String version(){ return "v0.3.110.20191009" }
 static String HEversion(){ return "v0.3.110.20201015_HE" }
@@ -979,13 +979,11 @@ private void clearBaseResult(String meth=sNULL){
 private Map api_get_base_result(Boolean updateCache=false){
 	String t='baseR'
 	Boolean didw=getTheLock(t)
+
 	if(base_resultFLD!=null){
 		cntbase_resultFLD=cntbase_resultFLD+1
-		if(cntbase_resultFLD>100){
-//			releaseTheLock(t)
+		if(cntbase_resultFLD>200){
 			base_resultFLD=null
-//			clearBaseResult('high count')
-//			didw=getTheLock(t)
 		}else{
 			Map result=[:] + base_resultFLD
 			result.now=now()
@@ -2711,7 +2709,8 @@ void broadcastPistonList(){
 				pistons: getChildApps().findAll{ (String)it.name == (handle()+' Piston') }.collect{
 					[
 						id: hashId(it.id),
-						name: normalizeLabel(it)
+						name: normalizeLabel(it),
+						aname: (it?.label)
 					]}
 			]
 		])
