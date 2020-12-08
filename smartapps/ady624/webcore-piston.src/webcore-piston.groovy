@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update November 9, 2020 for Hubitat
+ * Last update December 8, 2020 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -5210,7 +5210,7 @@ private Boolean comp_changes_to_any_of			(Map rtD, Map lv, Map rv=null, Map rv2=
 private Boolean comp_changes_away_from_any_of		(Map rtD, Map lv, Map rv=null, Map rv2=null, Map tv=null, Map tv2=null){ Map oldValue=valueCacheChanged(rtD, lv); return oldValue!=null && comp_is_any_of(rtD, oldValue, rv, rv2) && matchDeviceInteraction((String)lv.v.p, rtD)}
 
 private Boolean comp_stays				(Map rtD, Map lv, Map rv=null, Map rv2=null, Map tv=null, Map tv2=null){ return comp_is(rtD, lv, rv, rv2, tv, tv2)}
-private Boolean comp_stays_unchanged		(Map rtD, Map lv, Map rv=null, Map rv2=null, Map tv=null, Map tv2=null){ return true }
+private Boolean comp_stays_unchanged			(Map rtD, Map lv, Map rv=null, Map rv2=null, Map tv=null, Map tv2=null){ return true }
 private Boolean comp_stays_not				(Map rtD, Map lv, Map rv=null, Map rv2=null, Map tv=null, Map tv2=null){ return comp_is_not(rtD, lv, rv, rv2, tv, tv2)}
 private Boolean comp_stays_equal_to			(Map rtD, Map lv, Map rv=null, Map rv2=null, Map tv=null, Map tv2=null){ return comp_is_equal_to(rtD, lv, rv, rv2, tv, tv2)}
 private Boolean comp_stays_different_than		(Map rtD, Map lv, Map rv=null, Map rv2=null, Map tv=null, Map tv2=null){ return comp_is_different_than(rtD, lv, rv, rv2, tv, tv2)}
@@ -8801,13 +8801,21 @@ private void initSunriseAndSunset(Map rtD){
 			sunTimes.sunset=new Date(Math.round(t1+19.0D*3600000.0D))
 			t=0L
 		}
+		Long a,b,c,d = 0L
+		try{
+			a=(Long)((Date)todaysSunrise).getTime() // requires FW 2.2.3.132 or later
+			b=(Long)((Date)todaysSunset).getTime()
+			c=(Long)((Date)tomorrowsSunrise).getTime()
+			d=(Long)((Date)tomorrowsSunset).getTime()
+		} catch(e) {
+		}
 		t0=[
 			sunrise: (Long)((Date)sunTimes.sunrise).getTime(),
 			sunset: (Long)((Date)sunTimes.sunset).getTime(),
-			//todayssunrise: (Long)((Date)todaysSunrise).getTime(), // requires FW 2.2.3.132 or later
-			//todayssunset: (Long)((Date)todaysSunset).getTime(),
-			//tomorrowssunrise: (Long)((Date)tomorrowsSunrise).getTime(),
-			//tomorrowssunset: (Long)((Date)tomorrowsSunset).getTime(),
+			todayssunrise: a,
+			todayssunset: b,
+			tomorrowssunrise: c, 
+			tomorrowssunset: d, 
 			updated: t,
 			nextM: getNextMidnightTime()
 		]
@@ -8846,11 +8854,16 @@ private Long getNextSunsetTime(Map rtD){
 private Long getNextOccurance(Map rtD, String ttyp){
 	Long t0=(Long)"get${ttyp}Time"(rtD)
 	if(now()>t0){
+		Long a
+		if(ttyp=='Sunrise') a=(Long)rtD.sunTimes.tomorrowssunrise
+		if(ttyp=='Sunset') a=(Long)rtD.sunTimes.tomorrowssunset
+		if(a>now()) return a
+
 		List t1=getLocationEventsSince("${ttyp.toLowerCase()}Time", new Date()-2)
 		def t2
 		if((Integer)t1.size()>0) t2=t1[0]
 		if(t2!=null && t2.value){
-			Long a=Math.round(stringToTime((String)t2.value)+1000L*1.0D)
+			a=Math.round(stringToTime((String)t2.value)+1000L*1.0D)
 			if(a>now())return a
 		}
 	}else return t0
@@ -8956,6 +8969,9 @@ private static LinkedHashMap<String,LinkedHashMap> getSystemVariables(){
 		'$hour24':[t:sINT, d:true],
 		'$minute':[t:sINT, d:true],
 		'$second':[t:sINT, d:true],
+		'$zipCode':[t:sSTR, d:true],
+		'$latitude':[t:sSTR, d:true],
+		'$longitude':[t:sSTR, d:true],
 		'$meridian':[t:sSTR, d:true],
 		'$meridianWithDots':[t:sSTR, d:true],
 		'$day':[t:sINT, d:true],
@@ -9001,6 +9017,7 @@ private static LinkedHashMap<String,LinkedHashMap> getSystemVariables(){
 		'$randomHue':[t:sINT, d:true],
 		'$temperatureScale':[t:sSTR, d:true],
 		'$tzName':[t:sSTR, d:true],
+		'$tzId':[t:sSTR, d:true],
 		'$tzOffset':[t:sINT, d:true],
 		'$version':[t:sSTR, d:true],
 		'$versionH':[t:sSTR, d:true]
@@ -9025,6 +9042,7 @@ private getSystemVariableValue(Map rtD, String name){
 	case '$name': return (String)app.label
 	case '$state': return (String)rtD.state?.new
 	case '$tzName': return (String)location.timeZone.displayName
+	case '$tzId': return (String)location.timeZone.getID()
 	case '$tzOffset': return (Integer)location.timeZone.rawOffset
 	case '$version': return version()
 	case '$versionH': return HEversion()
@@ -9035,6 +9053,9 @@ private getSystemVariableValue(Map rtD, String name){
 	case '$hour24': return (Integer)localDate().hours
 	case '$minute': return (Integer)localDate().minutes
 	case '$second': return (Integer)localDate().seconds
+	case '$zipCode': return location.zipCode
+	case '$latitude': return location.latitude.toString()
+	case '$longitude': return location.longitude.toString()
 	case '$meridian': Integer h=(Integer)localDate().hours; return (h<12 ? 'AM' : 'PM')
 	case '$meridianWithDots': Integer h=(Integer)localDate().hours; return (h<12 ? 'A.M.' : 'P.M.')
 	case '$day': return (Integer)localDate().date
