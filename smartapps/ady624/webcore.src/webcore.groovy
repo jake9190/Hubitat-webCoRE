@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated November 23, 2020 for Hubitat
+ * Last Updated December 8,2020 for Hubitat
 */
 static String version(){ return "v0.3.110.20191009" }
 static String HEversion(){ return "v0.3.110.20201015_HE" }
@@ -2081,7 +2081,7 @@ void finishRecovery(){
 /******************************************************************************/
 
 private void cleanUp(){
-try{
+    try{
 	List pistons=getChildApps().collect{ hashId(it.id) }
 	for (item in state.findAll{ (it.key.startsWith('sph') || it.key.contains('-') ) }){
 		state.remove(item.key)
@@ -2099,13 +2099,16 @@ try{
 		}
 	}
 	def a=api_get_base_result(true)
-} catch (all){
-}
+    } catch (all){
+    }
 }
 
 private getStorageApp(Boolean install=false){
 	String name=handle() + ' Storage'
 	def storageApp=getChildApps().find{ (String)it.name == name }
+
+	String name1=handle() + ' Weather'
+	def weatDev=getChildDevices().find{ (String)it.name == name1 }
 
 	if(storageApp!=null){
 
@@ -2123,19 +2126,30 @@ private getStorageApp(Boolean install=false){
 
 	String myN= (String)app.label ?: (String)app.name
 	String label=myN + ' Storage'
+	String label1=myN + ' Weather'
 	if(storageApp!=null){
 		if(label != storageApp.label){
 			storageApp.updateLabel(label)
 		}
-		return storageApp
+		if(storageApp!=null && weatDev!=null) return storageApp
 	}
 
 	if(install){
-		try{
-			storageApp=addChildApp("ady624", name, label)
-		} catch (all){
-			error "Please install the webCoRE Storage App for \$weather to work"
-			return null
+		if(storageApp==null){
+			try{
+				storageApp=addChildApp("ady624", name, label)
+			} catch (all){
+				error "Please install the webCoRE Storage App for \$weather to work"
+				return null
+			}
+		}
+		if(weatDev==null){
+			try{
+				weatDev=addChildDevice("ady624", name1, hashId("${now()}"), null, [label: label1])
+			} catch (all1){
+//				error "Please install the webCoRE Weather Devicefor \$weather notification to work"
+//				return null
+			}
 		}
 	}
 /*
@@ -2154,6 +2168,12 @@ private getStorageApp(Boolean install=false){
 */
 
 	return storageApp
+}
+
+def getWeatDev(){
+	String name1=handle() + ' Weather'
+	def weatDev=getChildDevices().find{ (String)it.name == name1 }
+	return weatDev
 }
 
 private getDashboardApp(Boolean install=false){

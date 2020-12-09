@@ -1,13 +1,13 @@
 {
   "packageName": "webCoRE",
   "author": "imnot_bob",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "minimumHEVersion": "2.2.2",
   "licenseFile": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/LICENSE",
   "releaseNotes": "Latest release for Hubitat to run webCoRE pistons locally on HE - bug fixes subscriptions, app name, event handling",
   "documentationLink": "https://wiki.webcore.co",
   "communityLink": "https://community.hubitat.com/t/webcore-for-hubitat-updates/11967",
-  "dateReleased": "2020-11-20",
+  "dateReleased": "2020-12-08",
   "apps": [
     {
       "id": "cb649f7b-d33d-42b8-82c3-79d1d2101fea",
@@ -49,6 +49,13 @@
       "name": "webCoRE Presence Sensor",
       "namespace": "ady624",
       "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/devicetypes/ady624/webcore-presence-sensor.src/webcore-presence-sensor.groovy",
+      "required": false
+    },
+    {
+      "id": "66ab48da-1ed9-4b25-8b5b-53872afb3b4f",
+      "name": "webCoRE Weather",
+      "namespace": "ady624",
+      "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/devicetypes/ady624/webcore-weather.src/webcore-weather.groovy",
       "required": false
     }
   ]

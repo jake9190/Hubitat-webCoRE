@@ -16,7 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update October 26, 2020 for Hubitat
+ * Last update December 8,2020 for Hubitat
  */
 public static String version(){ return "v0.3.110.20191009" }
 public static String HEversion(){ return "v0.3.110.20200906_HE" }
@@ -376,6 +376,8 @@ public void ahttpRequestHandler(resp, callbackData){
 		return
 	}
 	theObsFLD = json
+	def wdev=parent?.getWeatDev()
+	if(wdev) wdev.setVar('updated', "${now()}".toString())
 	//log.debug "$json"
 }
 

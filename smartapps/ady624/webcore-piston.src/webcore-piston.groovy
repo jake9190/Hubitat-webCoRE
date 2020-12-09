@@ -8922,7 +8922,7 @@ private LinkedHashMap getSystemVariablesAndValues(Map rtD){
 		if(variable.value.d!=null && (Boolean)variable.value.d) variable.value.v=getSystemVariableValue(rtD, keyt1)
 		else if(t0[keyt1]!=null)variable.value.v=t0[keyt1].v
 	}
-	return result
+	return result.sort { (String)it.key }
 }
 
 // UI will not display anything that starts with $current or $previous; variables without d: true will not display variable value
