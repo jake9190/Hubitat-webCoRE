@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update December 8, 2020 for Hubitat
+ * Last update December 29, 2020 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -8790,7 +8790,7 @@ private void initSunriseAndSunset(Map rtD){
 	if(t0!=null){
 		if(t<(Long)t0.nextM){
 			rtD.sunTimes=[:]+t0
-		}else{ t0=null; svSunTFLD=null; rtD.nextsunrise==null; rtD.nextsunset=null }
+		}else{ t0=null; svSunTFLD=null }
 	}
 	if(t0==null){
 		Map sunTimes=app.getSunriseAndSunset()
@@ -8801,23 +8801,36 @@ private void initSunriseAndSunset(Map rtD){
 			sunTimes.sunset=new Date(Math.round(t1+19.0D*3600000.0D))
 			t=0L
 		}
-		Long a,b,c,d = 0L
+		Long a = (Long)((Date)sunTimes.sunrise).getTime()
+		Long b = (Long)((Date)sunTimes.sunset).getTime()
+		Long nmnght = getNextMidnightTime()
+		Long c,d = 0L
+		Boolean good = true
 		try{
 			a=(Long)((Date)todaysSunrise).getTime() // requires FW 2.2.3.132 or later
 			b=(Long)((Date)todaysSunset).getTime()
 			c=(Long)((Date)tomorrowsSunrise).getTime()
 			d=(Long)((Date)tomorrowsSunset).getTime()
 		} catch(e) {
+			good = false
+			c = a>nmnght ? a : Math.round(a+86400000.0D)
+			d = b>nmnght ? b : Math.round(b+86400000.0D)
+			c = getSkew(c, 'Sunrise')
+			d = getSkew(d, 'Sunset')
+			warn 'Please update HE firmware to improve time handling', rtD
 		}
+		Long c1=Math.round(c-86400000.0D)
+		Long d1=Math.round(d-86400000.0D)
 		t0=[
-			sunrise: (Long)((Date)sunTimes.sunrise).getTime(),
-			sunset: (Long)((Date)sunTimes.sunset).getTime(),
-			todayssunrise: a,
-			todayssunset: b,
+			sunrise: a,
+			sunset: b,
+			todayssunrise: (a>c1 ? a : c1),
+			todayssunset: (b>d1 ? b : d1),
 			tomorrowssunrise: c, 
 			tomorrowssunset: d, 
 			updated: t,
-			nextM: getNextMidnightTime()
+			good: good,
+			nextM: nmnght
 		]
 		rtD.sunTimes=t0
 		if(t!=0L){
@@ -8832,57 +8845,42 @@ private void initSunriseAndSunset(Map rtD){
 
 private Long getSunriseTime(Map rtD){
 	initSunriseAndSunset(rtD)
-	return (Long)rtD.sunrise
+	return (Long)rtD.sunTimes.todayssunrise
 }
 
 private Long getSunsetTime(Map rtD){
 	initSunriseAndSunset(rtD)
-	return (Long)rtD.sunset
+	return (Long)rtD.sunTimes.todayssunset
 }
 
 private Long getNextSunriseTime(Map rtD){
-	if(rtD.nextsunrise==null)rtD.nextsunrise=getNextOccurance(rtD, 'Sunrise')
-	return (Long)rtD.nextsunrise
+	initSunriseAndSunset(rtD)
+	return (Long)rtD.sunTimes.tomorrowssunrise
 }
 
 private Long getNextSunsetTime(Map rtD){
-	if(rtD.nextsunset==null)rtD.nextsunset=getNextOccurance(rtD, 'Sunset')
-	return (Long)rtD.nextsunset
+	initSunriseAndSunset(rtD)
+	return (Long)rtD.sunTimes.tomorrowssunset
 }
 
 // This is trying to ensure we don't fire sunsets or sunrises twice in same day by ensuring we fire a bit later than actual sunrise or sunset
-private Long getNextOccurance(Map rtD, String ttyp){
-	Long t0=(Long)"get${ttyp}Time"(rtD)
-	if(now()>t0){
-		Long a
-		if(ttyp=='Sunrise') a=(Long)rtD.sunTimes.tomorrowssunrise
-		if(ttyp=='Sunset') a=(Long)rtD.sunTimes.tomorrowssunset
-		if(a>now()) return a
-
-		List t1=getLocationEventsSince("${ttyp.toLowerCase()}Time", new Date()-2)
-		def t2
-		if((Integer)t1.size()>0) t2=t1[0]
-		if(t2!=null && t2.value){
-			a=Math.round(stringToTime((String)t2.value)+1000L*1.0D)
-			if(a>now())return a
-		}
-	}else return t0
-
-	Long t4=Math.round(t0+86400000.0D)
-
+Long getSkew(Long t4, String ttyp){
 	Date t1=new Date(t4)
 	Integer curMon=(Integer)t1.month
-	curMon=location.latitude>0 ? curMon:((curMon+6)%12) // normalize for southern hemisphere
+	curMon=location.latitude>0 ? curMon: ((curMon+6)%12) // normalize for southern hemisphere
+	Integer day=(Integer)t1.date
 
 	Integer addr
-	if((curMon>5 && ttyp=='Sunset') || (curMon<=5 && ttyp=='Sunrise'))addr=1000 // minimize skew when sunrise or sunset moving earlier in day
+	Boolean shorteningDays = (curMon==5 && day > 20) || (curMon > 5 && !(curMon == 11 && day > 20))
+
+	if( (shorteningDays && ttyp=='Sunset') || (!shorteningDays && ttyp=='Sunrise') ) addr=1000 // minimize skew when sunrise or sunset moving earlier in day
 	else{
 		Integer t2=Math.abs(location.latitude)
 		Integer t3=curMon%6
-		Integer t5=(Integer)Math.round(t3*365.0D/12.0D+(Integer)t1.date) // days into period
-		addr=Math.round((t5>37 && t5<(182-37)? t2*2.8D:t2*1.9D)*1000.0D)
+		Integer t5=(Integer)Math.round(t3*(365.0D/12.0D)+day) // days into period
+		addr=Math.round((t5>37 && t5<(182-37) ? t2*2.8D:t2*1.9D)*1000.0D)
 	}
-	return t4+addr.toLong()
+	return (Long)(t4+addr.toLong())
 }
 
 private Long getMidnightTime(){
