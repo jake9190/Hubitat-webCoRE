@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update December 29, 2020 for Hubitat
+ * Last update January 1, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -8788,7 +8788,7 @@ private void initSunriseAndSunset(Map rtD){
 	Map t0=svSunTFLD
 	Long t=now()
 	if(t0!=null){
-		if(t<(Long)t0.nextM){
+		if(t<(Long)t0.nextM) { // && t<(Long)t0.sunrise && t<(Long)t0.sunset){
 			rtD.sunTimes=[:]+t0
 		}else{ t0=null; svSunTFLD=null }
 	}
@@ -8805,52 +8805,60 @@ private void initSunriseAndSunset(Map rtD){
 		Long b = (Long)((Date)sunTimes.sunset).getTime()
 		Long nmnght = getNextMidnightTime()
 		Long c,d = 0L
+		Long a1 = a
+		Long b2 = b
 		Boolean good = true
 		try{
-			a=(Long)((Date)todaysSunrise).getTime() // requires FW 2.2.3.132 or later
-			b=(Long)((Date)todaysSunset).getTime()
+			a1=(Long)((Date)todaysSunrise).getTime() // requires FW 2.2.3.132 or later
+			b1=(Long)((Date)todaysSunset).getTime()
 			c=(Long)((Date)tomorrowsSunrise).getTime()
 			d=(Long)((Date)tomorrowsSunset).getTime()
 		} catch(e) {
 			good = false
-			c = a>nmnght ? a : Math.round(a+86400000.0D)
-			d = b>nmnght ? b : Math.round(b+86400000.0D)
-			c = getSkew(c, 'Sunrise')
-			d = getSkew(d, 'Sunset')
-			warn 'Please update HE firmware to improve time handling', rtD
+			Boolean agtr = a>nmnght
+			Boolean bgtr = b>nmnght
+			Long srSkew = getSkew(a, 'Sunrise')
+			Long ssSkew = getSkew(b, 'Sunset')
+			a1 = agtr ? Math.round(a-86400000.0D-srSkew) : a
+			b1 = bgtr ? Math.round(b-86400000.0D-ssSkew) : b
+			c = agtr ? a : Math.round(a+86400000.0D+srSkew)
+			d = bgtr ? b : Math.round(b+86400000.0D+ssSkew)
 		}
 		Long c1=Math.round(c-86400000.0D)
 		Long d1=Math.round(d-86400000.0D)
 		t0=[
 			sunrise: a,
 			sunset: b,
-			todayssunrise: (a>c1 ? a : c1),
-			todayssunset: (b>d1 ? b : d1),
+			todayssunrise: a1,
+			calcsunrise: (a>c1 ? a : c1),
+			todayssunset: b1,
+			calcsunset: (b>d1 ? b : d1),
 			tomorrowssunrise: c, 
 			tomorrowssunset: d, 
 			updated: t,
 			good: good,
 			nextM: nmnght
 		]
+		if(!good) warn 'Please update HE firmware to improve time handling', rtD
 		rtD.sunTimes=t0
 		if(t!=0L){
 			svSunTFLD=t0
 			mb()
-			if(eric())log.debug 'updating global sunrise'
+			if(eric())log.debug "updating global sunrise ${t0}"
 		}
 	}
-	rtD.sunrise=(Long)rtD.sunTimes.sunrise
-	rtD.sunset=(Long)rtD.sunTimes.sunset
+//	rtD.sunrise=(Long)rtD.sunTimes.sunrise
+//	rtD.sunset=(Long)rtD.sunTimes.sunset
 }
 
 private Long getSunriseTime(Map rtD){
 	initSunriseAndSunset(rtD)
-	return (Long)rtD.sunTimes.todayssunrise
+	return Math.max((Long)rtD.sunTimes.sunrise, (Long)rtD.sunTimes.calcsunrise) + 10L
 }
 
 private Long getSunsetTime(Map rtD){
 	initSunriseAndSunset(rtD)
-	return (Long)rtD.sunTimes.todayssunset
+	return Math.max((Long)rtD.sunTimes.sunset, (Long)rtD.sunTimes.calcsunset) + 10L
 }
 
 private Long getNextSunriseTime(Map rtD){
@@ -8880,7 +8888,7 @@ Long getSkew(Long t4, String ttyp){
 		Integer t5=(Integer)Math.round(t3*(365.0D/12.0D)+day) // days into period
 		addr=Math.round((t5>37 && t5<(182-37) ? t2*2.8D:t2*1.9D)*1000.0D)
 	}
-	return (Long)(t4+addr.toLong())
+	return addr.toLong()
 }
 
 private Long getMidnightTime(){
