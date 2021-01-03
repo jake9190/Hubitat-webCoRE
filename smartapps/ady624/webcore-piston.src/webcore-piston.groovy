@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 1, 2021 for Hubitat
+ * Last update January 3, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -8853,12 +8853,14 @@ private void initSunriseAndSunset(Map rtD){
 
 private Long getSunriseTime(Map rtD){
 	initSunriseAndSunset(rtD)
-	return Math.max((Long)rtD.sunTimes.sunrise, (Long)rtD.sunTimes.calcsunrise) + 10L
+	//return Math.max((Long)rtD.sunTimes.sunrise, (Long)rtD.sunTimes.calcsunrise) + 10L
+	return (Long)rtD.sunTimes.sunrise
 }
 
 private Long getSunsetTime(Map rtD){
 	initSunriseAndSunset(rtD)
-	return Math.max((Long)rtD.sunTimes.sunset, (Long)rtD.sunTimes.calcsunset) + 10L
+	//return Math.max((Long)rtD.sunTimes.sunset, (Long)rtD.sunTimes.calcsunset) + 10L
+	return (Long)rtD.sunTimes.sunset
 }
 
 private Long getNextSunriseTime(Map rtD){
