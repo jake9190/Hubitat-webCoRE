@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 3, 2021 for Hubitat
+ * Last update January 11, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -947,7 +947,7 @@ Map pausePiston(){
 	state.nextSchedule=0L
 	unsubscribe()
 	unschedule()
-	state.trace=[:]
+//	state.trace=[:]
 	state.subscriptions=[:]
 	if((Integer)rtD.logging>0)info msg, rtD
 	updateLogs(rtD)
@@ -8410,7 +8410,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 	if("$dateOrTimeOrString".isNumber()){
 		Long tt=dateOrTimeOrString.toLong()
 		if(tt<86400000L){
-			result=getTimeToday(dateOrTimeOrString)
+			result=getTimeToday(tt)
 			return result
 		}else{
 // deal with a time in sec (vs. ms)
