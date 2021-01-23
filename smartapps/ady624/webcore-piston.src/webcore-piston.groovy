@@ -22,7 +22,7 @@
 */
 
 static String version(){ return 'v0.3.110.20191009' }
-static String HEversion(){ return 'v0.3.110.20201015_HE' }
+static String HEversion(){ return 'v0.3.110.20210122_HE' }
 
 /** webCoRE DEFINITION					**/
 

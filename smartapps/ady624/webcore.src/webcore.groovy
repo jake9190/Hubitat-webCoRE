@@ -18,14 +18,15 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated December 8,2020 for Hubitat
+ * Last Updated January 22,2021 for Hubitat
 */
-static String version(){ return "v0.3.110.20191009" }
-static String HEversion(){ return "v0.3.110.20201015_HE" }
 
-/******************************************************************************/
-/*** webCoRE DEFINITION														***/
-/******************************************************************************/
+static String version(){ return "v0.3.110.20191009" }
+static String HEversion(){ return "v0.3.110.20210122_HE" }
+
+
+/*** webCoRE DEFINITION	***/
+
 private static String handle(){ return "webCoRE" }
 private static String domain(){ return "webcore.co" }
 
@@ -134,23 +135,23 @@ def pageMain(){
 
 		if((Boolean)settings.agreement){
 			section("Engine block"){
-				href "pageEngineBlock", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE.png", inputTitleStr("Cast iron")), description: app.version()+" HE: "+ app.HEversion(), required: false
+				href "pageEngineBlock", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE.png", inputTitleStr("Cast iron")), description: app.version()+" HE: "+ app.HEversion(), required: false, state: "complete"
 			}
 		}
 
 		section("Dashboard"){
 			String mPng="https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/dashboard.png"
 			if(!(String)state.endpoint){
-				href "pageInitializeDashboard", title: imgTitle(mPng, inputTitleStr("Dashboard")), description: "Tap to initialize", required: false
+				href "pageInitializeDashboard", title: imgTitle(mPng, inputTitleStr("Dashboard")), description: "Tap to initialize", required: false, state: "complete"
 			}else{
 				//trace "*** DO NOT SHARE THIS LINK WITH ANYONE *** Dashboard URL: ${getDashboardInitUrl()}"
 				href "", title: imgTitle(mPng, inputTitleStr("Dashboard")), style: "external", url: getDashboardInitUrl(), description: "Tap to open", required: false
-				href "", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/browser-reg.png", inputTitleStr("Register a browser")), style: "embedded", url: getDashboardInitUrl(true), description: "Tap to open", required: false
+				href "", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/browser-reg.png", inputTitleStr("Register a browser")), style: "external", url: getDashboardInitUrl(true), description: "Tap to open", required: false
 			}
 		}
 
 		section(title:"Settings"){
-			href "pageSettings", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/settings.png", inputTitleStr("Settings")), required: false
+			href "pageSettings", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/settings.png", inputTitleStr("Settings")), required: false, state: "complete"
 		}
 
 	}
@@ -200,7 +201,7 @@ private pageSectionDisclaimer(){
 }
 
 private pageDisclaimer(){
-	dynamicPage(name: "pageDisclaimer", title: ""){
+	dynamicPage(name: "pageDisclaimer"){
 		pageSectionDisclaimer()
 	}
 }
@@ -234,7 +235,7 @@ private pageInitializeDashboard(){
 	//webCoRE Dashboard initialization
 	Boolean success=initializeWebCoREEndpoint()
 	Boolean hasTZ=location.getTimeZone() != null
-	dynamicPage(name: "pageInitializeDashboard", title: "", nextPage: success && hasTZ ? "pageSelectDevices" : null){
+	dynamicPage(name: "pageInitializeDashboard", nextPage: success && hasTZ ? "pageSelectDevices" : sNULL){
 		if(!(Boolean)state.installed){
 			if(success){
 				if(hasTZ){
@@ -243,7 +244,7 @@ private pageInitializeDashboard(){
 					}
 					section(){
 						paragraph "Now, please choose a name for this webCoRE instance"
-							label name: "name", title: "Name", state: (name ? "complete" : null), defaultValue: app.name, required: false
+							label name: "name", title: "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, required: false
 					}
 
 					pageSectionDisclaimer()
@@ -286,7 +287,7 @@ private pageEngineBlock(){
 
 
 private pageSelectDevices(){
-	dynamicPage(name: "pageSelectDevices", title: "", nextPage: "pageFinishInstall"){
+	dynamicPage(name: "pageSelectDevices", nextPage: "pageFinishInstall"){
 		section(){
 			paragraph "${(Boolean)state.installed ? "Select the devices you want webCoRE to have access to." : "Great, now let's select some devices."}"
 			paragraph "A DEVICE ONLY NEEDS TO BE SELECTED ONCE, THE CATEGORIES BELOW ARE TO MAKE THEM EASIER TO FIND."
@@ -323,7 +324,7 @@ private pageFinishInstall(){
 	Boolean inst=(Boolean)state.installed
 	if(!inst) initTokens()
 	refreshDevices()
-	dynamicPage(name: "pageFinishInstall", title: "", install: true){
+	dynamicPage(name: "pageFinishInstall", /* nextPage: (inst ? "pageSettings" : ""),*/ install: true){
 		if(!inst){
 			section(){
 				paragraph "Excellent! You are now ready to use webCoRE"
@@ -346,9 +347,9 @@ private pageFinishInstall(){
 
 def pageSettings(){
 	//clear devices cache
-	dynamicPage(name: "pageSettings", title: "", install: false, uninstall: false){
+	dynamicPage(name: "pageSettings", install: false, uninstall: false){
 		section("General"){
-			label name: "name", title: "Name", state: (name ? "complete" : null), defaultValue: app.name, required: false
+			label name: "name", title: "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, required: false
 		}
 
 /*
@@ -359,7 +360,7 @@ def pageSettings(){
 			}
 		}else{*/
 			section("Available devices"){
-				href "pageSelectDevices", title: "Available devices", description: "Tap to select which devices are available to pistons"
+				href "pageSelectDevices", title: "Available devices", description: "Tap to select which devices are available to pistons", state: "complete"
 			}
 		//}
 
@@ -402,7 +403,7 @@ def pageSettings(){
 		section(sectionTitleStr("Fuel Streams")){
 			input "localFuelStreams", "bool", title: "Use local fuel streams?", defaultValue: (settings.localFuelStreams != null) ? (Boolean)settings.localFuelStreams : true , submitOnChange: true
 			if((Boolean)settings.localFuelStreams){
-				href "pageFuelStreams", title: "Fuel Streams", description: "Tap to manage fuel streams"		
+				href "pageFuelStreams", title: "Fuel Streams", description: "Tap to manage fuel streams", state: "complete"
 			}
 		}
 	
@@ -411,7 +412,7 @@ def pageSettings(){
 		}*/
 
 		section(sectionTitleStr("Security")){
-			href "pageChangePassword", title: "Security", description: "Tap to change your dashboard security settings"
+			href "pageChangePassword", title: "Security", description: "Tap to change your dashboard security settings", state: "complete"
 		}
 
 		section(sectionTitleStr("Custom Endpoints - Advanced")){
@@ -438,7 +439,7 @@ def pageSettings(){
 		}
 
 		section(title:"Privacy"){
-			href "pageDisclaimer", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/settings.png", inputTitleStr("Data Collection Notice")), required: false
+			href "pageDisclaimer", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/settings.png", inputTitleStr("Data Collection Notice")), required: false, state: "complete"
 		}
 
 		section(title: "Maintenance"){
@@ -446,7 +447,7 @@ def pageSettings(){
 			input "disabled", "bool", title: "Disable all pistons", description: "Disable all pistons belonging to this instance", defaultValue: false, required: false
 			input "logPistonExecutions", "bool", title: "Log piston executions?", description: "Tap to change logging pistons as hub location events", defaultValue: false, required: false
 			input "enableDashNotifications", "bool", title: "Enable Dashboard Notifications for device state changes?", description: "Tap to change enable dashboard notifications of device state changes (more overhead)", defaultValue: false, required: false
-			href "pageRebuildCache", title: "Clean up and rebuild data cache", description: "Tap to change your clean up and rebuild your data cache"
+			href "pageRebuildCache", title: "Clean up and rebuild data cache", description: "Tap to change your clean up and rebuild your data cache", state: "complete"
 		}
 
 		section(title: "Recovery"){
@@ -456,10 +457,10 @@ def pageSettings(){
 
 		if((Boolean)getLogging().debug || eric()){
 			section("Child Log Cleanups"){
-				href "pageLogCleanups", title: "Clear Logs, trace, stats & caches", description: "Tap to clear"
+				href "pageLogCleanups", title: "Clear Logs, trace, stats & caches", description: "Tap to clear", state: "complete"
 			}
 			section("Child Cleanups"){
-				href "pageCleanups", title: "Clear piston caches", description: "Tap to clear"
+				href "pageCleanups", title: "Clear piston caches", description: "Tap to clear", state: "complete"
 			}
 		}
 
@@ -470,7 +471,7 @@ def pageSettings(){
 }
 
 private pageFuelStreams(){
-	dynamicPage(name: "pageFuelStreams", title: "", uninstall: false, install: false){
+	dynamicPage(name: "pageFuelStreams", uninstall: false, install: false){
 		section(){
 			app([title: isHubitat() ? 'Do not click - List of streams below that launches automatically' : 'Fuel Streams', multiple: true, install: true, uninstall: false], 'fuelStreams', 'ady624', "${handle()} Fuel Stream")
 		}
@@ -478,7 +479,7 @@ private pageFuelStreams(){
 }
 
 private pageChangePassword(){
-	dynamicPage(name: "pageChangePassword", title: "", uninstall: false, install: false){
+	dynamicPage(name: "pageChangePassword", uninstall: false, install: false){
 		section(title: "Location SID"){
 			input "properSID", "bool", title: "Use New SID for location?", description: "Tap to change", defaultValue: true, required: false
 		}
@@ -487,13 +488,13 @@ private pageChangePassword(){
 		}
 		pageSectionPIN()
 		section(){
-			href "pageSavePassword", title: "Clear all Security Tokens", description: "Tap to clear all security tokens in use by browsers"
+			href "pageSavePassword", title: "Clear all Security Tokens", description: "Tap to clear all security tokens in use by browsers", state: "complete"
 		}
 		if(settings.PIN){
 			section(){
 				paragraph "The webCoRE dashboard uses an access token to communicate with the webCoRE app on your Hubitat Hub. In some cases you may choose to invalidate it periodically for increased security.", required: false
 				paragraph "If your dashboard fails to load and no log messages appear in Hubitat console 'Logs' when you refresh the dashboard, resetting the access token may restore access to webCoRE.", required: false
-				href "pageResetEndpoint", title: "Reset access token", description: "WARNING: External URLs for triggering pistons or accessing piston URLs will need to be updated"
+				href "pageResetEndpoint", title: "Reset access token", description: "WARNING: URLs for triggering pistons or accessing piston URLs will need to be updated", state: "complete"
 			}
 		}
 	}
@@ -508,7 +509,7 @@ private pageSectionPIN(){
 
 private pageSavePassword(){
 	initTokens()
-	dynamicPage(name: "pageSavePassword", install: false, uninstall: false, title: ""){
+	dynamicPage(name: "pageSavePassword", install: false, uninstall: false ){
 		section(){
 			paragraph "Tokens have been Cleared. You will have to re-login to the webCoRE dashboards."
 		}
@@ -517,7 +518,7 @@ private pageSavePassword(){
 
 def pageRebuildCache(){
 	cleanUp()
-	dynamicPage(name: "pageRebuildCache", title: "", install: false, uninstall: false){
+	dynamicPage(name: "pageRebuildCache", install: false, uninstall: false){
 		section(){
 			paragraph "Success! Data cache has been cleaned up and rebuilt."
 		}
@@ -532,7 +533,7 @@ def pageResetEndpoint(){
 	Boolean success=initializeWebCoREEndpoint()
 	clearParentPistonCache("reset endpoint")
 	updated()
-	dynamicPage(name: "pageResetEndpoint", title: "", install: false, uninstall: false){
+	dynamicPage(name: "pageResetEndpoint", install: false, uninstall: false){
 		section(){
 			paragraph "Success: $success Please sign out and back in to the webCoRE dashboard."
 			paragraph "If you use external URLs to trigger pistons, these URLs must be updated. See the piston detail page for an updated external URL; all pistons will use the same new token."
@@ -542,7 +543,7 @@ def pageResetEndpoint(){
 
 def pageCleanups(){
 	clearChldCaches(true)
-	return dynamicPage(name:'pageCleanups', title:'', install: false, uninstall:false){
+	return dynamicPage(name:'pageCleanups', install: false, uninstall:false){
 		section('Clear'){
 			paragraph 'Optimization caches have been cleared.'
 		}
@@ -551,7 +552,7 @@ def pageCleanups(){
 
 def pageLogCleanups(){
 	clearChldCaches(true,true)
-	return dynamicPage(name:'pageLogCleanups', title:'', install: false, uninstall:false){
+	return dynamicPage(name:'pageLogCleanups', install: false, uninstall:false){
 		section('Clear'){
 			paragraph 'Logs been cleared.'
 		}
@@ -651,7 +652,7 @@ private void clearGlobalPistonCache(String meth=null){
 	if(t1!=null) t1.clearGlobalCache(meth) // will cause a child to read global Vars
 }
 
-private void clearParentPistonCache(String meth=null, Boolean frcResub=false, Boolean callAll=false){
+private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, Boolean callAll=false){
 	theHashMapFLD=[:]
 	pStateFLD=[:]
 	mb()
@@ -3635,6 +3636,7 @@ static Map getChildComparisons(){
 		remains_odd			: [ d: "remains odd",			dd: "remain odd",				g:"di",							],
 		stays_unchanged			: [ d: "stays unchanged",		dd: "stay unchanged",				g:"bdfis",				t: 1,	],
 		stays				: [ d: "stays",				dd: "stay",					g:"bdis",	p: 1,			t: 1,	],
+		stays_not			: [ d: "stays not",			dd: "stay not",					g:"bdis",	p: 1,			t: 1,	],
 		stays_away_from			: [ d: "stays away from",		dd: "stay away from",				g:"bdis",	p: 1,			t: 1,	],
 		stays_any_of			: [ d: "stays any of",			dd: "stay any of",				g:"dis",	p: 1,	m: true,	t: 1,	],
 		stays_away_from_any_of		: [ d: "stays away from any of",	dd: "stay away from any of",			g:"bdis",	p: 1,	m: true,	t: 1,	],
