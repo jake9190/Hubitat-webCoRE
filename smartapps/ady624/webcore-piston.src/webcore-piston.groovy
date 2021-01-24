@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 11, 2021 for Hubitat
+ * Last update January 23, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
-static String HEversion(){ return 'v0.3.110.20210122_HE' }
+static String HEversion(){ return 'v0.3.110.20210123_HE' }
 
 /** webCoRE DEFINITION					**/
 
@@ -243,12 +243,12 @@ def pageMain(){
 			}
 		}else{
 			section(sectionTitleStr('General')){
-				label name:'name', title:'Name', required:true, state:(name ? 'complete':(String)null), defaultValue:(String)parent.generatePistonName(), submitOnChange:true
+				label name:'name', title:'Name', required:true, state:(name ? 'complete':sNULL), defaultValue:(String)parent.generatePistonName(), submitOnChange:true
 			}
 
 			section(sectionTitleStr('Dashboard')){
 				String dashboardUrl=(String)parent.getDashboardUrl()
-				if(dashboardUrl!=(String)null){
+				if(dashboardUrl!=sNULL){
 					dashboardUrl=dashboardUrl+'piston/'+hashId(app.id)
 					href '', title:imgTitle('https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/dashboard.png', inputTitleStr('View piston in dashboard')), style:'external', url:dashboardUrl, required:false
 				}else paragraph 'Sorry your webCoRE dashboard does not seem to be enabled; please go to the parent app and enable the dashboard if needed.'
@@ -528,6 +528,7 @@ void uninstalled(){
 }
 
 void initialize(){
+	svSunTFLD = null
 	String tt1=(String)settings.logging
 	Integer tt2=(Integer)state.logging
 	String tt3=tt2.toString()
@@ -2120,7 +2121,7 @@ private void finalizeEvent(Map rtD, Map initialMsg, Boolean success=true){
 	rtD.trace.d=Math.round(1.0D*now()-(Long)rtD.trace.t)
 
 	//flush the new cache value
-	for(item in (Map)rtD.newCache)rtD.cache[(String)item.key]=item.value
+	for(item in (Map)rtD.newCache) ((Map)rtD.cache)[(String)item.key]=item.value
 
 	//overwrite state, might have changed meanwhile
 	Map t0=getCachedMaps()
@@ -2559,7 +2560,7 @@ private Boolean executeStatement(Map rtD, Map statement, Boolean async=false){
 				String sidx='f:'+statementNum.toString()
 				if( (startValue<=endValue && stepValue>0.0D) || (startValue>=endValue && stepValue<0.0D) || (Integer)rtD.ffTo!=0){
 					//initialize the for loop
-					if((Integer)rtD.ffTo!=0)index=(Double)cast(rtD, rtD.cache[sidx], sDCML)
+					if((Integer)rtD.ffTo!=0)index=(Double)cast(rtD, ((Map)rtD.cache)[sidx], sDCML)
 					if(index==null){
 						index=(Double)cast(rtD, startValue, sDCML)
 						//index=startValue
@@ -3240,7 +3241,7 @@ private void scheduleTimeCondition(Map rtD, Map condition){
 	if((Boolean)rtD.eric) myDetail rtD, "scheduleTimeCondition", -1
 }
 
-private Long checkTimeRestrictions(Map rtD, Map operand, Long time, Integer level, Integer interval){
+private static Long checkTimeRestrictions(Map rtD, Map operand, Long time, Integer level, Integer interval){
 	//returns 0 if restrictions are passed
 	//returns a positive number as millisecond offset to apply to nextSchedule for fast forwarding
 	//returns a negative number as a failed restriction with no fast forwarding offset suggestion
@@ -4496,9 +4497,9 @@ private Boolean evaluateConditions(Map rtD, Map conditions, String collection, B
 		if((Integer)rtD.ffTo==0 || (Integer)rtD.ffTo==myC){
 			//we're dealing with a followed by condition
 			String sidx='c:fbi:'+myC.toString()
-			Integer ladderIndex=(Integer)cast(rtD, rtD.cache[sidx], sINT)
+			Integer ladderIndex=(Integer)cast(rtD, ((Map)rtD.cache)[sidx], sINT)
 			String sldt='c:fbt:'+myC.toString()
-			Long ladderUpdated=(Long)cast(rtD, rtD.cache[sldt], sDTIME)
+			Long ladderUpdated=(Long)cast(rtD, ((Map)rtD.cache)[sldt], sDTIME)
 			Integer steps=conditions[collection] ? (Integer)conditions[collection].size():0
 			if(ladderIndex>=steps){
 				value=false
@@ -4576,7 +4577,7 @@ private Boolean evaluateConditions(Map rtD, Map conditions, String collection, B
 	if(value!=null && myC!=0){
 		String mC="c:${myC}".toString()
 		if((Integer)rtD.ffTo==0)tracePoint(rtD, mC, Math.round(1.0D*now()-t), result)
-		Boolean oldResult=!!(Boolean)rtD.cache[mC]
+		Boolean oldResult=!!(Boolean)((Map)rtD.cache)[mC]
 		rtD.conditionStateChanged=(oldResult!=result)
 		if((Boolean)rtD.conditionStateChanged){
 			//condition change, perform Task Cancellation Policy TCP
@@ -4764,7 +4765,7 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 	rtD.stack.c=conditionNum
 	String sIndx="c:${conditionNum}".toString()
 	Boolean not=false
-	Boolean oldResult=!!(Boolean)rtD.cache[sIndx]
+	Boolean oldResult=!!(Boolean)((Map)rtD.cache)[sIndx]
 	Boolean result=false
 	if((String)condition.t==sGROUP){
 		Boolean tt1=evaluateConditions(rtD, condition, collection, async)
@@ -4777,6 +4778,7 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 		if(!trigger)comparison=Comparisons().conditions[(String)condition.co]
 		rtD.wakingUp=(String)rtD.event.name==sTIME && rtD.event.schedule!=null && (Integer)rtD.event.schedule.s==conditionNum
 		if((Integer)rtD.ffTo!=0 || comparison!=null){
+			Boolean isStays = ((String)condition.co).startsWith('stays')
 			if((Integer)rtD.ffTo==0 || ((Integer)rtD.ffTo==-9 /*initial run*/)){
 				Integer paramCount=comparison.p!=null ? (Integer)comparison.p:0
 				Map lo=null
@@ -4810,18 +4812,19 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 				Map to=(comparison.t!=null || (ro!=null && (String)lo.operand.t==sV && (String)lo.operand.v==sTIME && (String)ro.operand.t!=sC)) && condition.to!=null ? [operand: (Map)condition.to, values: (Map)evaluateOperand(rtD, null, (Map)condition.to)]:null
 				Map to2=ro2!=null && (String)lo.operand.t==sV && (String)lo.operand.v==sTIME && (String)ro2.operand.t!=sC && condition.to2!=null ? [operand: (Map)condition.to2, values: (Map)evaluateOperand(rtD, null, (Map)condition.to2)]:null
 				result=evaluateComparison(rtD, (String)condition.co, lo, ro, ro2, to, to2, options)
+
 				//save new values to cache
 				if(lo)for(Map value in (List<Map>)lo.values)updateCache(rtD, value)
 				if(ro)for(Map value in (List<Map>)ro.values)updateCache(rtD, value)
 				if(ro2)for(Map value in (List<Map>)ro2.values)updateCache(rtD, value)
-				if((Integer)rtD.ffTo==0)tracePoint(rtD, sIndx, Math.round(1.0D*now()-t), result)
 				if(lo.operand.dm!=null && options.devices!=null)def m=setVariable(rtD, (String)lo.operand.dm, options.devices.matched!=null ? (List)options.devices.matched:[])
 				if(lo.operand.dn!=null && options.devices!=null)def n=setVariable(rtD, (String)lo.operand.dn, options.devices.unmatched!=null ? (List)options.devices.unmatched:[])
-				//do the stay logic here
+
+				//do the stays logic here
 				if(t_and_compt && (Integer)rtD.ffTo==0){
 					//timed trigger
 					if(to!=null){
-						def tvalue=to.operand && to.values ? (Map)to.values+[f: to.operand.f]:null
+						Map tvalue=(Map)to.operand && (Map)to.values ? (Map)to.values+[f: to.operand.f]:null
 						if(tvalue!=null){
 							Long delay=(Long)evaluateExpression(rtD, [t:sDURATION, v:tvalue.v, vt:(String)tvalue.vt], sLONG).v
 							if((String)lo.operand.t==sP && (String)lo.operand.g==sANY && (Integer)lo.values.size()>1){
@@ -4832,7 +4835,9 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 								else schedules=(Boolean)rtD.pep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
 								for(value in (List)lo.values){
 									String dev=(String)value.v?.d
-									if(dev in (List)options.devices.matched){
+									List<String> chkList = (List)options.devices.matched
+									//if(!isStays) chkList = (List)options.devices.unmatched
+									if(dev in chkList){
 										//schedule one device schedule
 										if(!schedules.find{ (Integer)it.s==conditionNum && (String)it.d==dev }){
 											//schedule a wake up if there's none, otherwise just move on
@@ -4846,9 +4851,8 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 									}
 								}
 							}else{
-								if(result){
-								//if we find the comparison true, set a timer if we haven't already
-
+								if( (isStays && result ) /* || (!isStays && !result) */ ){
+								//if we find the comparison true (ie reason to time stays has begun), set a timer if we haven't already
 									List<Map> schedules
 									Map t0=getCachedMaps()
 									if(t0!=null)schedules=[]+(List<Map>)t0.schedules
@@ -4862,19 +4866,20 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 									cancelStatementSchedules(rtD, conditionNum)
 								}
 							}
-						}
-					}
-					result=false
+						} else { log.error "expecting time for stay and value not found $to  $tvalue" }  //; result=false }
+					} else { log.error "expecting time for stay and operand not found $to" } //;  result=false }
+					if(isStays)result=false
 				}
 				result=not ? !result:result
-			}else if((String)rtD.event.name==sTIME && (Integer)rtD.ffTo==conditionNum){
+			}else if((String)rtD.event.name==sTIME && (Integer)rtD.ffTo==conditionNum){ // we are ffwding - stays timer fired, pickup at if statement
 				rtD.ffTo=0
 				rtD.resumed=true
-				result=!not
-			}else{
+				if(isStays) result=!not
+			}else{ // continue ffwding
 				result=oldResult
 			}
 		}
+		if((Integer)rtD.ffTo==0)tracePoint(rtD, sIndx, Math.round(1.0D*now()-t), result)
 	}
 	rtD.wakingUp=false
 	rtD.conditionStateChanged=oldResult!=result
@@ -4882,7 +4887,7 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 		//condition change, perform Task Cancellation Policy TCP
 		cancelConditionSchedules(rtD, conditionNum)
 	}
-	rtD.cache[sIndx]=result
+	((Map)rtD.cache)[sIndx]=result
 	//true/false actions
 	if((result || (Integer)rtD.ffTo!=0) && condition.ts!=null && ((List)condition.ts).length!=0)Boolean a=executeStatements(rtD, (List)condition.ts, async)
 	if((!result || (Integer)rtD.ffTo!=0) && condition.fs!=null && ((List)condition.fs).length!=0)Boolean a=executeStatements(rtD, (List)condition.fs, async)
@@ -4908,11 +4913,11 @@ private Boolean evaluateCondition(Map rtD, Map condition, String collection, Boo
 private void updateCache(Map rtD, Map value){
 	Map oldValue=(Map)((Map)rtD.cache)[(String)value.i]
 	if(oldValue==null || ((String)oldValue.t!=(String)value.v.t) || (oldValue.v!=value.v.v)){
-		rtD.newCache[(String)value.i]=(Map)value.v+[s: now()]
+		((Map)rtD.newCache)[(String)value.i]=(Map)value.v+[s: now()]
 	}
 }
 
-private Boolean evaluateComparison(Map rtD, String comparison, Map lo, Map ro=null, Map ro2=null, Map to=null, Map to2=null, options=[:]){
+private Boolean evaluateComparison(Map rtD, String comparison, Map lo, Map ro=null, Map ro2=null, Map to=null, Map to2=null, Map options=[:]){
 	String mySt
 	if((Boolean)rtD.eric){
 		mySt="evaluateComparison $comparison"
@@ -4920,7 +4925,7 @@ private Boolean evaluateComparison(Map rtD, String comparison, Map lo, Map ro=nu
 	}
 	String fn="comp_"+comparison
 	Boolean result= (String)lo.operand.g!=sANY
-	if((Boolean)options?.matches){
+	if((Boolean)options.matches){
 		options.devices=[matched: [], unmatched: []]
 	}
 	//if multiple left values, go through each
@@ -4995,18 +5000,18 @@ private Boolean evaluateComparison(Map rtD, String comparison, Map lo, Map ro=nu
 			}
 		}
 		result= (String)lo.operand.g==sANY ? result||res : result&&res
-		if((Boolean)options?.matches && (String)value.v.d){
+		if((Boolean)options.matches && (String)value.v.d){
 			if(res){
 				Boolean a=((List)options.devices.matched).push((String)value.v.d)
 			}else{
 				Boolean a=((List)options.devices.unmatched).push((String)value.v.d)
 			}
 		}
-		if((String)lo.operand.g==sANY && res && !((Boolean)options?.matches)){
+		if((String)lo.operand.g==sANY && res && !((Boolean)options.matches)){
 			//logical OR if we're using the ANY keyword
 			break
 		}
-		if((String)lo.operand.g==sALL && !result && !((Boolean)options?.matches)){
+		if((String)lo.operand.g==sALL && !result && !((Boolean)options.matches)){
 			//logical AND if we're using the ALL keyword
 			break
 		}
@@ -5045,7 +5050,7 @@ private static Boolean matchDeviceInteraction(String option, Map rtD){
 	return !((option==sP && !isPhysical) || (option==sS && isPhysical))
 }
 
-private List listPreviousStates(device, String attribute, Long threshold, Boolean excludeLast){
+private List<Map> listPreviousStates(device, String attribute, Long threshold, Boolean excludeLast){
 	List result=[]
 	List events=device.events([all: true, max: 100]).findAll{(String)it.name==attribute}
 	//if we got any events, let's go through them
@@ -5056,7 +5061,7 @@ private List listPreviousStates(device, String attribute, Long threshold, Boolea
 		for(Integer i=0; i<(Integer)events.size(); i++){
 			Long startTime=(Long)((Date)events[i].date).getTime()
 			Long duration=endTime-startTime
-			if(duration>=1000L && (i>0 || !excludeLast)){
+			if(duration>=1L && (i>0 || !excludeLast)){
 				Boolean a=result.push([value: events[i].value, startTime: startTime, duration: duration])
 			}
 			if(startTime<thresholdTime)
@@ -5074,9 +5079,9 @@ private List listPreviousStates(device, String attribute, Long threshold, Boolea
 }
 
 private static Map valueCacheChanged(Map rtD, Map comparisonValue){
-	Map oldValue=(Map)rtD.cache[(String)comparisonValue.i]
-	def newValue=comparisonValue.v
-	if(!(oldValue instanceof Map))oldValue=null
+	def oV=((Map)rtD.cache)[(String)comparisonValue.i]
+	Map newValue=(Map)comparisonValue.v
+	Map oldValue = oV instanceof Map ? oV : null
 	return (oldValue!=null && ((String)oldValue.t!=(String)newValue.t || "${oldValue.v}"!="${newValue.v}")) ? [i: (String)comparisonValue.i, v: oldValue] : null
 }
 
@@ -5089,12 +5094,17 @@ private Boolean valueWas(Map rtD, Map comparisonValue, Map rightValue, Map right
 	String attribute=(String)comparisonValue.v.a
 	Long threshold=(Long)evaluateExpression(rtD, [t:sDURATION, v:timeValue.v, vt:(String)timeValue.vt], sLONG).v
 
-	List states=listPreviousStates(device, attribute, threshold, rtD.event.device?.id==device.id && (String)rtD.event.name==attribute)
+	Boolean thisEventWokeUs=(rtD.event.device?.id==device.id && (String)rtD.event.name==attribute)
+	List states=listPreviousStates(device, attribute, threshold, false) // thisEventWokeUs)
 	Boolean result=true
-	Long duration=0
-	for(stte in states){
-		if(!("comp_$func"(rtD, [i: (String)comparisonValue.i, v: [t: (String)comparisonValue.v.t, v: cast(rtD, stte.value, (String)comparisonValue.v.t)]], rightValue, rightValue2, timeValue)))break
-		duration += stte.duration
+	Long duration=0L
+	Integer i = 1
+	for(Map stte in states){
+		if(!(i==1 && thisEventWokeUs)){
+			if(!("comp_$func"(rtD, [i: (String)comparisonValue.i, v: [t: (String)comparisonValue.v.t, v: cast(rtD, stte.value, (String)comparisonValue.v.t)]], rightValue, rightValue2, timeValue)))break
+			duration += (Long)stte.duration
+		}
+		i+=1
 	}
 	if(duration==0L)return false
 	result=((String)timeValue.f=='l')? duration<threshold:duration>=threshold
@@ -5114,7 +5124,7 @@ private Boolean valueChanged(Map rtD, Map comparisonValue, Map timeValue){
 	List states=listPreviousStates(device, attribute, threshold, false)
 	if((Integer)states.size()==0)return false
 	def value=states[0].value
-	for(tstate in states){
+	for(Map tstate in states){
 		if(tstate.value!=value)return true
 	}
 	return false
@@ -5728,7 +5738,7 @@ private void subscribeAll(Map rtD, Boolean doit=true){
 		a=executeEvent(rtD, event)
 		processSchedules rtD, true
 	//save cache collected through dummy run
-		for(item in rtD.newCache)rtD.cache[(String)item.key]=item.value
+		for(item in (Map)rtD.newCache)((Map)rtD.cache)[(String)item.key]=item.value
 
 		String str='subAll'
 		Map t0=getCachedMaps(str)
@@ -8745,7 +8755,18 @@ private void info(message, Map rtD, Integer shift=-2, err=null){ Map a=log(messa
 private void trace(message, Map rtD, Integer shift=-2, err=null){ Map a=log(message, rtD, shift, err, 'trace')}
 private void debug(message, Map rtD, Integer shift=-2, err=null){ Map a=log(message, rtD, shift, err, 'debug')}
 private void warn(message, Map rtD, Integer shift=-2, err=null){ Map a=log(message, rtD, shift, err, 'warn')}
-private void error(message, Map rtD, Integer shift=-2, err=null){ Map a=log(message, rtD, shift, err, sERROR)}
+private void error(message, Map rtD, Integer shift=-2, err=null){
+	Map a=log(message, rtD, shift, err, sERROR)
+	String aa, bb
+	try{
+		if(err){
+			aa=getExceptionMessageWithLine(err)
+			bb=getStackTrace(err)
+		}
+	} catch (e) {}
+	if(aa || bb) log.error "webCoRE exception: "+aa +" \n"+bb
+}
+
 private Map timer(String message, Map rtD, Integer shift=-2, err=null){ log(message, rtD, shift, err, 'timer')}
 
 private void tracePoint(Map rtD, String objectId, Long duration, value){

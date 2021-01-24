@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated January 22,2021 for Hubitat
+ * Last Updated January 23, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.110.20191009" }
-static String HEversion(){ return "v0.3.110.20210122_HE" }
+static String HEversion(){ return "v0.3.110.20210123_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -66,7 +66,7 @@ preferences{
 	page(name: "pageRemove")
 }
 
-private static Boolean eric(){ return false}
+private static Boolean eric(){ return false }
 
 @Field static final String sNULL=(String)null
 @Field static final String sCOLON=':'
@@ -3635,21 +3635,21 @@ static Map getChildComparisons(){
 		becomes_odd			: [ d: "becomes odd",			dd: "become odd",				g:"di",							],
 		remains_odd			: [ d: "remains odd",			dd: "remain odd",				g:"di",							],
 		stays_unchanged			: [ d: "stays unchanged",		dd: "stay unchanged",				g:"bdfis",				t: 1,	],
-		stays				: [ d: "stays",				dd: "stay",					g:"bdis",	p: 1,			t: 1,	],
-		stays_not			: [ d: "stays not",			dd: "stay not",					g:"bdis",	p: 1,			t: 1,	],
-		stays_away_from			: [ d: "stays away from",		dd: "stay away from",				g:"bdis",	p: 1,			t: 1,	],
-		stays_any_of			: [ d: "stays any of",			dd: "stay any of",				g:"dis",	p: 1,	m: true,	t: 1,	],
-		stays_away_from_any_of		: [ d: "stays away from any of",	dd: "stay away from any of",			g:"bdis",	p: 1,	m: true,	t: 1,	],
-		stays_equal_to			: [ d: "stays equal to",		dd: "stay equal to",				g:"di",		p: 1,			t: 1,	],
-		stays_different_than		: [ d: "stays different than",		dd: "stay different than",			g:"di",		p: 1,			t: 1,	],
-		stays_less_than			: [ d: "stays less than",		dd: "stay less than",				g:"di",		p: 1,			t: 1,	],
-		stays_less_than_or_equal_to	: [ d: "stays less than or equal to",	dd: "stay less than or equal to",		g:"di",		p: 1,			t: 1,	],
-		stays_greater_than		: [ d: "stays greater than",		dd: "stay greater than",			g:"di",		p: 1,			t: 1,	],
-		stays_greater_than_or_equal_to	: [ d: "stays greater than or equal to",	dd: "stay greater than or equal to",	g:"di",		p: 1,			t: 1,	],
-		stays_inside_of_range		: [ d: "stays inside of range",		dd: "stay inside of range",			g:"di",		p: 2,			t: 1,	],
-		stays_outside_of_range		: [ d: "stays outside of range",	dd: "stay outside of range",			g:"di",		p: 2,			t: 1,	],
-		stays_even			: [ d: "stays even",			dd: "stay even",				g:"di",					t: 1,	],
-		stays_odd			: [ d: "stays odd",			dd: "stay odd",					g:"di",					t: 1,	],
+		stays				: [ d: "is now and stays",		dd: "are now and stay",				g:"bdis",	p: 1,			t: 1,	],
+		stays_not			: [ d: "is not and stays not",		dd: "are not and stay not",			g:"bdis",	p: 1,			t: 1,	],
+		stays_away_from			: [ d: "is away and stays away from",		dd: "are away and stay away from",	g:"bdis",	p: 1,			t: 1,	],
+		stays_any_of			: [ d: "is any and stays any of",		dd: "are any and stay any of",				g:"dis",	p: 1,	m: true,	t: 1,	],
+		stays_away_from_any_of		: [ d: "is away and stays away from any of",	dd: "are away and stay away from any of",		g:"bdis",	p: 1,	m: true,	t: 1,	],
+		stays_equal_to			: [ d: "is equal to and stays equal to",	dd: "are equal or stay equal to",			g:"di",		p: 1,			t: 1,	],
+		stays_different_than		: [ d: "is different and stays different than",	dd: "are different and stay different than",		g:"di",		p: 1,			t: 1,	],
+		stays_less_than			: [ d: "is less and stays less than",		dd: "are less and stay less than",			g:"di",		p: 1,			t: 1,	],
+		stays_less_than_or_equal_to	: [ d: "is less or equal and stays less than or equal to",	dd: "are less or equal and stay less than or equal to",		g:"di",		p: 1,			t: 1,	],
+		stays_greater_than		: [ d: "is greater and stays greater than",	dd: "are greater and stay greater than",		g:"di",		p: 1,			t: 1,	],
+		stays_greater_than_or_equal_to	: [ d: "is greater or equal and stays greater than or equal to",	dd: "are greater or equal stay greater than or equal to",	g:"di",		p: 1,			t: 1,	],
+		stays_inside_of_range		: [ d: "is inside and stays inside of range",	dd: "are inside and stay inside of range",		g:"di",		p: 2,			t: 1,	],
+		stays_outside_of_range		: [ d: "is outside and stays outside of range",	dd: "stay outside of range",		g:"di",		p: 2,			t: 1,	],
+		stays_even			: [ d: "is even and stays even",		dd: "are even and stay even",		g:"di",					t: 1,	],
+		stays_odd			: [ d: "is odd and stays odd",			dd: "are odd and stay odd",		g:"di",					t: 1,	],
 	]
 ]
 
