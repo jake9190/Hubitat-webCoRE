@@ -4958,7 +4958,7 @@ private Boolean evaluateComparison(Map rtD, String comparison, Map lo, Map ro=nu
 						if(res && (Integer)rtD.logging>2) msg.m="Comparison (string) ${compS} $comparison = $res"
 					}else{
 						res=(Boolean)"$fn"(rtD, value, null, null, tvalue, tvalue2)
-						msg.m="Comparison (${value?.v?.t}) ${value?.v?.v} $comparison = $res"
+						if((Integer)rtD.logging>2)msg.m="Comparison (${value?.v?.t}) ${value?.v?.v} $comparison = $res"
 					}
 					if((Integer)rtD.logging>2) debug msg, rtD
 				}else{
