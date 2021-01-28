@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 23, 2021 for Hubitat
+ * Last update January 28, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -1922,7 +1922,7 @@ void handleEvents(event, Boolean queue=true, Boolean callMySelf=false){
 		theEvent.date=new Date((Long)theEvent.t)
 		handleEvents(theEvent, false, true)
 	}
-	if((Integer)rtD.logging>2) log.debug msgt 
+	if((Integer)rtD.logging>2) log.debug msgt
 	if((Boolean)rtD.updateDevices) clearMyCache('updateDeviceList')
 	data=rtD.collect{ it.key }
 	for(item in data)rtD.remove((String)item)
@@ -4641,13 +4641,16 @@ private evaluateOperand(Map rtD, Map node, Map operand, index=null, Boolean trig
 		String nodeV="${node?.$}:v".toString()
 		switch ((String)operand.v){
 		case 'mode':
+		case 'hsmStatus':
 		case 'alarmSystemStatus':
 			values=[[i:nodeV, v:getDeviceAttribute(rtD, (String)rtD.locationId, (String)operand.v)]]
 			break
+		case 'hsmAlert':
 		case 'alarmSystemAlert':
 			String valStr=evntVal+(rEN=='hsmAlert' && evntVal=='rule' ? ", ${(String)rtD.event.descriptionText}".toString():sBLK)
 			values=[[i:nodeV, v:[t:sSTR, v:(rEN=='hsmAlert' ? valStr:sNULL)]]]
 			break
+		case "hsmSetArm":
 		case 'alarmSystemEvent':
 			values=[[i:nodeV, v:[t:sSTR, v:(rEN=='hsmSetArm' ? evntVal:sNULL)]]]
 			break
@@ -4941,12 +4944,23 @@ private Boolean evaluateComparison(Map rtD, String comparison, Map lo, Map ro=nu
 				if(!ro){
 					Map msg
 					if((Integer)rtD.logging>2)msg=timer sBLK, rtD
-					if(comparison=='event_occurs' && (String)lo.operand.t==sV && (String)rtD.event.name==(String)lo.operand.v)res=true
-					else res=(Boolean)"$fn"(rtD, value, null, null, tvalue, tvalue2)
-					if((Integer)rtD.logging>2){
+					if(comparison=='event_occurs'){
+						String compS = (String)lo.operand.v
+						if(compS == 'alarmSystemStatus') compS = 'hsmStatus'
+						if(compS == 'alarmSystemAlert') compS = 'hsmAlert'
+						if(compS == 'alarmSystemEvent') compS = 'hsmSetArm'
+						if((String)lo.operand.t == sV && (String)rtD.event.name==compS){
+							res=true
+						} else if((String)value.v.d == hashId(rtD.event.device?.id) && (String)value.v.a == (String)rtD.event.name){
+							res=true
+							compS = (String)value.v.a
+						}
+						if(res && (Integer)rtD.logging>2) msg.m="Comparison (string) ${compS} $comparison = $res"
+					}else{
+						res=(Boolean)"$fn"(rtD, value, null, null, tvalue, tvalue2)
 						msg.m="Comparison (${value?.v?.t}) ${value?.v?.v} $comparison = $res"
-						debug msg, rtD
 					}
+					if((Integer)rtD.logging>2) debug msg, rtD
 				}else{
 					Boolean rres
 					res= (String)ro.operand.g!=sANY
@@ -5465,14 +5479,17 @@ private void subscribeAll(Map rtD, Boolean doit=true){
 			String operV=(String)operand.v
 			String tsubId=deviceId+operV
 			switch (operV){
+			case 'hsmStatus':
 			case 'alarmSystemStatus':
 				subsId=tsubId
 				attribute="hsmStatus"
 				break
+			case 'hsmAlert':
 			case 'alarmSystemAlert':
 				subsId=tsubId
 				attribute="hsmAlert"
 				break
+			case "hsmSetArm":
 			case 'alarmSystemEvent':
 				subsId=tsubId
 				attribute="hsmSetArm"
@@ -5868,6 +5885,7 @@ private Map getDeviceAttribute(Map rtD, String deviceId, String attributeName, s
 		case 'mode':
 			def mode=location.getCurrentMode()
 			return [t:sSTR, v:hashId(mode.getId()), n:(String)mode.getName()]
+		case 'hsmStatus':
 		case 'alarmSystemStatus':
 			String v=location.hsmStatus
 			String n=VirtualDevices()['alarmSystemStatus']?.o[v]
@@ -8854,8 +8872,8 @@ private void initSunriseAndSunset(Map rtD){
 			calcsunrise: (a>c1 ? a : c1),
 			todayssunset: b1,
 			calcsunset: (b>d1 ? b : d1),
-			tomorrowssunrise: c, 
-			tomorrowssunset: d, 
+			tomorrowssunrise: c,
+			tomorrowssunset: d,
 			updated: t,
 			good: good,
 			nextM: nmnght
