@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated January 23, 2021 for Hubitat
+ * Last Updated January 28, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.110.20191009" }
@@ -527,9 +527,10 @@ def pageRebuildCache(){
 
 def pageResetEndpoint(){
 	revokeAccessToken()
-	lastRecoveredFLD=0L
-	lastRegFLD=0L
-	lastRegTryFLD=0L
+	String wName=app.id.toString()
+	lastRecoveredFLD[wName]=0L
+	lastRegFLD[wName]=0L
+	lastRegTryFLD[wName]=0L
 	Boolean success=initializeWebCoREEndpoint()
 	clearParentPistonCache("reset endpoint")
 	updated()
@@ -551,7 +552,7 @@ def pageCleanups(){
 }
 
 def pageLogCleanups(){
-	clearChldCaches(true,true)
+	clearChldCaches(false,true)
 	return dynamicPage(name:'pageLogCleanups', install: false, uninstall:false){
 		section('Clear'){
 			paragraph 'Logs been cleared.'
@@ -653,16 +654,19 @@ private void clearGlobalPistonCache(String meth=null){
 }
 
 private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, Boolean callAll=false){
-	theHashMapFLD=[:]
-	pStateFLD=[:]
+	String wName=app.id.toString()
+	theHashMapFLD[wName]=[:]
+	theHashMapFLD=theHashMapFLD
+	pStateFLD[wName]=[:]
+	pStateFLD=pStateFLD
 	mb()
 	String name=handle() + ' Piston'
 	List t0=getChildApps().findAll{ (String)it.name == name }
 	if(t0){
 		def t1=t0[0]
-		if(t1!=null) t1.clearParentCache(meth) // will cause a child to read getChildPstate
+		if(t1!=null) t1.clearParentCache(meth) // will cause one child to read getChildPstate
 		if(frcResub){
-			t0.sort().each{ chld ->
+			t0.sort().each{ chld -> // this runs updated on all child pistons
 				chld.updated()
 			}
 		}else if(callAll) {
@@ -671,47 +675,50 @@ private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, B
 	}
 }
 
-@Field static Map<String,Long> cldClearFLD=[:]
+@Field volatile static Map<String,Map<String, Long> > cldClearFLD=[:]
 
 void clearChldCaches(Boolean all=false, Boolean clrLogs=false){
 // clear child caches if has not run in 61 mins
+	String wName=app.id.toString()
 	String name=handle() + ' Piston'
 	if(all||clrLogs){
-		pStateFLD=[:]
+		pStateFLD[wName]=[:]
 		mb()
 	}
 	Long t1=now()
 	List t0=getChildApps().findAll{ (String)it.name == name }
 	if(t0){
+		if(!cldClearFLD[wName]) { cldClearFLD[wName]=[:]; cldClearFLD=cldClearFLD }
 		if(clrLogs){
 			t0.sort().each{ chld ->
 				Map a=chld.clearLogsQ()
 				String schld=chld.id.toString()
-				cldClearFLD[schld]=t1
+				cldClearFLD[wName][schld]=t1
 			}
 		}else{
 			Boolean updateCache=true
-			Long recTime=3660000L  // 61 min in ms
-			if(all) recTime=1000L
+			Long recTime=3660000L  // 61 min in ms  (regular piston cache cleanup)
+			if(all) recTime=1000L  // aggressive cache cleanup
 			Long threshold=t1 - recTime
 			t0.sort().each{ chld ->
 				String myId=hashId(chld.id, updateCache)
-				Map meta=(Map)pStateFLD[myId]
+				if(pStateFLD[wName] == null) { pStateFLD[wName] = [:]; pStateFLD=pStateFLD }
+				Map meta=(Map)pStateFLD[wName][myId]
 				if(meta==null){	
 					meta=(Map)chld.curPState()
-					pStateFLD[myId]=meta
+					pStateFLD[wName][myId]=meta
 					pStateFLD=pStateFLD
 				}
 				String schld=chld.id.toString()
-				Long t2=cldClearFLD[schld]
+				Long t2=cldClearFLD[wName][schld]
 				Long t3=(Long)meta?.t
 				Boolean t4=(Boolean)meta?.heCached
 				if(t2==null){
 					t2=threshold-3600000L
-					cldClearFLD[schld]=t2
+					cldClearFLD[wName][schld]=t2
 				}
 				else if( all || ( meta!=null && t4 && (Boolean)meta.a && t3!=null && t3>t2 && t3<threshold)){
-					cldClearFLD[schld]=t1
+					cldClearFLD[wName][schld]=t1
 					Map a=chld.clearCache()
 				}
 			}
@@ -737,8 +744,9 @@ private void initialize(){
 	subscribeAll()
 	Map t0=(Map)atomicState.vars
 	if(t0==null)atomicState.vars=[:]
-	verFLD=version()
-	HverFLD=HEversion()
+	String wName=app.id.toString()
+	verFLD[wName]=version()
+	HverFLD[wName]=HEversion()
 
 	refreshDevices()
 
@@ -747,14 +755,14 @@ private void initialize(){
 
 	checkWeather()
 
-	lastRecoveredFLD=0L
+	lastRecoveredFLD[wName]=0L
 	String recoveryMethod=(settings.recovery ?: 'Every 30 minutes').replace('Every ', 'Every').replace(' minute', 'Minute').replace(' hour', 'Hour')
 	if(recoveryMethod != 'Never'){
 		try{
 			"run$recoveryMethod"(recoveryHandler)
 		} catch (all){ }
 	}
-	schedule('22 4/15 * * * ?', 'clearChldCaches')
+	schedule('22 4/15 * * * ?', 'clearChldCaches') // regular child cache cleanup
 }
 
 private void checkWeather(){
@@ -804,10 +812,11 @@ private void updateEndpoint(){
 	state.endpointCloud=newEP
 	if(isCustomEndpoint()) newEP=newEPLocal
 	if(newEP!=(String)state.endpoint){
+		String wName=app.id.toString()
 		state.endpoint=newEP
 		state.endpointLocal=newEPLocal
-		lastRegFLD=0L
-		lastRegTryFLD=0L
+		lastRegFLD[wName]=0L
+		lastRegTryFLD[wName]=0L
 		registerInstance()
 	}
 }
@@ -939,61 +948,64 @@ private static String normalizeLabel(pisN){
 @Field volatile static Long lockTimeFLD
 
 Boolean getTheLock(String meth=sNULL){
-        Long waitT=1600L
-        Boolean wait=false
-        def sema=theSerialLockFLD
-        while(!((Boolean)sema.tryAcquire())){
-                // did not get the lock
-                Long timeL=lockTimeFLD
-                if(timeL==null){
-                        timeL=now()
-                        lockTimeFLD=timeL
-                }
-                //if(eric())log.warn "waiting for ${qname} lock access $meth"
-                pauseExecution(waitT)
-                wait=true
-                if((now() - timeL) > 30000L) {
-                        releaseTheLock('getLock')
-                        warn "overriding lock $meth"
-                }
-        }
-        lockTimeFLD=now()
-        return wait
+	Long waitT=1600L
+	Boolean wait=false
+	def sema=theSerialLockFLD
+	while(!((Boolean)sema.tryAcquire())){
+		// did not get the lock
+		Long timeL=lockTimeFLD
+		if(timeL==null){
+			timeL=now()
+			lockTimeFLD=timeL
+		}
+		//if(eric())log.warn "waiting for ${qname} lock access $meth"
+		pauseExecution(waitT)
+		wait=true
+		if((now() - timeL) > 30000L) {
+			releaseTheLock('getLock')
+			warn "overriding lock $meth"
+		}
+	}
+	lockTimeFLD=now()
+	return wait
 }
 
 static void releaseTheLock(String meth=sNULL){
-        lockTimeFLD=null
-        def sema=theSerialLockFLD
-        sema.release()
+	lockTimeFLD=null
+	def sema=theSerialLockFLD
+	sema.release()
 }
 
 private void clearBaseResult(String meth=sNULL){
 	String t='clearB'
+	String wName=app.id.toString()
 	Boolean didw=getTheLock(t)
-	base_resultFLD=null
+	base_resultFLD[wName]=null
 	releaseTheLock(t)
 }
 
-@Field volatile static Map base_resultFLD
-@Field volatile static Integer cntbase_resultFLD
+@Field volatile static Map<String,Map> base_resultFLD = [:]
+@Field volatile static Map<String,Integer> cntbase_resultFLD = [:]
 
 private Map api_get_base_result(Boolean updateCache=false){
 	String t='baseR'
+	String wName=app.id.toString()
+
 	Boolean didw=getTheLock(t)
 
-	if(base_resultFLD!=null){
-		cntbase_resultFLD=cntbase_resultFLD+1
-		if(cntbase_resultFLD>200){
-			base_resultFLD=null
+	if(base_resultFLD[wName]!=null){
+		cntbase_resultFLD[wName]=cntbase_resultFLD[wName]+1
+		if(cntbase_resultFLD[wName]>200){
+			base_resultFLD[wName]=null
 		}else{
-			Map result=[:] + base_resultFLD
+			Map result=[:] + base_resultFLD[wName]
 			result.now=now()
 			releaseTheLock(t)
 			return result
 		}
 	}
 
-	cntbase_resultFLD=0
+	cntbase_resultFLD[wName]=0
 
 	def tz=location.getTimeZone()
 	String currentDeviceVersion=(String)state.deviceVersion
@@ -1016,10 +1028,11 @@ private Map api_get_base_result(Boolean updateCache=false){
 			account: [id: getAccountSid()],
 			pistons: getChildApps().findAll{ (String)it.name == name }.sort{ (String)it.label }.collect{
 				String myId=hashId(it.id, true)
-				Map meta=(Map)pStateFLD[myId]
+				if(pStateFLD[wName] == null) { pStateFLD[wName] = [:]; pStateFLD=pStateFLD }
+				Map meta=(Map)pStateFLD[wName][myId]
 				if(meta==null){	
 					meta=(Map)it.curPState()
-					pStateFLD[myId]=meta
+					pStateFLD[wName][myId]=meta
 					pStateFLD=pStateFLD
 				}
 				[
@@ -1062,7 +1075,7 @@ private Map api_get_base_result(Boolean updateCache=false){
 		],
 		now: now(),
 	]
-	base_resultFLD=result
+	base_resultFLD[wName]=result
 	releaseTheLock(t)
 	return result
 }
@@ -1438,7 +1451,7 @@ private api_intf_dashboard_piston_set(){
 	render contentType: sAPPJAVA, data: "${params.callback}(${groovy.json.JsonOutput.toJson(result)})"
 }
 
-@Field volatile static LinkedHashMap<String, Object> pPistonChunksFLD
+@Field volatile static LinkedHashMap<String, LinkedHashMap<String,Object> > pPistonChunksFLD = [:]
 
 private api_intf_dashboard_piston_set_start(){
 	Map result
@@ -1446,10 +1459,13 @@ private api_intf_dashboard_piston_set_start(){
 	if(verifySecurityToken((String)params.token)){
 		String chunkstr="${params?.chunks}".toString()
 		Integer chunks=chunkstr.isInteger() ? chunkstr.toInteger() : 0
+		String wName=app.id.toString()
 		if((chunks > 0) && (chunks < 100)){
-			theHashMapFLD=[:]
+			theHashMapFLD[wName]=[:]
+			theHashMapFLD=theHashMapFLD
 			//atomicState.chunks=[id: params?.id, count: chunks]
-			pPistonChunksFLD=[id: params?.id, count: chunks]
+			pPistonChunksFLD[wName]=[id: params?.id, count: chunks]
+			pPistonChunksFLD=pPistonChunksFLD
 			mb()
 			result=[status: "ST_READY"]
 		}else{
@@ -1463,19 +1479,20 @@ private api_intf_dashboard_piston_set_start(){
 
 private api_intf_dashboard_piston_set_chunk(){
 	Map result
+	String wName=app.id.toString()
 	String mchunk="${params?.chunk}".toString()
 	Integer chunk=mchunk.isInteger() ? mchunk.toInteger() : -1
 	//debug "Dashboard: Request received to set a piston chunk (#${1 + chunk}/${atomicState.chunks?.count})"
-	debug "Dashboard: Request received to set a piston chunk (#${1 + chunk}/${pPistonChunksFLD?.count})"
+	debug "Dashboard: Request received to set a piston chunk (#${1 + chunk}/${pPistonChunksFLD[wName]?.count})"
 	if(verifySecurityToken((String)params.token)){
 		String data=(String)params?.data
 		//def chunks=atomicState.chunks
 		mb()
-		LinkedHashMap<String,Object>chunks=pPistonChunksFLD
+		LinkedHashMap<String,Object>chunks=pPistonChunksFLD[wName]
 		if(chunks && (Integer)chunks.count && (chunk >= 0) && (chunk < (Integer)chunks.count)){
 			chunks["chunk:$chunk".toString()]=data
 			//atomicState.chunks=chunks
-			pPistonChunksFLD=chunks
+			pPistonChunksFLD[wName]=chunks
 			mb()
 			result=[status: "ST_READY"]
 		}else{
@@ -1489,11 +1506,12 @@ private api_intf_dashboard_piston_set_chunk(){
 
 private api_intf_dashboard_piston_set_end(){
 	Map result
+	String wName=app.id.toString()
 	debug "Dashboard: Request received to set a piston (chunked end)"
 	if(verifySecurityToken((String)params.token)){
 		//def chunks=atomicState.chunks
 		mb()
-		LinkedHashMap<String,Object> chunks=pPistonChunksFLD
+		LinkedHashMap<String,Object> chunks=pPistonChunksFLD[wName]
 		if(chunks && (Integer)chunks.count){
 			Boolean ok=true
 			String data=""
@@ -1512,7 +1530,7 @@ private api_intf_dashboard_piston_set_end(){
 			}
 			//atomicState.chunks=null
 			//state.remove("chunks")
-			pPistonChunksFLD=null
+			pPistonChunksFLD[wName]=null
 			mb()
 			if(ok){
 				//save the piston
@@ -1649,17 +1667,19 @@ private api_intf_dashboard_piston_set_bin(){
 
 private api_intf_dashboard_piston_set_category(){
 	Map result
+	String wName=app.id.toString()
 	debug "Dashboard: Request received to set piston category"
 	if(verifySecurityToken((String)params.token)){
 		def piston=getChildApps().find{ hashId(it.id) == (String)params.id }
 		if(piston){
 			result=(Map)piston.setCategory(params.category)
 			String myId=(String)params.id
-			Map st=(Map)pStateFLD[myId]
+			if(pStateFLD[wName] == null) { pStateFLD[wName] = [:]; pStateFLD=pStateFLD }
+			Map st=(Map)pStateFLD[wName][myId]
 			if(st==null) st=(Map)piston.curPState() //st=atomicState[myId]
 			if(st){
 				st.c=params.category
-				pStateFLD[myId]=st
+				pStateFLD[wName][myId]=st
 				pStateFLD=pStateFLD
 				//atomicState[myId]=st
 			}
@@ -1709,20 +1729,24 @@ private api_intf_dashboard_piston_clear_logs(){
 
 private api_intf_dashboard_piston_delete(){
 	Map result
+	String wName=app.id.toString()
 	debug "Dashboard: Request received to delete a piston"
 	if(verifySecurityToken((String)params.token)){
 		String id=(String)params.id
 		def piston=getChildApps().find{ hashId(it.id) == id }
 		if(piston){
-			pStateFLD[id]=null
+			if(pStateFLD[wName] == null) { pStateFLD[wName] = [:]; pStateFLD=pStateFLD }
+			pStateFLD[wName][id]=null
 			pStateFLD=pStateFLD
 			String schld=piston.id.toString()
-			cldClearFLD.remove(schld)
+			if(!cldClearFLD[wName]) { cldClearFLD[wName]=[:]; cldClearFLD=cldClearFLD }
+			cldClearFLD[wName].remove(schld)
 			result=(Map)piston.deletePiston()
 			app.deleteChildApp(piston.id)
-//			p_executionFLD[id]=null
+//			p_executionFLD[wName][id]=null
 //			p_executionFLD=p_executionFLD
-			theHashMapFLD=[:]
+			theHashMapFLD[wName]=[:]
+			theHashMapFLD=theHashMapFLD
 			mb()
 			clearBaseResult('delete Piston')
 			result=[status: sSUCC]
@@ -2012,39 +2036,40 @@ static void mb(String meth=sNULL){
 	}
 }
 
-@Field volatile static Long lastRecoveredFLD
-@Field static String verFLD
-@Field static String HverFLD
+@Field volatile static Map<String,Long> lastRecoveredFLD = [:]
+@Field static Map<String,String> verFLD = [:]
+@Field static Map<String,String> HverFLD = [:]
 
 void recoveryHandler(){
-	if(verFLD==sNULL || HverFLD==sNULL){
+	String wName=app.id.toString()
+	if(verFLD[wName]==sNULL || HverFLD[wName]==sNULL){
 		if((String)state.cV == version() && (String)state.hV == HEversion()){
 			atomicState.hsmAlerts=[] // reload or restart
 			state.hsmAlerts=[]
-			verFLD=version()
-			HverFLD=HEversion()
+			verFLD[wName]=version()
+			HverFLD[wName]=HEversion()
 			mb()
 			clearParentPistonCache("ver check")
 			clearBaseResult('ver check')
 		}
 	}
-	if(verFLD!=version() || HverFLD!=HEversion()){
+	if(verFLD[wName]!=version() || HverFLD[wName]!=HEversion()){
 		info "webCoRE software Updated to "+version()+" HE: "+HEversion()
 		atomicState.hsmAlerts=[] // reload or restart
 		state.hsmAlerts=[]
-		verFLD=version()
-		HverFLD=HEversion()
+		verFLD[wName]=version()
+		HverFLD[wName]=HEversion()
 		mb()
 		clearParentPistonCache("ver check")
 		updated()
 	}
 
 	Long t=now()
-	Long lastRecovered=lastRecoveredFLD
+	Long lastRecovered=lastRecoveredFLD[wName]
 	lastRecovered=lastRecovered ?: 0L
 	Long recTime=900000L  // 15 min in ms
 	if(lastRecovered!=0L && (t - lastRecovered) < recTime) return
-	lastRecoveredFLD=t
+	lastRecoveredFLD[wName]=t
 	Integer delay=Math.round(200.0D * Math.random()) // seconds
 	runIn(delay, finishRecovery)
 }
@@ -2055,14 +2080,16 @@ void finishRecovery(){
 	String name=handle() + ' Piston'
 	Long threshold=now() - recTime
 	Boolean updateCache=true
+	String wName=app.id.toString()
+	if(pStateFLD[wName] == null) { pStateFLD[wName] = [:]; pStateFLD=pStateFLD }
 
 	def failedPistons=getChildApps().findAll{ (String)it.name == name }.collect {
 		String myId=hashId(it.id, updateCache)
-		Map meta=(Map)pStateFLD[myId]
+		Map meta=(Map)pStateFLD[wName][myId]
 		if(meta==null){	
 			//meta=atomicState[myId]
 			meta=(Map)it.curPState()
-			pStateFLD[myId]=meta
+			pStateFLD[wName][myId]=meta
 			pStateFLD=pStateFLD
 		}
 		[ id: myId, 'name': (String)it.label, 'meta': meta ] }.findAll{ it.meta!=null && (Boolean)it.meta.a && it.meta.n && (Long)it.meta.n < threshold }
@@ -2421,53 +2448,55 @@ private void stopDashboard(){
 
 private String getAccountSid(){
 	Boolean useNew=state.properSID!=null ? (Boolean)state.properSID : true
-	String accountStr=useNew ? hubUID+'-A' : hubUID
+	String accountStr=useNew ? hubUID.toString()+'-A' : hubUID
 	return hashId(accountStr)
 }
 
 private String getLocationSid(){
 	Boolean useNew=state.properSID!=null ? (Boolean)state.properSID : true
-	String locationStr=useNew ? hubUID+location.name+'-L' : location.id + '-L'
+	String locationStr=useNew ? hubUID.toString()+location.name.toString()+'-L' : location.id.toString() + '-L'
 	return hashId(locationStr)
 }
 
 private String getInstanceSid(){
 	Boolean useNew=state.properSID!=null ? (Boolean)state.properSID : true
 	String hsh=app.id.toString()
-	String instStr=useNew ? hubUID+hsh+'-I' : hsh
+	String instStr=useNew ? hubUID.toString()+hsh+'-I' : hsh
 	return hashId(instStr)
 }
 
-@Field volatile static Long lastRegFLD
-@Field volatile static Long lastRegTryFLD
+@Field volatile static Map<String,Long> lastRegFLD = [:]
+@Field volatile static Map<String,Long> lastRegTryFLD = [:]
 
 private void registerInstance(Boolean force=true){
 	//if((Boolean)state.installed && (Boolean)settings.agreement && !isCustomEndpoint()){
+	String wName=app.id.toString()
 	if((Boolean)state.installed && (Boolean)settings.agreement){
 		if(!force){
-			Long lastReg=lastRegFLD
+			Long lastReg=lastRegFLD[wName]
 			lastReg=lastReg ?: 0L
 			if(lastReg && (now() - lastReg < 129600000L)) return // 36 hr in ms
 
-			Long lastRegTry=lastRegTryFLD
+			Long lastRegTry=lastRegTryFLD[wName]
 			lastRegTry=lastRegTry ?: 0L
 			if(lastRegTry!=0 && (now() - lastRegTry < 1800000L)) return // 30 min in ms
 		}
 		if((String)state.accessToken) updateEndpoint()
-		lastRegTryFLD=now()
+		lastRegTryFLD[wName]=now()
 		String accountId=getAccountSid()
 		String locationId=getLocationSid()
 		String instanceId=getInstanceSid()
 		String endpoint=(String)state.endpointCloud
 		String region=endpoint.contains('graph-eu') ? 'eu' : 'us'
 		String name=handle() + ' Piston'
+		if(pStateFLD[wName] == null){ pStateFLD[wName] = [:]; pStateFLD=pStateFLD }
 		def pistons=getChildApps().findAll{ (String)it.name == name }.collect{
 			String myId=hashId(it.id, true)
-			Map meta=(Map)pStateFLD[myId]
+			Map meta=(Map)pStateFLD[wName][myId]
 			if(meta==null){	
 				//meta=atomicState[myId]
 				meta=(Map)it.curPState()
-				pStateFLD[myId]=meta
+				pStateFLD[wName][myId]=meta
 				pStateFLD=pStateFLD
 			}
 			[ id: myId, a: meta?.a ]
@@ -2507,7 +2536,8 @@ void myDone(resp, data){
 	String instanceId=getInstanceSid()
 	debug "register resp: ${resp?.status} using api-${region}-${instanceId[32]}.webcore.co:9247"
 	if(resp?.status == 200){
-		lastRegFLD=now()
+		String wName=app.id.toString()
+		lastRegFLD[wName]=now()
 	}
 }
 
@@ -2569,22 +2599,25 @@ private String mem(Boolean showBytes=true){
 	return Math.round(100.0D * (bytes/ 100000.0D)) + "%${showBytes ? " ($bytes bytes)" : ""}"
 }
 
-@Field volatile static Map p_executionFLD=[:]
+@Field volatile static Map<String,Long> p_executionFLD=[:]
 
 void pCallupdateRunTimeData(Map data){
 	if(!data || !data.id) return
 	String id=(String)data.id
-	Long cnt=p_executionFLD[id]!=null ? (Long)p_executionFLD[id] : 0L
+	String wName=app.id.toString()
+	if(p_executionFLD[wName]==null){ p_executionFLD[wName]=[:]; p_executionFLD=p_executionFLD }
+	Long cnt=p_executionFLD[wName][id]!=null ? (Long)p_executionFLD[wName][id] : 0L
 	cnt +=1
-	p_executionFLD[id]=cnt
+	p_executionFLD[wName][id]=cnt
 	p_executionFLD=p_executionFLD
 	updateRunTimeData(data)
 }
 
-@Field volatile static Map pStateFLD=[:]
+@Field volatile static Map<String,Map<String,Map> > pStateFLD=[:]
 
 void updateRunTimeData(Map data){
 	if(!data || !data.id) return
+	String wName=app.id.toString()
 	List variableEvents=[]
 	if(data.gvCache!=null){
 		String t='updateGlobal'
@@ -2638,7 +2671,8 @@ void updateRunTimeData(Map data){
 		s: st,
 		heCached:(Boolean)data.Cached
 	]
-	pStateFLD[id]=piston
+	if(pStateFLD[wName] == null){ pStateFLD[wName] = [:]; pStateFLD=pStateFLD }
+	pStateFLD[wName][id]=piston
 	pStateFLD=pStateFLD
 	clearBaseResult('updateRunTimeData')
 	//broadcast variable change events
@@ -2879,9 +2913,10 @@ void modeHandler(evt){
 
 void startHandler(evt){
 	debug "startHandler called"
-	lastRecoveredFLD=0L
-	lastRegFLD=0L
-	lastRegTryFLD=0L
+	String wName=app.id.toString()
+	lastRecoveredFLD[wName]=0L
+	lastRegFLD[wName]=0L
+	lastRegTryFLD[wName]=0L
 	runIn(20, startWork)
 }
 
@@ -2907,16 +2942,19 @@ private String md5(String md5){
 	return result
 }
 
-@Field static Map theHashMapFLD=[:]
+@Field volatile static Map<String,Map> theHashMapFLD=[:]
 
 private String hashId(id, Boolean updateCache=true){
 	//enabled hash caching for faster processing
 	String result
 	String myId=id.toString()
-	result=(String)theHashMapFLD[myId]
+	String wName=app.id.toString()
+	if(theHashMapFLD[wName] == null){ theHashMapFLD[wName] = [:]; theHashMapFLD=theHashMapFLD }
+	result=(String)theHashMapFLD[wName][myId]
 	if(result==sNULL){
 		result=sCOLON+md5('core.' + myId)+sCOLON
-		theHashMapFLD[myId]=result
+		theHashMapFLD[wName][myId]=result
+		theHashMapFLD=theHashMapFLD
 		mb()
 	}
 	return result
@@ -3564,6 +3602,9 @@ static Map getChildComparisons(){
 	return cleanResult
 }
 
+// m - multiple
+// p - parameter count
+// t - timed
 @Field static final Map comparisonsFLD=[
 	conditions: [
 		changed				: [ d: "changed",									g:"bdfis",				t: 1,	],

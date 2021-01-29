@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 28, 2021 for Hubitat
+ * Last update January 29, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
@@ -1444,14 +1444,15 @@ private LinkedHashMap<String,Object> getDSCache(String meth, Boolean Upd=true){
 	return rtD
 }
 
-@Field static LinkedHashMap theParentCacheFLD
+@Field volatile static LinkedHashMap<String,LinkedHashMap<String,Object> > theParentCacheFLD = [:]
 
 void clearParentCache(String meth=sNULL){
 	String lockTyp='clearParentCache'
 	String semName=sTSLF
+	String wName = parent.id.toString()
 	Boolean a=getTheLock(semName, lockTyp)
 
-	theParentCacheFLD=null
+	theParentCacheFLD[wName]=null
 
 	getCacheLock(lockTyp)
 	theCacheFLD=[:] // all pistons reset their cache
@@ -1466,11 +1467,12 @@ void clearParentCache(String meth=sNULL){
 
 private LinkedHashMap<String,Object> getParentCache(){
 	String lockTyp='getParentCache'
-	LinkedHashMap<String,Object> result=theParentCacheFLD
+	String wName = parent.id.toString()
+	LinkedHashMap<String,Object> result=theParentCacheFLD[wName]
 	if(result==null){
 		String semName=sTSLF
 		Boolean a=getTheLock(semName, lockTyp)
-		result=theParentCacheFLD
+		result=theParentCacheFLD[wName]
 		Boolean sendM=false
 		if(result==null){
 			Map t0=(Map)parent.getChildPstate()
@@ -1490,7 +1492,7 @@ private LinkedHashMap<String,Object> getParentCache(){
 				useLocalFuelStreams: (Boolean)t0.useLocalFuelStreams
 			]
 			result=t1
-			theParentCacheFLD=t1
+			theParentCacheFLD[wName]=t1
 			t1=null
 			sendM=true
 		}
@@ -1522,7 +1524,7 @@ private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object>
 
 	if(rtD.temporary!=null) rtD.remove('temporary')
 
-	LinkedHashMap m1=[semaphore:0L, semaphoreName:sNULL, semaphoreDelay:0L]
+	LinkedHashMap<String,Object> m1=[semaphore:0L, semaphoreName:sNULL, semaphoreDelay:0L]
 	if(retSt!=null){
 		m1.semaphore=(Long)retSt.semaphore
 		m1.semaphoreName=(String)retSt.semaphoreName
@@ -2168,12 +2170,13 @@ private void finalizeEvent(Map rtD, Map initialMsg, Boolean success=true){
 		if(rtD.gvCache!=null){
 			String lockTyp='finalize'
 			String semName=sTGBL
+			String wName = parent.id.toString()
 			a=getTheLock(semName, lockTyp)
 			for(var in rtD.gvCache){
-				Map vars=globalVarsFLD
+				Map vars=globalVarsFLD[wName]
 				String varName=(String)var.key
 				if(varName && (Boolean)varName.startsWith(sAT) && vars[varName] && var.value.v!=vars[varName].v){
-					globalVarsFLD[varName].v=var.value.v
+					globalVarsFLD[wName][varName].v=var.value.v
 					globalVarsFLD=globalVarsFLD
 				}
 			}
@@ -6158,26 +6161,28 @@ private Map getIncidents(rtD, String name){
 	return getJsonData(rtD, rtD.incidents, name)
 }
 
-@Field volatile static Boolean initGlobalFLD
-@Field volatile static Map globalVarsFLD
+@Field volatile static Map<String, Boolean> initGlobalFLD = [:]
+@Field volatile static Map<String, Map> globalVarsFLD = [:]
 
 void clearGlobalCache(String meth=sNULL){
 	String lockTyp='clearGlobalCache '+meth
 	String semaName=sTGBL
+	String wName = parent.id.toString()
 	Boolean a=getTheLock(semaName, lockTyp)
-	globalVarsFLD=null
-	initGlobalFLD=false
+	globalVarsFLD[wName]=null
+	initGlobalFLD[wName]=false
 	releaseTheLock(semaName)
 	if(eric())log.debug lockTyp
 }
 
 private void loadGlobalCache(){
-	if(!initGlobalFLD){
+	String wName = parent.id.toString()
+	if(!initGlobalFLD[wName]){
 		String lockTyp='loadGlobalCache'
 		String semaName=sTGBL
 		Boolean a=getTheLock(semaName, lockTyp)
-		globalVarsFLD=(Map)parent.listAvailableVariables()
-		initGlobalFLD=true
+		globalVarsFLD[wName]=(Map)parent.listAvailableVariables()
+		initGlobalFLD[wName]=true
 		releaseTheLock(semaName)
 		if(eric())log.debug lockTyp
 	}
@@ -6192,7 +6197,8 @@ private Map getVariable(Map rtD, String name){
 	Map err=[t:sERROR, v:"Variable '$tname' not found".toString()]
 	if((Boolean)tname.startsWith(sAT)){
 		loadGlobalCache()
-		def tresult=globalVarsFLD[tname]
+		String wName = parent.id.toString()
+		def tresult=globalVarsFLD[wName][tname]
 		if(!(tresult instanceof Map))result=err
 		else{
 			result=(Map)tresult
@@ -6277,10 +6283,11 @@ private Map setVariable(Map rtD, String name, value){
 		loadGlobalCache()
 		String lockTyp='setGlobalvar'
 		String semaName=sTGBL
+		String wName = parent.id.toString()
 		Boolean a=getTheLock(semaName, lockTyp)
-		def tvariable=globalVarsFLD[tname]
+		def tvariable=globalVarsFLD[wName][tname]
 		if(tvariable instanceof Map){
-			Map variable=(Map)globalVarsFLD[tname]
+			Map variable=(Map)globalVarsFLD[wName][tname]
 			variable.v=cast(rtD, value, (String)variable.t)
 			globalVarsFLD=globalVarsFLD
 			Map cache=rtD.gvCache!=null ? (Map)rtD.gvCache:[:]
@@ -8170,7 +8177,7 @@ private String md5(String md5){
 	return result
 }
 
-@Field static Map theHashMapFLD=[:]
+@Field volatile static Map theHashMapFLD=[:]
 
 private String hashId(id, Boolean updateCache=true){
 	String result
@@ -8181,6 +8188,7 @@ private String hashId(id, Boolean updateCache=true){
 		if(updateCache){
 			getCacheLock(sD)
 			theHashMapFLD[myId]=result
+			theHashMapFLD=theHashMapFLD
 			releaseCacheLock()
 		}
 	}
@@ -8357,10 +8365,11 @@ private cast(Map rtD, value, String dataType, String srcDataType=sNULL){
 			Long d=(srcDataType==sSTR)? stringToTime(value):(Long)value // (Long)cast(rtD, value, sLONG)
 			Date t1=new Date(d)
 			Long t2=Math.round((Math.floor(d/1000.0D)*1000.0D)-(((Integer)t1.hours*3600.0D+(Integer)t1.minutes*60.0D+(Integer)t1.seconds)*1000.0D)) // take ms off and first guess at midnight (could be earlier/later depending if DST change day
-			Long t3=Math.round(t2-(1.0D*3600000.0D)) // guess at 11 PM
+/*			Long t3=Math.round(t2-(1.0D*3600000.0D)) // guess at 11 PM
 			Long t4=Math.round(t2+(4.0D*3600000.0D)) // guess at 04 AM
 			Long t5=Math.round(t2+(3.0D*3600000.0D)+((Integer)location.timeZone.getOffset(t3)-(Integer)location.timeZone.getOffset(t4))) // normalize to 3:00 AM for DST
-			return t5
+*/
+			return t2
 		case sDTIME:
 			if(srcDataType==sTIME){
 				Long tt1=value.toLong()
