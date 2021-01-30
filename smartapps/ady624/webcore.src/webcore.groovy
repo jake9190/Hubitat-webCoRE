@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated January 28, 2021 for Hubitat
+ * Last Updated January 30, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.110.20191009" }
-static String HEversion(){ return "v0.3.110.20210123_HE" }
+static String HEversion(){ return "v0.3.110.20210130_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -635,6 +635,7 @@ Map getChildPstate(){
 		sCv: version(),
 		sHv: HEversion(),
 		stsettings: msettings,
+		lifx: state.lifx ?: [:],
 		powerSource: state.powerSource ?: 'mains',
 		region: ((String)state.endpointCloud).contains('graph-eu') ? 'eu' : 'us',
 		instanceId: getInstanceSid(),
@@ -1050,7 +1051,7 @@ private Map api_get_base_result(Boolean updateCache=false){
 			heVersion: HEversion(),
 			enabled: !settings.disabled,
 			settings: state.settings ?: [:],
-			//lifx: state.lifx ?: [:],
+			lifx: state.lifx ?: [:],
 			virtualDevices: virtualDevices(updateCache),
 			globalVars: listAvailableVariables1(),
 			fuelStreamUrls: getFuelStreamUrls(instanceId),
@@ -1915,7 +1916,7 @@ private api_intf_settings_set(){
 		clearParentPistonCache("dashboard changed settings")
 		clearBaseResult('settings change')
 
-		//testLifx()
+		testLifx()
 		result=[status: sSUCC]
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -2465,6 +2466,22 @@ private String getInstanceSid(){
 	return hashId(instStr)
 }
 
+private testLifx() {
+	String token = state.settings?.lifx_token
+	if (!token) return false
+	def requestParams = [
+		uri:  "https://api.lifx.com",
+		path: "/v1/scenes",
+		headers: [ "Authorization": "Bearer ${token}" ],
+		requestContentType: sAPPJSON
+	]
+	asynchttpGet('lifxHandler', requestParams, [request: 'scenes'])
+	pause(250)
+	requestParams.path = "/v1/lights/all"
+	asynchttpGet('lifxHandler', requestParams, [request: 'lights'])
+        return true
+}
+
 @Field volatile static Map<String,Long> lastRegFLD = [:]
 @Field volatile static Map<String,Long> lastRegTryFLD = [:]
 
@@ -2585,9 +2602,9 @@ String getDashboardUrl(){
 void refreshDevices(){
 	state.deviceVersion=now().toString()
 	atomicState.deviceVersion=(String)state.deviceVersion
+	testLifx()
 	clearParentPistonCache("refreshDevices") // force virtual device to update
 	clearBaseResult('refreshDevices')
-	//testLifx()
 }
 
 static String getWikiUrl(){
@@ -2926,6 +2943,28 @@ void startWork(){
 	broadcastPistonList()
 }
 
+def lifxHandler(response, cbkData) {
+	if((response.status == 200)){
+		def data = response.data instanceof List ? response.data : new groovy.json.JsonSlurper().parseText(response.data)
+		cbkData = cbkData instanceof Map ? cbkData : (LinkedHashMap) new groovy.json.JsonSlurper().parseText(cbkData)
+		Boolean fnd=false
+		if(data instanceof List){
+			state.lifx = state.lifx ?: [:]
+			switch (cbkData.request) {
+			case 'scenes':
+				state.lifx.scenes = data.collectEntries{[(it.uuid): it.name]}
+				fnd=true
+				break
+			case 'lights':
+				state.lifx.lights = data.collectEntries{[(it.id): it.label]}
+				state.lifx.groups = data.collectEntries{[(it.group.id): it.group.name]}
+				state.lifx.locations = data.collectEntries{[(it.location.id): it.location.name]}
+				fnd=true
+				break
+			}
+		}
+	}
+}
 
 
 /******************************************************************************/
@@ -3557,6 +3596,12 @@ private static Map virtualCommands(){
 //		flash				: [ n: "Flash...",	r: [sON, sOFF],		i: sTOGON,				d: "Flash on {0} / off {1} for {2} times{3}",							p: [[n:"On duration",t:sDUR],[n:"Off duration",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
 		flashLevel			: [ n: "Flash (level)...",	r: ["setLevel"],	i: sTOGON,		d: "Flash {0}% {1} / {2}% {3} for {4} times{5}",						p: [[n:"Level 1", t:sLVL],[n:"Duration 1",t:sDUR],[n:"Level 2", t:sLVL],[n:"Duration 2",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
 		flashColor			: [ n: "Flash (color)...",	r: ["setColor"],	i: sTOGON,		d: "Flash {0} {1} / {2} {3} for {4} times{5}",							p: [[n:"Color 1", t:sCOLOR],[n:"Duration 1",t:sDUR],[n:"Color 2", t:sCOLOR],[n:"Duration 2",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
+		lifxScene			: [ n: "LIFX - Activate scene...",              a: true,                        d: "Activate LIFX Scene '{0}'{1}",                                                                              p: [[n: "Scene", t:"lifxScene"],[n: "Duration", t:"duration", d:" for {v}"]],                                   ],
+		lifxState			: [ n: "LIFX - Set State...",                   a: true,                        d: "Set LIFX lights matching {0} to {1}{2}{3}{4}{5}",                                   p: [[n: "Selector", t:"lifxSelector"],[n: "Switch (power)",t:"enum",o:["on","off"],d:" switch '{v}'"],[n: "Color",t:"color",d:" color '{v}'"],[n: "Level (brightness)",t:"level",d:" level {v}%"],[n: "Infrared level",t:"infraredLevel",d:" infrared {v}%"],[n: "Duration",t:"duration",d:" in {v}"]], ],
+		lifxToggle			: [ n: "LIFX - Toggle...",                              a: true,                d: "Toggle LIFX lights matching {0}{1}",                                                                p: [[n: "Selector", t:"lifxSelector"],[n: "Duration",t:"duration",d:" in {v}"]], ],
+		lifxBreathe			: [ n: "LIFX - Breathe...",                             a: true,                d: "Breathe LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}{7}",   p: [[n: "Selector", t:"lifxSelector"],[n: "Color",t:"color"],[n: "From color",t:"color",d:" from color '{v}'"],[n: "Period", t:"duration", d:" with a period of {v}"],[n: "Cycles", t:"integer", d:" for {v} cycles"],[n:"Peak",t:"level",d:" with a peak at {v}% of the period"],[n:"Power on",t:"boolean",d:" and power on at start"],[n:"Persist",t:"boolean",d:" and persist"] ], ],
+		lifxPulse			: [ n: "LIFX - Pulse...",                               a: true,                d: "Pulse LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}",                p: [[n: "Selector", t:"lifxSelector"],[n: "Color",t:"color"],[n: "From color",t:"color",d:" from color '{v}'"],[n: "Period", t:"duration", d:" with a period of {v}"],[n: "Cycles", t:"integer", d:" for {v} cycles"],[n:"Power on",t:"boolean",d:" and power on at start"],[n:"Persist",t:"boolean",d:" and persist"] ], ],
+
 		writeToFuelStream		: [ n: "Write to fuel stream...",		a: true,							d: "Write data point '{2}' to fuel stream {0}{1}{3}",					p: [[n: "Canister", t:sTXT, d:"{v} \\ "], [n:"Fuel stream name", t:sTXT], [n: "Data", t:sDYN], [n: "Data source", t:sTXT, d:" from source '{v}'"]],					],
 		iftttMaker			: [ n: "Send an IFTTT Maker event...",	a: true,							d: "Send the {0} IFTTT Maker event{1}{2}{3}",							p: [[n:"Event", t:sTXT], [n:"Value 1", t:sSTR, d:", passing value1 = '{v}'"], [n:"Value 2", t:sSTR, d:", passing value2 = '{v}'"], [n:"Value 3", t:sSTR, d:", passing value3 = '{v}'"]],				],
 		storeMedia			: [ n: "Store media...",				a: true,							d: "Store media",														p: [],					],

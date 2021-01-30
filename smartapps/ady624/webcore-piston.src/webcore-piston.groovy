@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 29, 2021 for Hubitat
+ * Last update January 30, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.110.20191009' }
-static String HEversion(){ return 'v0.3.110.20210123_HE' }
+static String HEversion(){ return 'v0.3.110.20210130_HE' }
 
 /** webCoRE DEFINITION					**/
 
@@ -1485,6 +1485,7 @@ private LinkedHashMap<String,Object> getParentCache(){
 				settings: (Map)t0.stsettings,
 				enabled: (Boolean)t0.enabled,
 				//disabled: !(Boolean)t0.enabled,
+				lifx: (Map)t0.lifx,
 				logPExec: (Boolean)t0.logPExec,
 				locationId: (String)t0.locationId,
 				oldLocationId: hashId(location.id.toString()+'L'), //backwards compatibility
@@ -1823,6 +1824,7 @@ void handleEvents(event, Boolean queue=true, Boolean callMySelf=false){
 					setSystemVariableValue(rtD, sIFTTTSTSCODE, responseCode)
 					setSystemVariableValue(rtD, sIFTTTSTSOK, statOk)
 					break
+				case 'lifx':
 				case sSENDE:
 					break
 				default:
@@ -1846,6 +1848,7 @@ void handleEvents(event, Boolean queue=true, Boolean callMySelf=false){
 					setSystemVariableValue(rtD, sHTTPSTSCODE, responseCode)
 					setSystemVariableValue(rtD, sHTTPSTSOK, statOk)
 					break
+				case 'lifx':
 				case sSENDE:
 					break
 				case sIFTTM:
@@ -3902,9 +3905,9 @@ private Long vcmd_flashLevel(Map rtD, device, List params){
 }
 
 private Long vcmd_flashColor(Map rtD, device, List params){
-	def color1=getColor(rtD, (String)params[0])
+	Map color1=getColor(rtD, (String)params[0])
 	Long duration1=(Long)cast(rtD, params[1], sLONG)
-	def color2=getColor(rtD, (String)params[2])
+	Map color2=getColor(rtD, (String)params[2])
 	Long duration2=(Long)cast(rtD, params[3], sLONG)
 	Integer cycles=(Integer)cast(rtD, params[4], sINT)
 	String mstate=(Integer)params.size()>5 ? (String)params[5]:sNULL
@@ -4134,6 +4137,118 @@ private Long vcmd_iftttMaker(Map rtD, device, List params){
 	return 0L
 }
 
+private Long do_lifx(Map rtD, String cmd, String path, Map body, duration, String c){
+	String token=rtD.settings?.lifx_token
+	if(!token){
+		error "Sorry, enable the LIFX integration in the dashboard's Settings section before trying to execute a LIFX operation.", rtD
+		return 0L
+	}
+	Map requestParams=[
+		uri:  "https://api.lifx.com",
+		path: path,
+		headers: [ "Authorization": "Bearer $token" ],
+		timeout: 10,
+		body: body
+	]
+	try{
+		if((Integer)rtD.logging>2)debug "Sending lifx ${c} web request to: $path", rtD
+		"asynchttp${cmd}"('ahttpRequestHandler', requestParams, [command:'lifx', em: [t:c]])
+        Long ldur = duration ? Math.round( duration * 1000.0D) : 0L
+		return ldur > 11000L ? ldur : 11000L
+	}catch (all){
+		error "Error while activating LIFX $c:", rtD, null, all
+	}
+	return 0L
+}
+
+private Long lifxErr(Map rtD){
+	error "Sorry, could not find the specified LIFX selector.", rtD
+	return 0L
+}
+
+private Long vcmd_lifxScene(Map rtD, device, List params) {
+	String sceneId=(String)params[0]
+	Long duration=params.size() > 1 ? Math.round( ((Long)cast(rtD, params[1], sLONG) / 1000.0D)) : 0L
+	if(!rtD.lifx?.scenes){
+		error "Sorry, there seems to be no available LIFX scenes, please ensure the LIFX integration is working.", rtD
+		return 0L
+	}
+	sceneId=rtD.lifx.scenes.find{ ((String)it.key == sceneId) || ((String)it.value == sceneId) }?.key
+	if(!sceneId){
+		error "Sorry, could not find the specified LIFX scene.", rtD
+		return 0L
+	}
+	String path="/v1/scenes/scene_id:${sceneId}/activate"
+	Map body = duration ? [duration: duration] : null
+	return do_lifx(rtD,'Put',path, body, duration, 'scene')
+}
+
+private static String getLifxSelector(Map rtD, String selector) {
+	String selectorId=''
+	if(selector=='all')return selector
+	Integer i=0
+    List<String> a = ['scene_', '', 'group_', 'location_']
+    for(String m in ['scenes', 'lights', 'groups', 'locations']) {
+		String obj = rtD.lifx."${m}"?.find{ (it.key == selector) || (it.value == selector) }?.key
+		if(obj) return "${a[i]}id:${obj}".toString()
+		i+=1
+	}
+	return selectorId
+}
+
+private Long vcmd_lifxState(Map rtD, device, List params) {
+	String selector = getLifxSelector(rtD, (String)params[0])
+	if (!selector) return lifxErr(rtD)
+	String power = (String)params[1]
+	Map color = getColor(rtD, (String)params[2])
+	Integer level = (Integer)params[3]
+	Integer infraredLevel = (Integer)params[4]
+	Long duration = Math.round( ((Long)cast(rtD, params[5], sLONG) / 1000.0D) )
+	String path= "/v1/lights/${selector}/state"
+	Map body = [:] + (power ? ([power: power]) : [:]) + (color ? ([color: color.hex]) : [:]) + (level != null ? ([brightness: level / 100.0]) : [:]) + (infrared != null ? [infrared: infraredLevel] : [:]) + (duration ? [duration: duration] : [:])
+	return do_lifx(rtD,'Put',path, body, duration, 'state')
+}
+
+private Long vcmd_lifxToggle(Map rtD, device, List params) {
+	String selector = getLifxSelector(rtD, (String)params[0])
+	if (!selector) return lifxErr(rtD)
+	Long duration = Math.round( ((Long)cast(rtD, params[1], sLONG) / 1000.0D) )
+	String path= "/v1/lights/${selector}/toggle"
+	Map body= [:] + (duration ? [duration: duration] : [:])
+	return do_lifx(rtD, 'Post',path, body, duration, 'toggle')
+}
+
+private Long vcmd_lifxBreathe(Map rtD, device, List params) {
+	String selector = getLifxSelector(rtD, (String)params[0])
+	if (!selector) return lifxErr(rtD)
+	Map color = getColor(rtD, (String)params[1])
+	Map fromColor = (params[2] == null) ? null : getColor(rtD, (String)params[2])
+	Long period = (params[3] == null) ? null : Math.round( ((Long)cast(rtD, params[3], sLONG) / 1000.0D))
+	Integer cycles = (Integer)params[4]
+	Integer peak = (Integer)params[5]
+	Boolean powerOn = (params[6] == null) ? null : cast(rtD, params[6], sBOOLN)
+	Boolean persist = (params[7] == null) ? null : cast(rtD, params[7], sBOOLN)
+	String path= "/v1/lights/${selector}/effects/breathe"
+	Map body= [color: color.hex] + (fromColor ? ([from_color: fromColor.hex]) : [:]) + (period != null ? ([period: period]) : [:]) + (cycles ? ([cycles: cycles]) : [:]) + (powerOn != null ? ([power_on: powerOn]) : [:]) + (persist != null ? ([persist: persist]) : [:]) + (peak != null ? ([peak: peak / 100]) : [:])
+	Long ldur = Math.round( (period ? period : 1) * (cycles ? cycles : 1.0D) )
+	return do_lifx(rtD,'Post',path, body, ldur, 'breathe')
+}
+
+private Long vcmd_lifxPulse(Map rtD, device, List params) {
+	String selector = getLifxSelector(rtD, (String)params[0])
+	if (!selector) return lifxErr(rtD)
+	Map color = getColor(rtD, (String)params[1])
+	Map fromColor = (params[2] == null) ? null : getColor(rtD, (String)params[2])
+	Long period = (params[3] == null) ? null : Math.round( ((Long)cast(rtD, params[3], sLONG) / 1000.0D))
+	Integer cycles = (Integer)params[4]
+	Boolean powerOn =(params[5] == null)? null : cast(rtD, params[5], sBOOLN)
+	Boolean persist = (params[6] == null) ? null : cast(rtD, params[6], sBOOLN)
+	String path= "/v1/lights/${selector}/effects/pulse"
+	Map body= [color: color.hex] + (fromColor ? ([from_color: fromColor.hex]) : [:]) + (period != null ? ([period: period]) : [:]) + (cycles ? ([cycles: cycles]) : [:]) + (powerOn != null ? ([power_on: powerOn]) : [:]) + (persist != null ? ([persist: persist]) : [:])
+	Long ldur = Math.round( (period ? period : 1) * (cycles ? cycles : 1.0D) )
+	return do_lifx(rtD, 'Post',path, body, ldur, 'pulse')
+}
+
 private Long vcmd_httpRequest(Map rtD, device, List params){
 	String uri=((String)params[0]).replace(sSPC, "%20")
 	if(!uri){
@@ -4243,6 +4358,11 @@ void ahttpRequestHandler(resp, Map callbackData){
 		if(!responseCode) responseCode=500
 	}
 	switch(callBackC){
+	case 'lifx':
+		def em=callbackData?.em
+		if(!(responseCode>=200 && responseCode<300))
+			erMsg="lifx Error lifx sending ${em?.t}".toString()+erMsg
+		break
 	case sSENDE:
 		String msg='Unknown error'
 		def em=callbackData?.em
