@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated January 30, 2021 for Hubitat
+ * Last Updated January 31, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.110.20191009" }
@@ -1273,9 +1273,7 @@ private api_intf_dashboard_piston_get(){
 			String serverDbVersion=HEversion()
 			String clientDbVersion=(String)params.db
 			requireDb=serverDbVersion != clientDbVersion
-			if(requireDb){
-				refreshDevices()
-			}
+			//if(requireDb){ refreshDevices() }
 			result=[:] //api_get_base_result(true)
 			Map t0=(Map)piston.get()
 			result.data=t0!=null ? t0 : [:]
@@ -2466,20 +2464,27 @@ private String getInstanceSid(){
 	return hashId(instStr)
 }
 
-private testLifx() {
+private void testLifx() {
 	String token = state.settings?.lifx_token
-	if (!token) return false
+	if (!token) return
+	testLifx1(true)
+	runIn(4, testLifx1)
+}
+
+private void testLifx1(Boolean first=false) {
+	String token = state.settings?.lifx_token
+	if (!token) return
 	def requestParams = [
 		uri:  "https://api.lifx.com",
 		path: "/v1/scenes",
 		headers: [ "Authorization": "Bearer ${token}" ],
 		requestContentType: sAPPJSON
 	]
-	asynchttpGet('lifxHandler', requestParams, [request: 'scenes'])
-	pause(250)
-	requestParams.path = "/v1/lights/all"
-	asynchttpGet('lifxHandler', requestParams, [request: 'lights'])
-        return true
+	if(first) asynchttpGet('lifxHandler', requestParams, [request: 'scenes'])
+	else {
+		requestParams.path = "/v1/lights/all"
+		asynchttpGet('lifxHandler', requestParams, [request: 'lights'])
+	}
 }
 
 @Field volatile static Map<String,Long> lastRegFLD = [:]
@@ -2602,9 +2607,9 @@ String getDashboardUrl(){
 void refreshDevices(){
 	state.deviceVersion=now().toString()
 	atomicState.deviceVersion=(String)state.deviceVersion
-	testLifx()
 	clearParentPistonCache("refreshDevices") // force virtual device to update
 	clearBaseResult('refreshDevices')
+	testLifx()
 }
 
 static String getWikiUrl(){
@@ -2962,6 +2967,7 @@ def lifxHandler(response, cbkData) {
 				fnd=true
 				break
 			}
+			if(fnd) debug "got lifx data $cbkData.request"
 		}
 	}
 }
