@@ -21,8 +21,8 @@
  * Last update January 30, 2021 for Hubitat
 */
 
-static String version(){ return 'v0.3.110.20191009' }
-static String HEversion(){ return 'v0.3.110.20210130_HE' }
+static String version(){ return 'v0.3.111.20210130' }
+static String HEversion(){ return 'v0.3.111.20210130_HE' }
 
 /** webCoRE DEFINITION					**/
 

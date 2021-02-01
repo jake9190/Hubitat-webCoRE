@@ -21,8 +21,8 @@
  * Last Updated January 31, 2021 for Hubitat
 */
 
-static String version(){ return "v0.3.110.20191009" }
-static String HEversion(){ return "v0.3.110.20210130_HE" }
+static String version(){ return "v0.3.111.20210130" }
+static String HEversion(){ return "v0.3.111.20210130_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -1089,6 +1089,7 @@ private Map api_get_devices_result(Integer offset=0, Boolean updateCache=false){
 
 private Map<String,Map> getFuelStreamUrls(String iid){
 	if(!useLocalFuelStreams()){
+	//if((Boolean)state.installed && (Boolean)settings.agreement){
 		String region=((String)state.endpointCloud).contains('graph-eu') ? 'eu' : 'us'
 		String baseUrl='https://api-' + region + '-' + iid[32] + '.webcore.co:9287/fuelStreams'
 		Map headers=[ 'Auth-Token' : iid ]
@@ -1099,6 +1100,7 @@ private Map<String,Map> getFuelStreamUrls(String iid){
 		]
 	}	
 	
+	//if((Boolean)state.installed && (Boolean)settings.agreement){
 	String baseUrl=isCustomEndpoint() && useLocalFuelStreams() ? customApiServerUrl("/") : apiServerUrl("$hubUID/apps/${app.id}/".toString())
 	
 	String params=baseUrl.contains((String)state.accessToken) ? "" : "access_token=${state.accessToken}".toString()
@@ -2251,6 +2253,7 @@ private String getDashboardInitUrl(Boolean reg=false){
 		t1=customApiServerUrl('/')
 		//customApiServerUrl('/?access_token=' + state.accessToken) ).bytes.encodeBase64()
 	}else{
+	//if((Boolean)state.installed && (Boolean)settings.agreement){
 		t1= apiServerUrl("")
 	}
 	t0=t0+(
@@ -2263,6 +2266,7 @@ private String getDashboardInitUrl(Boolean reg=false){
 private String getDashboardRegistrationUrl(){
 	if((String)state.accessToken) updateEndpoint()
 	if(!(String)state.endpoint) return sNULL
+	//if((Boolean)state.installed && (Boolean)settings.agreement){
 	return "https://api.${domain()}/dashboard/".toString()
 }
 
@@ -2600,6 +2604,7 @@ String getDashboardUrl(){
 	if((Boolean)customEndpoints && (String)customWebcoreInstanceUrl){
 		return (String)customWebcoreInstanceUrl + "/"
 	}else{
+	//if((Boolean)state.installed && (Boolean)settings.agreement){
 		return "https://dashboard.${domain()}/".toString()
 	}
 }
