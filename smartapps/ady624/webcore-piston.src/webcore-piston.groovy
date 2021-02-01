@@ -4147,6 +4147,7 @@ private Long do_lifx(Map rtD, String cmd, String path, Map body, duration, Strin
 		uri:  "https://api.lifx.com",
 		path: path,
 		headers: [ "Authorization": "Bearer $token" ],
+		requestContentType: sAPPJSON,
 		timeout: 10,
 		body: body
 	]
