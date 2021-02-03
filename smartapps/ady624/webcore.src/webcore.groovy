@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last Updated January 31, 2021 for Hubitat
+ * Last update February 2, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.111.20210130" }
-static String HEversion(){ return "v0.3.111.20210130_HE" }
+static String HEversion(){ return "v0.3.111.20210202_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -2251,15 +2251,25 @@ private String getDashboardInitUrl(Boolean reg=false){
 	String t1
 	if(isCustomEndpoint()){
 		t1=customApiServerUrl('/')
-		//customApiServerUrl('/?access_token=' + state.accessToken) ).bytes.encodeBase64()
+//		t1=customApiServerUrl('/?access_token=' + state.accessToken)
+//    log.debug "t0 $t0"
+//    log.debug "t1 $t1"
+//		t1=customApiServerUrl('/?access_token=' + state.accessToken).bytes.encodeBase64()
+//	 	t0 = t0+t1
 	}else{
 	//if((Boolean)state.installed && (Boolean)settings.agreement){
 		t1= apiServerUrl("")
 	}
-	t0=t0+(
-		t1.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
-		(hubUID.toString() + app.id.toString()).replace("-", "") + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
-	//log.debug "Url: $t0"
+//    log.debug "t0 $t0"
+/*		String a =(
+			t1.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
+			(hubUID.toString() + app.id.toString()).replace("-", "") + '/?access_token=' + (String)state.accessToken ) */
+//    log.debug "t1 $a"
+		t0=t0+(
+			t1.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
+			(hubUID.toString() + app.id.toString()).replace("-", "") + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
+//	}
+//	log.debug "Url: $t0"
 	return t0
 }
 
@@ -2401,11 +2411,10 @@ private Boolean verifySecurityToken(String tokenId){
 		atomicState.securityTokens=tokens
 	}
 	Long token=(Long)tokens[tokenId]
-	if(token==null || token < now()){
+	if(token && token < now()){
 		if(tokens) error "Dashboard: Authentication failed due to an invalid token"
-		return false
 	}
-	return true
+	return token && token >= now()
 }
 
 private String createSecurityToken(){
