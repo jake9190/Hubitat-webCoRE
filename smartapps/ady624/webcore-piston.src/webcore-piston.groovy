@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 2, 2021 for Hubitat
+ * Last update February 3, 2021 for Hubitat
 */
 
-static String version(){ return 'v0.3.112.20210202' }
-static String HEversion(){ return 'v0.3.112.20210202_HE' }
+static String version(){ return 'v0.3.113.20210203' }
+static String HEversion(){ return 'v0.3.113.20210203_HE' }
 
 /** webCoRE DEFINITION					**/
 
@@ -126,7 +126,11 @@ static Boolean eric1(){ return false }
 @Field static final String sCURUNIT='$currentEventUnit'
 @Field static final String sCURPHYS='$currentEventDevicePhysical'
 @Field static final String sAPPJSON='application/json'
+@Field static final String sAPPFORM='application/x-www-form-urlencoded'
 @Field static final String sASYNCREP='wc_async_reply'
+@Field static final String sGET='GET'
+@Field static final String sDELETE='DELETE'
+@Field static final String sHEAD='HEAD'
 @Field static final String sLVL='level'
 @Field static final String sSTLVL='setLevel'
 @Field static final String sIFLVL='infraredLevel'
@@ -4257,7 +4261,7 @@ private Long vcmd_httpRequest(Map rtD, device, List params){
 		return 0L
 	}
 	String method=(String)params[1]
-	Boolean useQueryString=method=='GET' || method=='DELETE' || method=='HEAD'
+	Boolean useQueryString=method==sGET || method==sDELETE || method==sHEAD
 	String requestBodyType=(String)params[2]
 	def variables=params[3]
 	String auth=sNULL
@@ -4271,7 +4275,7 @@ private Long vcmd_httpRequest(Map rtD, device, List params){
 		auth=(String)params[6]
 	}
 	String protocol="https"
-	String requestContentType=(method=="GET" || requestBodyType=="FORM")? "application/x-www-form-urlencoded":(requestBodyType=="JSON")? sAPPJSON:contentType
+	String requestContentType=(method==sGET || requestBodyType=='FORM')? sAPPFORM : (requestBodyType=="JSON")? sAPPJSON:contentType
 	String userPart=sBLK
 	List uriParts=uri.split("://").toList()
 	if((Integer)uriParts.size()>2){
@@ -4298,6 +4302,9 @@ private Long vcmd_httpRequest(Map rtD, device, List params){
 			data[variable]=getVariable(rtD, variable).v
 		}
 	}
+	if(!useQueryString && requestContentType == sAPPFORM && data instanceof Map){
+		data = data.collect{ String k,v -> encodeURIComponent(k)+'='+encodeURIComponent(v) }.join(sAMP)
+	}
 	try{
 		Map requestParams=[
 			uri: protocol+'://'+userPart+uri,
@@ -4309,7 +4316,7 @@ private Long vcmd_httpRequest(Map rtD, device, List params){
 		]
 		String func=sBLK
 		switch(method){
-			case 'GET':
+			case sGET:
 				func='asynchttpGet'
 				break
 			case 'POST':
@@ -4318,10 +4325,10 @@ private Long vcmd_httpRequest(Map rtD, device, List params){
 			case 'PUT':
 				func='asynchttpPut'
 				break
-			case 'DELETE':
+			case sDELETE:
 				func='asynchttpDelete'
 				break
-			case 'HEAD':
+			case sHEAD:
 				func='asynchttpHead'
 				break
 		}
@@ -4339,7 +4346,7 @@ private Long vcmd_httpRequest(Map rtD, device, List params){
 void ahttpRequestHandler(resp, Map callbackData){
 	Boolean binary=false
 	def t0=resp.getHeaders()
-	String t1=t0!=null && (String)t0."Content-Type" ? (String)t0."Content-Type" : sNULL
+	String t1=t0!=null ? (String)t0."Content-Type" : sNULL
 	String mediaType=t1 ? (String)(t1.toLowerCase()?.tokenize(';')[0]):sNULL
 	switch (mediaType){
 		case 'image/jpeg':
@@ -4358,16 +4365,18 @@ void ahttpRequestHandler(resp, Map callbackData){
 		erMsg=" Response Status: ${resp.status}  error Message: ${resp.getErrorMessage()}".toString()
 		if(!responseCode) responseCode=500
 	}
+	Boolean respOk=(responseCode>=200 && responseCode<300)
+
 	switch(callBackC){
 	case 'lifx':
-		def em=callbackData?.em
-		if(!(responseCode>=200 && responseCode<300))
+		if(!respOk)
+			def em=callbackData?.em
 			erMsg="lifx Error lifx sending ${em?.t}".toString()+erMsg
 		break
 	case sSENDE:
 		String msg='Unknown error'
 		def em=callbackData?.em
-		if(responseCode==200){
+		if(respOk){
 			data=resp.getJson()
 			if(data!=null){
 				if((String)data.result=='OK'){
@@ -4382,32 +4391,21 @@ void ahttpRequestHandler(resp, Map callbackData){
 		}
 		break
 	case sHTTPR:
-		if(responseCode==204){
+		if(responseCode==204){ // no content
 			mediaType=sBLK
 		}else{
-			if(responseCode>=200 && responseCode<300 && resp.data){
+			if(respOk && resp.data){
 				if(!binary){
 					data=resp.data
-					//log.error "RESP ${data}"
+					if(eric1() && (Integer)state.logging>2) log.debug "http mediaType $mediaType RESP ${data}"
 					if(data!=null && !(data instanceof Map) && !(data instanceof List)){
-						try{
-							data= new groovy.json.JsonSlurper().parseText(resp.data)
-							json=resp.data
-						}catch (all){
-							try{ // HE can return data Base64
-								String decode=new String(resp.data.decodeBase64())
-								data= new groovy.json.JsonSlurper().parseText(decode)
-								json=decode
-							}catch (al1){
-								data=resp.data
-							}
-						}
+						def ndata=parseMyJson(data)
+						if(ndata) data=ndata
 					}
 				}else{
 					if(resp.data!=null && resp.data instanceof java.io.ByteArrayInputStream){
 						setRtData.mediaType=mediaType
-						//setRtData.mediaData=resp.data.getBytes()
-						setRtData.mediaData=resp.data.decodeBase64()
+						setRtData.mediaData=resp.data.decodeBase64() // HE binary data is b64encoded resp.data.getBytes()
 					}
 				}
 			}else{
@@ -4417,13 +4415,13 @@ void ahttpRequestHandler(resp, Map callbackData){
 		break
 	case sIFTTM:
 		def em=callbackData?.em
-		if(!(responseCode>=200 && responseCode<300))
+		if(!respOk)
 			erMsg="ifttt Error iftttMaker to ${em?.t}: ${em?.p1}, ${em?.p2}, ${em?.p3}  ".toString()+erMsg
 		break
 	case sSTOREM:
 		def mediaId
 		def mediaUrl
-		if(responseCode==200){
+		if(respOk){
 			data=resp.getJson()
 			if((String)data.result=='OK' && data.url){
 				mediaId=data.id
@@ -4440,6 +4438,21 @@ void ahttpRequestHandler(resp, Map callbackData){
 	if(erMsg!=sNULL) error erMsg, [:]
 
 	handleEvents([date: new Date(), device: location, name:sASYNCREP, value: callBackC, contentType: mediaType, responseData: data, jsonData: json, responseCode: responseCode, setRtData: setRtData])
+}
+
+private parseMyJson(a) {
+	def ret
+	if(a instanceof String || a instanceof GString){
+		a=a.toString()
+		try {
+			if((Boolean)a.startsWith('{') && (Boolean)a.endsWith('}')){
+				ret=(LinkedHashMap)new groovy.json.JsonSlurper().parseText(a)
+			}else if((Boolean)a.startsWith(sLB) && (Boolean)a.endsWith(sRB)){
+				ret=(List)new groovy.json.JsonSlurper().parseText(a)
+			}
+		} catch(e) {}
+	}
+	return ret
 }
 
 private Long vcmd_writeToFuelStream(Map rtD, device, List params){
@@ -6051,12 +6064,8 @@ private Map getJsonData(Map rtD, data, String name, String feature=sNULL){
 		for(String part in parts){
 			partIndex=partIndex+1
 			if(args instanceof String || args instanceof GString){
-				String sarg=args.toString()
-				if((Boolean)sarg.startsWith('{') && (Boolean)sarg.endsWith('}')){
-					args=(LinkedHashMap)new groovy.json.JsonSlurper().parseText(sarg)
-				}else if((Boolean)sarg.startsWith(sLB) && (Boolean)sarg.endsWith(sRB)){
-					args=(List)new groovy.json.JsonSlurper().parseText(sarg)
-				}
+				def narg=parseMyJson(args.toString())
+				if(narg)args=narg
 			}
 			if(args instanceof List){
 				Integer sz=(Integer)args.size()
@@ -6251,7 +6260,7 @@ private Map getWeather(Map rtD, String name){
 private Map getNFLDataFeature(String dataFeature){
 	Map requestParams=[
 		uri: "https://api.webcore.co/nfl/$dataFeature".toString(),
-		query: method=="GET" ? data:null,
+		query: method==sGET ? data:null,
 		timeout: 20
 	]
 	httpGet(requestParams){ response ->
@@ -8263,12 +8272,9 @@ private static Map func_json(Map rtD, List<Map> params){
 /** Usage: urlencode(value)								**/
 private Map func_urlencode(Map rtD, List<Map> params){
 	if(!checkParams(rtD, params,1)) return rtnErr('urlencode(value])')
-	// URLEncoder converts spaces to + which is then indistinguishable from any
-	// actual + characters in the value. Match encodeURIComponent in ECMAScript
-	// which encodes "a+b c" as "a+b%20c" rather than URLEncoder's "a+b+c"
 	String t0=(String)evaluateExpression(rtD, params[0], sSTR).v
-	String value=(t0!=null ? t0:sBLK).replaceAll('\\+', '__wc_plus__')
-	return [t:sSTR, v:URLEncoder.encode(value, 'UTF-8').replaceAll('\\+', '%20').replaceAll('__wc_plus__', sPLUS)]
+	String value=(t0!=sNULL ? t0:sBLK)
+	return [t:sSTR, v:encodeURIComponent(value)]
 }
 private Map func_encodeuricomponent(Map rtD, List params){ return func_urlencode(rtD, params)}
 
@@ -8287,6 +8293,16 @@ private static String runTimeHis(Map rtD){
 }
 
 /** UTILITIES									**/
+
+private String encodeURIComponent(value){
+	// URLEncoder converts spaces to + which is then indistinguishable from any 
+	// actual + characters in the value. Match encodeURIComponent in ECMAScript
+	// which encodes "a+b c" as "a+b%20c" rather than URLEncoder's "a+b+c"
+	return URLEncoder.encode(
+		"${value}".toString().replaceAll('\\+', '__wc_plus__'),
+		'UTF-8'
+	).replaceAll('\\+', '%20').replaceAll('__wc_plus__', '+')
+}
 
 private String md5(String md5){
 	java.security.MessageDigest md=java.security.MessageDigest.getInstance('MD5')
