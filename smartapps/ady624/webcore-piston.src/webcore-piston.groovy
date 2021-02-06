@@ -4452,9 +4452,9 @@ private parseMyResp(a, String mediaType=sNULL) {
 			}else if((Boolean)a.startsWith(sLB) && (Boolean)a.endsWith(sRB)){
 				ret=(List)new groovy.json.JsonSlurper().parseText(a)
 			}else if(mediaType in ['application/octet-stream'] && a.size() % 4 == 0){ // HE can return data Base64
-				def dec=a.decodeBase64()
-				if(dec){
-					def t0=parseMyResp(dec.toString(), '')
+				String dec=new String(a.decodeBase64())
+				if(dec!=sNULL){
+					def t0=parseMyResp(dec, '')
 					ret=t0==null ? dec:t0
 				}
 			}
