@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 3, 2021 for Hubitat
+ * Last update February 9, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.113.20210203" }
-static String HEversion(){ return "v0.3.113.20210203_HE" }
+static String HEversion(){ return "v0.3.113.20210209_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -3459,7 +3459,7 @@ Map getChildCommands(){
 	setHeatingSetpoint		: [ n: "Set heating point...",			d: "Set heating point at {0}{T}",			a: "thermostatHeatingSetpoint",		p: [[n:"Desired temperature", t:"thermostatSetpoint"]],																	],
 	setHue				: [ n: "Set hue...",		i: 'palette', is: "l",	d: "Set hue to {0}°{1}",			a: "hue",				p: [[n:"Hue", t:"hue"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],								],
 	setInfraredLevel		: [ n: "Set infrared level...",	i: 'signal',	d: "Set infrared level to {0}%{1}",			a: "infraredLevel",			p: [[n:"Level",t:"infraredLevel"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],					],
-	setLevel			: [ n: "Set level...",		i: 'signal',	d: "Set level to {0}%{1}",				a: sLVL,				p: [[n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],							],
+	setLevel			: [ n: "Set level...",		i: 'signal',	d: "Set level to {0}%{1}",				a: sLVL,				p: [[n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY],[n:"Transition duration (seconds)", t:sINT]],							],
 	setNextEffect			: [ n: "Set next light effect",																					],
 	setPreviousEffect		: [ n: "Set previous light effect",																					],
 	setPosition			: [ n: "Move to position",										a: "position",				p: [[n:"Position", t:"position"]],		],
@@ -3740,7 +3740,7 @@ static Map getChildComparisons(){
 		remains_even			: [ d: "remains even",			dd: "remain even",				g:"di",							],
 		becomes_odd			: [ d: "becomes odd",			dd: "become odd",				g:"di",							],
 		remains_odd			: [ d: "remains odd",			dd: "remain odd",				g:"di",							],
-		stays_unchanged			: [ d: "stays unchanged",		dd: "stay unchanged",				g:"bdfis",				t: 1,	],
+		stays_unchanged			: [ d: "changes and stays unchanged",	dd: "change and stay unchanged",				g:"bdfis",				t: 1,	],
 		stays				: [ d: "is now and stays",		dd: "are now and stay",				g:"bdis",	p: 1,			t: 1,	],
 		stays_not			: [ d: "is not and stays not",		dd: "are not and stay not",			g:"bdis",	p: 1,			t: 1,	],
 		stays_away_from			: [ d: "is away and stays away from",		dd: "are away and stay away from",	g:"bdis",	p: 1,			t: 1,	],

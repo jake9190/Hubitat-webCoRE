@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 5, 2021 for Hubitat
+ * Last update February 9, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.113.20210203' }
-static String HEversion(){ return 'v0.3.113.20210203_HE' }
+static String HEversion(){ return 'v0.3.113.20210209_HE' }
 
 /** webCoRE DEFINITION					**/
 
@@ -3006,7 +3006,7 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 				if(doL) msg.m='Skipped execution of'+tstr+"$nparams".toString()+') because it would make no change to the device.'
 			}else{
 				String tailStr
-				if(doL) tailStr=')'
+//				if(doL) tailStr=')'
 				if(delay>(Long)getPistonLimits.taskMaxDelay)delay=1000L
 				if(delay>0L){
 					pauseExecution(delay) //simulated in hubitat
@@ -3014,10 +3014,10 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 				}
 				if(doL) tstr='Executed'+tstr
 				if((Integer)nparams.size()>0){
-					if(doL) msg.m=tstr+"$nparams".toString()+','+tailStr
+					if(doL) msg.m=tstr+nparams.join(',')+"${tailStr ? ','+tailStr : ')'}"
 					device."$command"(nparams as Object[])
 				}else{
-					if(doL) msg.m=tstr+tailStr
+					if(doL) msg.m=tstr+"${tailStr ?: ')'}"
 					device."$command"()
 				}
 			}
@@ -3415,7 +3415,10 @@ private Long do_setLevel(Map rtD,device,List params,String attr,val=null){
 		return 0L
 	}
 	Long delay=psz>2 ? (Long)params[2]:0L
-	executePhysicalCommand(rtD,device,attr,arg, delay)
+	if(attr==sSTLVL && delay>0){ // setLevel takes seconds duration argument (optional)
+		List larg=[arg, delay.toInteger()]
+		executePhysicalCommand(rtD,device,attr,larg)
+	}else executePhysicalCommand(rtD,device,attr,arg, delay)
 	return 0L
 }
 
@@ -4361,6 +4364,8 @@ void ahttpRequestHandler(resp,Map callbackData){
 	Map setRtData=[:]
 	String callBackC=(String)callbackData?.command
 	Integer responseCode=resp.status
+	if(eric1() && (Integer)state.logging>2) log.debug "http status ${responseCode}\nmediaType ${mediaType}\nheaders $t0"
+
 	Boolean success=false
 	String erMsg
 	if(resp.hasError()){
@@ -4399,7 +4404,7 @@ void ahttpRequestHandler(resp,Map callbackData){
 			if(respOk && resp.data){
 				if(!binary){
 					data=resp.data
-					if(eric1() && (Integer)state.logging>2) log.debug "http mediaType $mediaType RESP ${data}"
+					//if(eric1() && (Integer)state.logging>2) log.debug "http mediaType $mediaType RESP ${data}"
 					if(data!=null && !(data instanceof Map) && !(data instanceof List)){
 						def ndata=parseMyResp(data, mediaType)
 						if(ndata) data=ndata
@@ -4439,7 +4444,7 @@ void ahttpRequestHandler(resp,Map callbackData){
 	}
 	if(erMsg!=sNULL) error erMsg, [:]
 
-	handleEvents([date: new Date(),device: location, name:sASYNCREP, value: callBackC, contentType: mediaType,responseData: data,jsonData: json, responseCode: responseCode,setRtData: setRtData])
+	handleEvents([date:new Date(),device:location, name:sASYNCREP,value:callBackC,contentType:mediaType,responseData:data,jsonData:json,responseCode:responseCode,setRtData:setRtData])
 }
 
 private parseMyResp(a, String mediaType=sNULL) {
@@ -4977,44 +4982,60 @@ private Boolean evaluateCondition(Map rtD,Map condition, String collection, Bool
 					if(to!=null){
 						Map tvalue=(Map)to.operand && (Map)to.values ? (Map)to.values+[f: to.operand.f]:null
 						if(tvalue!=null){
+							Boolean isStaysUnchg = ((String)condition.co=='stays_unchanged')
 							Long delay=(Long)evaluateExpression(rtD,[t:sDURATION, v:tvalue.v,vt:(String)tvalue.vt],sLONG).v
-							if((String)lo.operand.t==sP && (String)lo.operand.g==sANY && (Integer)lo.values.size()>1){
 
-								List<Map> schedules
-								Map t0=getCachedMaps()
-								if(t0!=null)schedules=[]+(List<Map>)t0.schedules
-								else schedules=(Boolean)rtD.pep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
+							List<Map> schedules
+							Map t0=getCachedMaps()
+							if(t0!=null)schedules=[]+(List<Map>)t0.schedules
+							else schedules=(Boolean)rtD.pep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
+
+							if((String)lo.operand.t==sP && (String)lo.operand.g==sANY && (Integer)lo.values.size()>1){
 								for(value in (List)lo.values){
 									String dev=(String)value.v?.d
 									List<String> chkList = (List)options.devices.matched
 									//if(!isStays) chkList = (List)options.devices.unmatched
 									if(dev in chkList){
+										if(isStaysUnchg) {
+											if(schedules.find{ ((Integer)it.s==conditionNum && (String)it.d==dev)}){
+												if((Integer)rtD.logging>2)debug "Cancelling any timed trigger schedules for device $dev for condition ${conditionNum}",rtD
+												cancelStatementSchedules(rtD,conditionNum, dev)
+											}
+											if((Integer)rtD.logging>2)debug "Adding a timed trigger schedule for device $dev for condition ${conditionNum}",rtD
+											requestWakeUp(rtD,condition, condition, delay, dev)
 										//schedule one device schedule
-										if(!schedules.find{ (Integer)it.s==conditionNum && (String)it.d==dev }){
+										} else if(!schedules.find{ (Integer)it.s==conditionNum && (String)it.d==dev }){
 											//schedule a wake up if there's none,otherwise just move on
 											if((Integer)rtD.logging>2)debug "Adding a timed trigger schedule for device $dev for condition ${conditionNum}",rtD
 											requestWakeUp(rtD,condition, condition, delay, dev)
 										}
 									}else{
-										//cancel that one device schedule
-										if((Integer)rtD.logging>2)debug "Cancelling any timed trigger schedules for device $dev for condition ${conditionNum}",rtD
-										cancelStatementSchedules(rtD,conditionNum, dev)
+										if(!isStaysUnchg) {
+											//cancel that one device schedule
+											if((Integer)rtD.logging>2)debug "Cancelling any timed trigger schedules for device $dev for condition ${conditionNum}",rtD
+											cancelStatementSchedules(rtD,conditionNum, dev)
+										}
 									}
 								}
 							}else{
-								if( (isStays && result ) /* || (!isStays && !result) */ ){
+								if( (isStays && result) /* || (!isStays && !result) */ ){
 								//if we find the comparison true (ie reason to time stays has begun),set a timer if we haven't already
-									List<Map> schedules
-									Map t0=getCachedMaps()
-									if(t0!=null)schedules=[]+(List<Map>)t0.schedules
-									else schedules=(Boolean)rtD.pep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
-									if(!schedules.find{ ((Integer)it.s==conditionNum)}){
+									if(isStaysUnchg){
+										if(schedules.find{ ((Integer)it.s==conditionNum)}){
+											if((Integer)rtD.logging>2)debug "Cancelling any timed trigger schedules for condition ${conditionNum}",rtD
+											cancelStatementSchedules(rtD,conditionNum)
+										}
+										if((Integer)rtD.logging>2)debug "Adding a timed trigger schedule for condition ${conditionNum}",rtD
+										requestWakeUp(rtD,condition, condition, delay)
+									} else if(!schedules.find{ ((Integer)it.s==conditionNum)}){
 										if((Integer)rtD.logging>2)debug "Adding a timed trigger schedule for condition ${conditionNum}",rtD
 										requestWakeUp(rtD,condition, condition, delay)
 									}
 								}else{
-									if((Integer)rtD.logging>2)debug "Cancelling any timed trigger schedules for condition ${conditionNum}",rtD
-									cancelStatementSchedules(rtD,conditionNum)
+									if(!isStaysUnchg) {
+										if((Integer)rtD.logging>2)debug "Cancelling any timed trigger schedules for condition ${conditionNum}",rtD
+										cancelStatementSchedules(rtD,conditionNum)
+									}
 								}
 							}
 						} else { log.error "expecting time for stay and value not found $to  $tvalue" }  //; result=false }
@@ -5382,7 +5403,8 @@ private Boolean comp_changes_to_any_of			(Map rtD,Map lv,Map rv=null,Map rv2=nul
 private Boolean comp_changes_away_from_any_of		(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Map oldValue=valueCacheChanged(rtD,lv); return oldValue!=null && comp_is_any_of(rtD,oldValue,rv,rv2) && matchDeviceInteraction((String)lv.v.p,rtD)}
 
 private Boolean comp_stays				(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_is(rtD,lv,rv,rv2,tv,tv2)}
-private Boolean comp_stays_unchanged			(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return true }
+//private Boolean comp_stays_unchanged			(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return true }
+private Boolean comp_stays_unchanged			(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_changes(rtD,lv,rv,rv2,tv,tv2)}
 private Boolean comp_stays_not				(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_is_not(rtD,lv,rv,rv2,tv,tv2)}
 private Boolean comp_stays_equal_to			(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_is_equal_to(rtD,lv,rv,rv2,tv,tv2)}
 private Boolean comp_stays_different_than		(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_is_different_than(rtD,lv,rv,rv2,tv,tv2)}
