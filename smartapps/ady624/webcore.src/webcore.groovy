@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 9, 2021 for Hubitat
+ * Last update February 11, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.113.20210203" }
-static String HEversion(){ return "v0.3.113.20210209_HE" }
+static String HEversion(){ return "v0.3.113.20210211_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -1158,7 +1158,7 @@ private api_intf_dashboard_load(){
 		if(result==null) result=api_get_error_result(sERRTOK)
 	}
 
-	if((Boolean)getLogging().debug) checkResultSize(result)
+	if((Boolean)getLogging().debug) checkResultSize(result, false, "dashLoad")
 
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
@@ -1262,9 +1262,8 @@ private api_intf_dashboard_piston_create(){
 }
 
 private api_intf_dashboard_piston_get(){
-	Map result
+	Map result=[:]
 	def piston
-	Map theDb
 	Boolean requireDb
 	if(verifySecurityToken((String)params.token)){
 		String pistonId=(String)params.id
@@ -1275,14 +1274,11 @@ private api_intf_dashboard_piston_get(){
 			String serverDbVersion=HEversion()
 			String clientDbVersion=(String)params.db
 			requireDb=serverDbVersion != clientDbVersion
-			//if(requireDb){ refreshDevices() }
-			result=[:] //api_get_base_result(true)
 			Map t0=(Map)piston.get()
 			result.data=t0!=null ? t0 : [:]
 			if(requireDb){
 				debug "Dashboard: get piston ${params?.id} needs new db current: ${serverDbVersion} in server ${clientDbVersion}"
-				result.dbVersion=serverDbVersion
-				theDb=[
+				Map theDb=[
 					capabilities: capabilities().sort{ (String)it.value.d },
 					commands: [
 						physical: commands().sort{ (String)it.value.d!=sNULL ? (String)it.value.d : (String)it.value.n },
@@ -1299,7 +1295,7 @@ private api_intf_dashboard_piston_get(){
 				result.dbVersion=serverDbVersion
 				result.db=theDb
 			}
-			if((Boolean)getLogging().debug) checkResultSize(result, requireDb)
+			if((Boolean)getLogging().debug) checkResultSize(result, requireDb, "get piston")
 		}else{
 			result=api_get_error_result(sERRID)
 		}
@@ -1316,51 +1312,45 @@ private api_intf_dashboard_piston_get(){
 	render contentType: sAPPJAVA, data: "${params.callback}(${groovy.json.JsonOutput.toJson(result)})"
 }
 
-private void checkResultSize(Map result, Boolean requireDb=false){
+private void checkResultSize(Map result, Boolean requireDb=false, String caller=sNULL){
 	if(!isCustomEndpoint() || !(Boolean)localHubUrl){
 		String jsonData=groovy.json.JsonOutput.toJson(result)
 		//data saver for Hubitat ~100K limit	
 		Integer responseLength=jsonData.getBytes("UTF-8").length
-		if(responseLength > (107 * 1024)){ //these are loaded anyway right after loading the piston
-			warn "Trimming ${ (Integer)(responseLength/1024) }KB response to smaller size (${requireDb})"
-/*
-			//result.instance=null
-			if(piston && result.data){
-				Map t0=piston.get(true)
-				result.data=t0 ?: [:]
-				//result.data?.logs=[]
-				//result.data?.stats?.timing=[]
-				//result.data?.trace=[:]
+		Integer resl = responseLength/1024
+		debug "Check size found  ${resl}KB response requireDb: (${requireDb}) caller: ${caller}"
+		if(resl > 105){ //these are loaded anyway right after loading the piston
+			warn "Trimming ${resl}KB response to smaller size (${requireDb}) caller: ${caller}"
+
+			if(result.data) {
+				result.data.logs=[]
+				result.data.stats.timing=[]
+				result.data.trace=[:]
 			}
-			if(requireDb){
-				result.instance.devices=[:]
-				refreshDevices()  // cause us to send devices next call
-			}
-*/
-			result.data?.logs=[]
-			result.data?.stats?.timing=[]
-			result.data?.trace=[:]
 
 			Integer svLength=responseLength
 			jsonData=groovy.json.JsonOutput.toJson(result)
 			responseLength=jsonData.getBytes("UTF-8").length
-			debug "First Trimmed response length: ${ (Integer)(responseLength/1024) }KB"
-			if(responseLength == svLength || responseLength > (107 * 1024)){
-				warn "First TRIMMING may be un-successful, trying further trimming ${ (Integer)(responseLength/1024) }KB"
-				if(requireDb){
-					//result.instance.deviceVersion=0
-					//result.instance.devices=[:]
-					result.data?.systemVars=[:]
-					result.data?.globalVars=[:]
-					result.data?.fuelStreamUrls=[:]
+			resl = responseLength/1024
+			debug "First Trimmed response length: ${resl}KB"
+			if(responseLength == svLength || resl > 105){
+				warn "First TRIMMING may be un-successful, trying further trimming ${resl}KB"
+
+				if(result.data) {
+					result.data.systemVars=[:]
+					result.data.localVars=[:]
+					result.data.schedules=[]
 				}
+
+				svLength=responseLength
 				jsonData=groovy.json.JsonOutput.toJson(result)
 				responseLength=jsonData.getBytes("UTF-8").length
-				debug "Second Trimmed response length: ${ (Integer)(responseLength/1024) }KB"
-				if(responseLength == svLength || responseLength > (107 * 1024)){
-					warn "Final TRIMMING may be un-successful, you should load a smaller piston then reload this piston ${ (Integer)(responseLength/1024) }KB"
-				} else warn "Final TRIMMING successful, you should load a small piston again to complete IDE update ${ (Integer)(responseLength/1024) }KB"
-			} else warn "First TRIMMING successful"
+				resl = responseLength/1024
+				debug "Second Trimmed response length: ${resl}KB"
+				if(responseLength == svLength || resl > 105){
+					warn "Final TRIMMING may be un-successful, you should load a smaller piston then reload this piston ${resl}KB"
+				} else warn "Final TRIMMING successful, you should load a small piston again to complete IDE update ${resl}KB"
+			} else warn "First TRIMMING successful ${resl}KB"
 		}
 		//log.debug "Trimmed response length: ${jsonData.getBytes("UTF-8").length}"
 	}
@@ -3459,7 +3449,7 @@ Map getChildCommands(){
 	setHeatingSetpoint		: [ n: "Set heating point...",			d: "Set heating point at {0}{T}",			a: "thermostatHeatingSetpoint",		p: [[n:"Desired temperature", t:"thermostatSetpoint"]],																	],
 	setHue				: [ n: "Set hue...",		i: 'palette', is: "l",	d: "Set hue to {0}°{1}",			a: "hue",				p: [[n:"Hue", t:"hue"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],								],
 	setInfraredLevel		: [ n: "Set infrared level...",	i: 'signal',	d: "Set infrared level to {0}%{1}",			a: "infraredLevel",			p: [[n:"Level",t:"infraredLevel"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],					],
-	setLevel			: [ n: "Set level...",		i: 'signal',	d: "Set level to {0}%{1}",				a: sLVL,				p: [[n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY],[n:"Transition duration (seconds)", t:sINT]],							],
+	setLevel			: [ n: "Set level...",		i: 'signal',	d: "Set level to {0}%{1}",				a: sLVL,				p: [[n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY],[n:"Transition duration (seconds)", t:sINT,d:" over {v} seconds"]],							],
 	setNextEffect			: [ n: "Set next light effect",																					],
 	setPreviousEffect		: [ n: "Set previous light effect",																					],
 	setPosition			: [ n: "Move to position",										a: "position",				p: [[n:"Position", t:"position"]],		],
