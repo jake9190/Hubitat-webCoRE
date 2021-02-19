@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 11, 2021 for Hubitat
+ * Last update February 19, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.113.20210203" }
@@ -917,6 +917,7 @@ mappings{
 	path("/ifttt/:eventName"){action: [GET: "api_ifttt", POST: "api_ifttt"]}
 	path("/email/:pistonId"){action: [POST: "api_email"]}
 	path("/execute/:pistonIdOrName"){action: [GET: "api_execute", POST: "api_execute"]}
+	path("/global/:varName"){action: [GET: "api_global"]}
 	path("/tap"){action: [POST: "api_tap"]}
 	path("/tap/:tapId"){action: [GET: "api_tap"]}
 }
@@ -2015,7 +2016,33 @@ private api_execute(){
 		error "Piston not found for dashboard or web Request to execute a piston from IP $remoteAddr $pistonIdOrName"
 	}
 	result.timestamp=(new Date()).time
-	render contentType: sAPPJSON, data: "${groovy.json.JsonOutput.toJson(result)}"
+	render contentType: sAPPJSON, data: groovy.json.JsonOutput.toJson(result)
+}
+
+private api_global(){
+	def remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
+	if(remoteAddr==null)remoteAddr=request.'X-forwarded-for' ?: request.Host
+	if(remoteAddr==null)remoteAddr='just'
+	debug "web request received to get variable from IP $remoteAddr  Referer: ${request.headers.Referer} | $params"
+	Map result=[:]
+	Boolean err=true
+	String varName=(String)params?.varName
+	if(varName && varName.startsWith('@')){
+		Map vars=(Map)atomicState.vars
+		vars=vars ?: [:]
+		if(vars[varName]){
+			result.val = vars[varName].v
+			result.result='OK'
+			err=false
+		}
+	}
+	if(err){
+		result.result='ERROR'
+		error "variable not found for web Request to get variable from IP $remoteAddr $varName"
+	}
+	Integer st = err ? 400 : 200
+	result.timestamp=(new Date()).time
+	render contentType: sAPPJAVA, data: groovy.json.JsonOutput.toJson(result), status: st
 }
 
 @Field static java.util.concurrent.Semaphore theMBLockFLD=new java.util.concurrent.Semaphore(0)
