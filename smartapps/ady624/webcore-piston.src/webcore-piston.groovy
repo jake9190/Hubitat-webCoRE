@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 11, 2021 for Hubitat
+ * Last update February 21, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.113.20210203' }
@@ -1643,14 +1643,15 @@ void executeHandler(event){
 }
 
 @Field static final Map getPistonLimits=[
-	schedule: 3000L, // need this or longer remaining execution time to process schedules
-	scheduleVariance: 970L,
+	scheduleRemain: 30000L, // need this or longer remaining executionTime to process additional schedules
+	scheduleVariance: 270L,
 	executionTime: 40000L, // time we stop this execution
-	slTime: 1300L, // time before we start pausing
-	useBigDelay: 10000L, // transition from short delay to Long delay
+	slTime: 2300L, // time before we start inserting pauses
+	useBigDelay: 20000L, // transition from short delay to Long delay
 	taskShortDelay: 150L,
 	taskLongDelay: 500L,
-	taskMaxDelay: 1000L,
+	taskMaxDelay: 250L,
+	deviceMaxDelay: 1000L,
 	maxStats: 50,
 	maxLogs: 50,
 ]
@@ -1772,7 +1773,7 @@ void handleEvents(event, Boolean queue=true,Boolean callMySelf=false){
 	
 		Boolean syncTime=true
 		String myId=(String)rtD.id
-		while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-now()>(Long)getPistonLimits.schedule){
+		while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-now()>(Long)getPistonLimits.scheduleRemain){
 			List<Map> schedules
 			Map tt0=getCachedMaps()
 			if(tt0!=null)schedules=(List<Map>)[]+(List<Map>)tt0.schedules
@@ -1783,8 +1784,8 @@ void handleEvents(event, Boolean queue=true,Boolean callMySelf=false){
 				event.schedule=schedules.sort{ (Long)it.t }.find{ (String)it.d==evntVal }
 				syncTime=false
 			}else{
-				//anything less than .9 seconds in the future is considered due,we'll do some pause to sync with it
-				//we're doing this because many times,the scheduler will run a job early, usually 0-1.5 seconds early...
+				//anything less than scheduleVariance (270ms) in the future is considered due,we'll do some pause to sync with it
+				//we're doing this because many times,the scheduler will run a job early
 				evntName=sTIME
 				evntVal=t.toString()
 				event=[date:(Date)event.date,device:location, name:evntName,value:t, schedule:schedules.sort{ (Long)it.t }.find{ (Long)it.t<t+(Long)getPistonLimits.scheduleVariance }]
@@ -1872,9 +1873,10 @@ void handleEvents(event, Boolean queue=true,Boolean callMySelf=false){
 			//if(event.schedule.i>0)schedules.removeAll{ (it.s==event.schedule.s) && (it.i==-3)}
 			if(syncTime && strictSync){
 				Long delay=Math.round((Long)event.schedule.t-1.0D*now())
-				if(delay>0L && delay<(Long)getPistonLimits.scheduleVariance){
-					if((Integer)rtD.logging>1)trace "Synchronizing scheduled event, waiting for ${delay}ms".toString(),rtD
-					pauseExecution(delay)
+				if(delay>0L){
+					Long ty0=(Long)getPistonLimits.scheduleVariance
+					delay=delay<ty0 ? delay : ty0
+					Long actDelay=doPause("Synchronizing scheduled event, waiting for ${delay}ms".toString(),delay,rtD,true)
 				}
 			}
 			if(firstTime&&(Integer)rtD.logging>0){
@@ -2290,11 +2292,11 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 		if(ssz>0){
 			Map tnext=((List<Map>)schedules).sort{ (Long)it.t }[0]
 			nextT=(Long)tnext.t
-			Long t=Math.round((nextT-now())/1000.0D)
-			t=(t<1L ? 1L:t)
-			runIn(t, timeHandler,[data: tnext])
+			Long t=(nextT-now())+30L
+			t=(t<250L ? 250L:t)
+			runInMillis(t, timeHandler,[data: tnext])
 
-			if((Integer)rtD.logging>0) info 'Setting up scheduled job for '+formatLocalTime(nextT)+' (in '+t.toString()+'s)' + ((ssz)>1 ? ',with ' + (ssz-1).toString() + ' more job' + (ssz>2 ? sS : sBLK) + ' pending' : sBLK),rtD
+			if((Integer)rtD.logging>0) info 'Setting up scheduled job for '+formatLocalTime(nextT)+' (in '+t.toString()+'ms)' + ((ssz)>1 ? ',with ' + (ssz-1).toString() + ' more job' + (ssz>2 ? sS : sBLK) + ' pending' : sBLK),rtD
 		}
 		if(nextT==0L && (Long)rtD.nextSchedule!=0L){
 			unschedule(timeHandler)
@@ -2760,27 +2762,28 @@ private Boolean executeStatement(Map rtD,Map statement, Boolean async=false){
 
 private Long checkForSlowdown(Map rtD){
 	//return how long over the time limit we are
-	Long overBy=0L
-	Long curRunTime=Math.round(1.0D*now()-(Long)rtD.timestamp-(Long)getPistonLimits.slTime)
-	if(curRunTime>overBy){
-		overBy=curRunTime
-	}
+	Long t2=(Long)rtD.tPause
+	t2=t2!=null ? t2: 0L
+	Long curRunTime=Math.round(1.0D*now()-(Long)rtD.timestamp-t2-(Long)getPistonLimits.slTime)
+	Long overBy= curRunTime>0L ? curRunTime : 0L
 	return overBy
 }
 
-private Long doPause(String mstr,Long delay, Map rtD){
+private Long doPause(String mstr,Long delay, Map rtD,Boolean ign=false){
 	Long actDelay=0L
 	Long t0=now()
-	if((Long)rtD.lastPause==null || (t0-(Long)rtD.lastPause)>1000L){
+	if((Long)rtD.lastPause==null || ign || (t0-(Long)rtD.lastPause)>(Long)getPistonLimits.slTime){
 		if((Integer)rtD.logging>1)trace mstr+'; lastPause: '+rtD.lastPause,rtD
 		rtD.lastPause=t0
 		pauseExecution(delay)
 		Long t1=now()
 		actDelay=t1-t0
-		Long t2=(Long)rtD.tPause!=null ? (Long)rtD.tPause : 0L
+		Long t2=(Long)rtD.tPause
+		t2=t2!=null ? t2: 0L
 		rtD.tPause=t2+actDelay
 		rtD.lastPause=t1
-		t2=(Long)state.pauses!=null ? (Long)state.pauses : 0L
+		t2=(Long)state.pauses
+		t2=t2!=null ? t2 : 0L
 		state.pauses=t2+1L
 	}
 	return actDelay
@@ -2912,15 +2915,14 @@ private Boolean executeTask(Map rtD,List devices,Map statement, Map task, Boolea
 		//get remaining piston time
 		if(reschedule || async || delay>(Long)getPistonLimits.taskMaxDelay){
 			//schedule a wake up
-			Long sec=Math.round(delay/1000.0D)
-			if((Integer)rtD.logging>1)trace "Requesting a wake up for ${formatLocalTime(Math.round(now()*1.0D+delay))} (in ${sec}s)",rtD
+			Long msec=delay
+			if((Integer)rtD.logging>1)trace "Requesting a wake up for ${formatLocalTime(Math.round(now()*1.0D+delay))} (in ${msec}ms)",rtD
 			tracePoint(rtD,myS, Math.round(1.0D*now()-t),-delay)
 			requestWakeUp(rtD,statement, task, delay, (String)task.c)
 			if((Boolean)rtD.eric) myDetail rtD,mySt+" result:FALSE".toString(),-1
 			return false
 		}else{
-			if((Integer)rtD.logging>1)trace "executeTask: Waiting for ${delay}ms",rtD
-			pauseExecution(delay)
+			Long actDelay=doPause("executeTask: Waiting for ${delay}ms",delay,rtD,true)
 		}
 	}
 	tracePoint(rtD,myS, Math.round(1.0D*now()-t),delay)
@@ -3007,9 +3009,10 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 			}else{
 				String tailStr
 //				if(doL) tailStr=')'
-				if(delay>(Long)getPistonLimits.taskMaxDelay)delay=1000L
+				Long t1 = (Long)getPistonLimits.deviceMaxDelay
+				delay=delay>t1 ? delay=t1 : delay
 				if(delay>0L){
-					pauseExecution(delay) //simulated in hubitat
+					Long actDelay=doPause("wait before device command: Waiting for ${delay}ms",delay,rtD,true)
 					if(doL) tailStr="[delay: $delay])".toString()
 				}
 				if(doL) tstr='Executed'+tstr
@@ -3027,9 +3030,9 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 		}
 		Long t0=rtD.piston.o?.ced ? (Integer)rtD.piston.o.ced:0L
 		if(t0!=0L){
-			if(t0>(Long)getPistonLimits.taskMaxDelay)t0=1000L
-			pauseExecution(t0)
-			if((Integer)rtD.logging>1)trace "Injected command execution delay ${t0}ms after [$device].$command(${nparams ? "$nparams":sBLK})",rtD
+			Long t1 = (Long)getPistonLimits.deviceMaxDelay
+			delay=t0>t1 ? t0=t1 : t0
+			Long actDelay=doPause("Injected command execution delay ${t0}ms after [$device].$command(${nparams ? "$nparams":sBLK})",t0,rtD,true)
 		}
 	}
 }
