@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 21, 2021 for Hubitat
+ * Last update March 2, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.113.20210203' }
@@ -4454,12 +4454,13 @@ private parseMyResp(a, String mediaType=sNULL) {
 	def ret
 	if(a instanceof String || a instanceof GString){
 		a=a.toString()
+		Boolean expectJson = (Boolean)mediaType.contains('json')
 		try {
 			if((Boolean)a.startsWith('{') && (Boolean)a.endsWith('}')){
 				ret=(LinkedHashMap)new groovy.json.JsonSlurper().parseText(a)
 			}else if((Boolean)a.startsWith(sLB) && (Boolean)a.endsWith(sRB)){
 				ret=(List)new groovy.json.JsonSlurper().parseText(a)
-			}else if(mediaType in ['application/octet-stream'] && a.size() % 4 == 0){ // HE can return data Base64
+			}else if(expectJson || (mediaType in ['application/octet-stream']  && a.size() % 4 == 0) ){ // HE can return data Base64
 				String dec=new String(a.decodeBase64())
 				if(dec!=sNULL){
 					def t0=parseMyResp(dec, '')
