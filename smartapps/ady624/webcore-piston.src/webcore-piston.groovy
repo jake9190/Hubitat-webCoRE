@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update March 2, 2021 for Hubitat
+ * Last update March 23, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.113.20210203' }
@@ -1073,7 +1073,7 @@ Boolean getTheLock(String qname,String meth=sNULL, Boolean longWait=false){
 			lockTimesFLD[semaSNum]=timeL
 			lockTimesFLD=lockTimesFLD
 		}
-		if(eric())log.warn "waiting for ${qname} ${semaSNum} lock access,$meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
+		if(eric())log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
 		pauseExecution(waitT)
 		wait=true
 		if((now() - timeL) > 30000L) {
@@ -4454,7 +4454,7 @@ private parseMyResp(a, String mediaType=sNULL) {
 	def ret
 	if(a instanceof String || a instanceof GString){
 		a=a.toString()
-		Boolean expectJson = (Boolean)mediaType.contains('json')
+		Boolean expectJson = mediaType ? (Boolean)mediaType.contains('json') : false
 		try {
 			if((Boolean)a.startsWith('{') && (Boolean)a.endsWith('}')){
 				ret=(LinkedHashMap)new groovy.json.JsonSlurper().parseText(a)
