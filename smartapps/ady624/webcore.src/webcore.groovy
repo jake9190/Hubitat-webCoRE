@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 19, 2021 for Hubitat
+ * Last update March 31, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.113.20210203" }
@@ -369,7 +369,7 @@ def pageSettings(){
 		}
 	
 		section(sectionTitleStr('enable \$weather via external provider')){
-			input "weatherType", "enum", title: "Weather Type to enable?", defaultValue: '', submitOnChange: true, required: false, options:['apiXU', 'DarkSky','OpenWeatherMap', '']
+			input "weatherType", sENUM, title: "Weather Type to enable?", defaultValue: '', submitOnChange: true, required: false, options:['apiXU', 'DarkSky','OpenWeatherMap', '']
 			String defaultLoc
 			String defaultLoc1
 			String mreq=settings.weatherType ? (String)settings.weatherType : sNULL
@@ -421,7 +421,7 @@ def pageSettings(){
 			if((Boolean)customEndpoints){
 				Boolean req=false
 				if((Boolean)customEndPoints && (Boolean)localHubUrl) req=true
-				input "customWebcoreInstanceUrl", "string", title: "Custom webcore webserver (local webserver url different from dashboard.webcore.co)", default: null, required: req
+				input "customWebcoreInstanceUrl", sSTR, title: "Custom webcore webserver (local webserver url different from dashboard.webcore.co)", default: null, required: req
 				if((Boolean)localHubUrl && !customWebcoreInstanceUrl) paragraph "If you use a local hub API url you MUST use a custom webcore server url, as dashboard.webcore.co site is restricted to Hubitat and Smartthing's cloud API access only"
 				input "localHubUrl", "bool", title: "Use local hub URL for API access?", submitOnChange: true, default: false, required: false
 			} else {
@@ -435,7 +435,7 @@ def pageSettings(){
 		}
 
 		section(sectionTitleStr("Logging")){
-			input "logging", "enum", title: "Logging level", options: ["None", "Minimal", "Medium", "Full"], description: "Enable Logs in platform logs", defaultValue: "None", required: false
+			input "logging", sENUM, title: "Logging level", options: ["None", "Minimal", "Medium", "Full"], description: "Enable Logs in platform logs", defaultValue: "None", required: false
 		}
 
 		section(title:"Privacy"){
@@ -452,7 +452,7 @@ def pageSettings(){
 
 		section(title: "Recovery"){
 			paragraph "webCoRE can run a recovery procedure every so often. This augments the built-in automatic recovery procedures that allows webCoRE to rely on all healthy pistons to keep the failed ones running."
-			input "recovery", "enum", title: "Run recovery", options: ["Never", "Every 5 minutes", "Every 10 minutes", "Every 15 minutes", "Every 30 minutes", "Every 1 hour", "Every 3 hours"], description: "Allows recovery procedures to run every so often", defaultValue: "Every 30 minutes", required: true
+			input "recovery", sENUM, title: "Run recovery", options: ["Never", "Every 5 minutes", "Every 10 minutes", "Every 15 minutes", "Every 30 minutes", "Every 1 hour", "Every 3 hours"], description: "Allows recovery procedures to run every so often", defaultValue: "Every 30 minutes", required: true
 		}
 
 		if((Boolean)getLogging().debug || eric()){
@@ -503,7 +503,7 @@ private pageChangePassword(){
 private pageSectionPIN(){
 	section(){
 		input "PIN", "password", title: "Choose a security password for your dashboard", required: true
-		input "expiry", "enum", options: ["Every hour", "Every day", "Every week", "Every month (recommended)", "Every three months", "Never (not recommended)"], defaultValue: "Every month (recommended)", title: "Choose how often the dashboard login expires", required: true
+		input "expiry", sENUM, options: ["Every hour", "Every day", "Every week", "Every month (recommended)", "Every three months", "Never (not recommended)"], defaultValue: "Every month (recommended)", title: "Choose how often the dashboard login expires", required: true
 	}
 }
 
@@ -1121,7 +1121,7 @@ private static String transformHsmStatus(String status){
 	switch(status){
 		case "disarmed":
 		case "allDisarmed":
-			return "off"
+			return sOFF
 			break
 		case "armedHome":
 		case "armedNight":
@@ -1145,7 +1145,7 @@ private api_intf_dashboard_load(){
 		if((String)params.dashboard == "1"){
 			startDashboard()
 		}else{
-			if((String)state.dashboard != 'inactive') stopDashboard()
+			if((String)state.dashboard != sINACT) stopDashboard()
 		}
 	}else{
 		if((String)params.pin!=sNULL){
@@ -2464,7 +2464,9 @@ private void startDashboard(){
 	if(!dashboardApp) return //false
 	Map t0=listAvailableDevices(true)
 	dashboardApp.start(t0.collect{ it.value }, getInstanceSid())
-	if((String)state.dashboard != 'active') atomicState.dashboard='active'
+	if((String)state.dashboard != sACT) {
+		atomicState.dashboard=sACT
+	}
 }
 
 private void stopDashboard(){
@@ -2472,7 +2474,9 @@ private void stopDashboard(){
 	def dashboardApp=getDashboardApp()
 	if(!dashboardApp) return //false
 	dashboardApp.stop()
-	if((String)state.dashboard != 'inactive') atomicState.dashboard='inactive'
+	if((String)state.dashboard != sINACT) {
+		atomicState.dashboard=sINACT
+	}
 }
 
 private String getAccountSid(){
@@ -2733,7 +2737,7 @@ void updateRunTimeData(Map data){
 		sendVariableEvent(variable)
 	}
 	//broadcast to dashboard
-	if((String)state.dashboard == 'active'){
+	if((String)state.dashboard == sACT){
 		def dashboardApp=getDashboardApp()
 		if(dashboardApp) dashboardApp.updatePiston(id, piston)
 	}
@@ -2956,7 +2960,9 @@ private List getIncidents(){
 		else Boolean aa=new3Alerts.push(myE)
 	}
 	Integer nsz=new3Alerts.size()
-	if(osz!=nsz) atomicState.hsmAlerts=new3Alerts
+	if(osz!=nsz) {
+		atomicState.hsmAlerts=new3Alerts
+	}
 	return new3Alerts
 }
 
@@ -3136,6 +3142,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 @Field static final String sENUM='enum'
 @Field static final String sDYN='dynamic'
 @Field static final String sDUR='duration'
+@Field static final String sDURATION='Duration'
 @Field static final String sBOOL='boolean'
 @Field static final String sLVL='level'
 @Field static final String sON='on'
@@ -3146,6 +3153,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 @Field static final String sVOLUME='Volume'
 @Field static final String sSWITCH='switch'
 @Field static final String sCOLOR='color'
+@Field static final String sCCOLOR='Color'
 @Field static final String sTOGON='toggle-on'
 @Field static final String sTHERM='thermostatMode'
 @Field static final String sTHERFM='thermostatFanMode'
@@ -3153,6 +3161,8 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 @Field static final String sONLYIFSWIS='Only if switch is...'
 @Field static final String sIFALREADY=' if already {v}'
 @Field static final String sNUMFLASH='Number of flashes'
+@Field static final String sACT='active'
+@Field static final String sINACT='inactive'
 
 	//n=name
 	//d=friendly devices name
@@ -3274,7 +3284,7 @@ Map getChildAttributes(){
 }		
 
 @Field final Map attributesFLD=[
-	acceleration			: [ n: "acceleration",			t: sENUM,		o: ["active", "inactive"],						],
+	acceleration			: [ n: "acceleration",			t: sENUM,		o: [sACT, sINACT],						],
 	activities			: [ n: "activities",			t: "object",											],
 	alarm				: [ n: "alarm",			t: sENUM,		o: ["both", sOFF, "siren", "strobe"],						],
 //	axisX				: [ n: "X axis",			t: sINT,	r: [-1024, 1024],	s: "threeAxis",						],
@@ -3314,7 +3324,7 @@ Map getChildAttributes(){
 	lockCodes			: [ n: "lock codes",			t: "object",											],
 	lqi				: [ n: "link quality",			t: sINT,	r: [0, 255],									],
 	momentary			: [ n: "momentary",			t: sENUM,		o: ["pushed"],								],
-	motion				: [ n: "motion",			t: sENUM,		o: ["active", "inactive"],						],
+	motion				: [ n: "motion",			t: sENUM,		o: [sACT, sINACT],						],
 	mute				: [ n: "mute",				t: sENUM,		o: ["muted", "unmuted"],						],
 	orientation			: [ n: "orientation",			t: sENUM,		o: ["rear side up", "down side up", "left side up", "front side up", "up side up", "right side up"],	],
 	axisX				: [ n: "axis X",			t: sDEC,	s: "threeAxis" ],
@@ -3466,7 +3476,7 @@ Map getChildCommands(){
 	resumeTrack			: [ n: "Resume track...",				d: "Resume track <uri>{0}</uri>",							p: [[n:"Track URL",t:"url"]],			],
 	setCode				: [ n: "Set Code...",				d: "Set code {0} to {1} {2}",						p: [[n:"Code Position",t:sINT], [n:"Pin", t:sSTR], [n:"Name", t:sSTR]],							],
 	setCodeLength			: [ n: "Set Code Max Length...",		d: "Set code length to {0}",						p: [[n:"Code Length",t:sINT]],						],
-	setColor			: [ n: "Set color...",		i: 'palette', is: "l",	d: "Set color to {0}{1}",			a: sCOLOR,				p: [[n:"Color",t:sCOLOR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],							],
+	setColor			: [ n: "Set color...",		i: 'palette', is: "l",	d: "Set color to {0}{1}",			a: sCOLOR,				p: [[n:sCCOLOR,t:sCOLOR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],							],
 	setColorTemperature		: [ n: "Set color temperature...",		d: "Set color temperature to {0}°K{1}",			a: "colorTemperature",			p: [[n:"Color Temperature", t:"colorTemperature"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],	],
 	setConsumableStatus		: [ n: "Set consumable status...",		d: "Set consumable status to {0}",								p: [[n:"Status", t:"consumable"]],		],
 	setCoolingSetpoint		: [ n: "Set cooling point...",			d: "Set cooling point at {0}{T}",			a: "thermostatCoolingSetpoint",		p: [[n:"Desired temperature", t:"thermostatSetpoint"]],	],
@@ -3476,7 +3486,7 @@ Map getChildCommands(){
 	setHeatingSetpoint		: [ n: "Set heating point...",			d: "Set heating point at {0}{T}",			a: "thermostatHeatingSetpoint",		p: [[n:"Desired temperature", t:"thermostatSetpoint"]],																	],
 	setHue				: [ n: "Set hue...",		i: 'palette', is: "l",	d: "Set hue to {0}°{1}",			a: "hue",				p: [[n:"Hue", t:"hue"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],								],
 	setInfraredLevel		: [ n: "Set infrared level...",	i: 'signal',	d: "Set infrared level to {0}%{1}",			a: "infraredLevel",			p: [[n:"Level",t:"infraredLevel"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],					],
-	setLevel			: [ n: "Set level...",		i: 'signal',	d: "Set level to {0}%{1}",				a: sLVL,				p: [[n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY],[n:"Transition duration (seconds)", t:sINT,d:" over {v} seconds"]],							],
+	setLevel			: [ n: "Set level...",		i: 'signal',	d: "Set level to {0}%{2}{1}",				a: sLVL,				p: [[n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY],[n:"Transition duration (seconds)", t:sINT,d:" over {v} seconds"]],							],
 	setNextEffect			: [ n: "Set next light effect",																					],
 	setPreviousEffect		: [ n: "Set previous light effect",																					],
 	setPosition			: [ n: "Move to position",										a: "position",				p: [[n:"Position", t:"position"]],		],
@@ -3510,11 +3520,11 @@ Map getChildCommands(){
 	//hue
 	startLoop			: [ n: "Start color loop",																					],
 	stopLoop			: [ n: "Stop color loop",																					],
-	setLoopTime			: [ n: "Set loop duration...",			d: "Set loop duration to {0}",				p: [[n:"Duration", t:sDUR]]							],
+	setLoopTime			: [ n: "Set loop duration...",			d: "Set loop duration to {0}",				p: [[n:sDURATION, t:sDUR]]							],
 	setDirection			: [ n: "Switch loop direction",																					],
 	alert				: [ n: "Alert with lights...",			d: "Alert \"{0}\" with lights",				p: [[n:"Alert type", t:sENUM, o:["Blink","Breathe","Okay","Stop"]]],			],
-	setAdjustedColor		: [ n: "Transition to color...",		d: "Transition to color {0} in {1}{2}",			p: [[n:"Color", t:sCOLOR], [n:"Duration",t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],
-	setAdjustedHSLColor		: [ n: "Transition to HSL color...",		d: "Transition to color H:{0}° / S:{1}% / L:{2}% in {3}{4}",			p: [[n:"Hue", t:"hue"],[n:"Saturation", t:"saturation"],[n:"Level", t:sLVL],[n:"Duration",t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],
+	setAdjustedColor		: [ n: "Transition to color...",		d: "Transition to color {0} in {1}{2}",			p: [[n:sCCOLOR, t:sCOLOR], [n:sDURATION,t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],
+	setAdjustedHSLColor		: [ n: "Transition to HSL color...",		d: "Transition to color H:{0}° / S:{1}% / L:{2}% in {3}{4}",			p: [[n:"Hue", t:"hue"],[n:"Saturation", t:"saturation"],[n:"Level", t:sLVL],[n:sDURATION,t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],
 	//harmony
 	allOn				: [ n: "Turn all on",																						],
 	allOff				: [ n: "Turn all off",																						],
@@ -3528,7 +3538,7 @@ Map getChildCommands(){
 	ledOn				: [ n: "Turn LED on",																						],
 	ledOff				: [ n: "Turn LED off",																						],
 	ledAuto				: [ n: "Set LED to Auto",																					],
-	setVideoLength			: [ n: "Set video length...",			d: "Set video length to {0}",				p: [[n:"Duration", t:sDUR]],							],
+	setVideoLength			: [ n: "Set video length...",			d: "Set video length to {0}",				p: [[n:sDURATION, t:sDUR]],							],
 	//dlink camera
 	pirOn				: [ n: "Enable PIR motion detection",																				],
 	pirOff				: [ n: "Disable PIR motion detection",																				],
@@ -3590,7 +3600,7 @@ private static Map virtualCommands(){
 	List<String> tileIndexes=['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16']
 	return [
 		noop				: [ n: "No operation",			a: true,	i: "circle",				d: "No operation",						],
-		wait				: [ n: "Wait...",			a: true,	i: sCLOCK, is: "r",				d: "Wait {0}",						p: [[n:"Duration", t:sDUR]],				],
+		wait				: [ n: "Wait...",			a: true,	i: sCLOCK, is: "r",				d: "Wait {0}",						p: [[n:sDURATION, t:sDUR]],				],
 		waitRandom			: [ n: "Wait randomly...",		a: true,	i: sCLOCK, is: "r",				d: "Wait randomly between {0} and {1}",									p: [[n:"At least", t:sDUR],[n:"At most", t:sDUR]],	],
 		waitForTime			: [ n: "Wait for time...",		a: true,	i: sCLOCK, is: "r",				d: "Wait until {0}",													p: [[n:"Time", t:"time"]],	],
 		waitForDateTime			: [ n: "Wait for date & time...",	a: true,	i: sCLOCK, is: "r",				d: "Wait until {0}",													p: [[n:"Date & Time", t:sDATIM]],	],
@@ -3625,19 +3635,19 @@ private static Map virtualCommands(){
 		adjustSaturation		: [ n: "Adjust saturation...",	r: ["setSaturation"],	i: sTOGON,		d: "Adjust saturation by {0}%{1}",										p: [[n:"Adjustment",t:sINT,r:[-100,100]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
 		adjustHue			: [ n: "Adjust hue...",	r: ["setHue"],		i: sTOGON,					d: "Adjust hue by {0}°{1}",												p: [[n:"Adjustment",t:sINT,r:[-360,360]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
 		adjustColorTemperature		: [ n: "Adjust color temperature...",	r: ["setColorTemperature"],	i: sTOGON,				d: "Adjust color temperature by {0}°K%{1}",		p: [[n:"Adjustment",t:sINT,r:[-29000,29000]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeLevel			: [ n: "Fade level...",	r: ["setLevel"],		i: sTOGON,				d: "Fade level{0} to {1}% in {2}{3}",									p: [[n:"Starting level",t:sLVL,d:" from {v}%"],[n:"Final level",t:sLVL],[n:"Duration",t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeInfraredLevel		: [ n: "Fade infrared level...",	r: ["setInfraredLevel"],		i: sTOGON,				d: "Fade infrared level{0} to {1}% in {2}{3}",		p: [[n:"Starting infrared level",t:sLVL,d:" from {v}%"],[n:"Final infrared level",t:sLVL],[n:"Duration",t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeSaturation			: [ n: "Fade saturation...",	r: ["setSaturation"],		i: sTOGON,				d: "Fade saturation{0} to {1}% in {2}{3}",					p: [[n:"Starting saturation",t:sLVL,d:" from {v}%"],[n:"Final saturation",t:sLVL],[n:"Duration",t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeHue				: [ n: "Fade hue...",			r: ["setHue"],		i: sTOGON,				d: "Fade hue{0} to {1}° in {2}{3}",								p: [[n:"Starting hue",t:"hue",d:" from {v}°"],[n:"Final hue",t:"hue"],[n:"Duration",t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeColorTemperature		: [ n: "Fade color temperature...",		r: ["setColorTemperature"],		i: sTOGON,				d: "Fade color temperature{0} to {1}°K in {2}{3}",									p: [[n:"Starting color temperature",t:"colorTemperature",d:" from {v}°K"],[n:"Final color temperature",t:"colorTemperature"],[n:"Duration",t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
+		fadeLevel			: [ n: "Fade level...",	r: ["setLevel"],		i: sTOGON,				d: "Fade level{0} to {1}% in {2}{3}",									p: [[n:"Starting level",t:sLVL,d:" from {v}%"],[n:"Final level",t:sLVL],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
+		fadeInfraredLevel		: [ n: "Fade infrared level...",	r: ["setInfraredLevel"],		i: sTOGON,				d: "Fade infrared level{0} to {1}% in {2}{3}",		p: [[n:"Starting infrared level",t:sLVL,d:" from {v}%"],[n:"Final infrared level",t:sLVL],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
+		fadeSaturation			: [ n: "Fade saturation...",	r: ["setSaturation"],		i: sTOGON,				d: "Fade saturation{0} to {1}% in {2}{3}",					p: [[n:"Starting saturation",t:sLVL,d:" from {v}%"],[n:"Final saturation",t:sLVL],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
+		fadeHue				: [ n: "Fade hue...",			r: ["setHue"],		i: sTOGON,				d: "Fade hue{0} to {1}° in {2}{3}",								p: [[n:"Starting hue",t:"hue",d:" from {v}°"],[n:"Final hue",t:"hue"],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
+		fadeColorTemperature		: [ n: "Fade color temperature...",		r: ["setColorTemperature"],		i: sTOGON,				d: "Fade color temperature{0} to {1}°K in {2}{3}",									p: [[n:"Starting color temperature",t:"colorTemperature",d:" from {v}°K"],[n:"Final color temperature",t:"colorTemperature"],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
 //		flash				: [ n: "Flash...",	r: [sON, sOFF],		i: sTOGON,				d: "Flash on {0} / off {1} for {2} times{3}",							p: [[n:"On duration",t:sDUR],[n:"Off duration",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
 		flashLevel			: [ n: "Flash (level)...",	r: ["setLevel"],	i: sTOGON,		d: "Flash {0}% {1} / {2}% {3} for {4} times{5}",						p: [[n:"Level 1", t:sLVL],[n:"Duration 1",t:sDUR],[n:"Level 2", t:sLVL],[n:"Duration 2",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
 		flashColor			: [ n: "Flash (color)...",	r: ["setColor"],	i: sTOGON,		d: "Flash {0} {1} / {2} {3} for {4} times{5}",							p: [[n:"Color 1", t:sCOLOR],[n:"Duration 1",t:sDUR],[n:"Color 2", t:sCOLOR],[n:"Duration 2",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		lifxScene			: [ n: "LIFX - Activate scene...",              a: true,                        d: "Activate LIFX Scene '{0}'{1}",                                                                              p: [[n: "Scene", t:"lifxScene"],[n: "Duration", t:"duration", d:" for {v}"]],                                   ],
-		lifxState			: [ n: "LIFX - Set State...",                   a: true,                        d: "Set LIFX lights matching {0} to {1}{2}{3}{4}{5}",                                   p: [[n: "Selector", t:"lifxSelector"],[n: "Switch (power)",t:"enum",o:["on","off"],d:" switch '{v}'"],[n: "Color",t:"color",d:" color '{v}'"],[n: "Level (brightness)",t:"level",d:" level {v}%"],[n: "Infrared level",t:"infraredLevel",d:" infrared {v}%"],[n: "Duration",t:"duration",d:" in {v}"]], ],
-		lifxToggle			: [ n: "LIFX - Toggle...",                              a: true,                d: "Toggle LIFX lights matching {0}{1}",                                                                p: [[n: "Selector", t:"lifxSelector"],[n: "Duration",t:"duration",d:" in {v}"]], ],
-		lifxBreathe			: [ n: "LIFX - Breathe...",                             a: true,                d: "Breathe LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}{7}",   p: [[n: "Selector", t:"lifxSelector"],[n: "Color",t:"color"],[n: "From color",t:"color",d:" from color '{v}'"],[n: "Period", t:"duration", d:" with a period of {v}"],[n: "Cycles", t:"integer", d:" for {v} cycles"],[n:"Peak",t:"level",d:" with a peak at {v}% of the period"],[n:"Power on",t:"boolean",d:" and power on at start"],[n:"Persist",t:"boolean",d:" and persist"] ], ],
-		lifxPulse			: [ n: "LIFX - Pulse...",                               a: true,                d: "Pulse LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}",                p: [[n: "Selector", t:"lifxSelector"],[n: "Color",t:"color"],[n: "From color",t:"color",d:" from color '{v}'"],[n: "Period", t:"duration", d:" with a period of {v}"],[n: "Cycles", t:"integer", d:" for {v} cycles"],[n:"Power on",t:"boolean",d:" and power on at start"],[n:"Persist",t:"boolean",d:" and persist"] ], ],
+		lifxScene			: [ n: "LIFX - Activate scene...",              a: true,                        d: "Activate LIFX Scene '{0}'{1}",                                                                              p: [[n: "Scene", t:"lifxScene"],[n: sDURATION, t:sDUR, d:" for {v}"]],                                   ],
+		lifxState			: [ n: "LIFX - Set State...",                   a: true,                        d: "Set LIFX lights matching {0} to {1}{2}{3}{4}{5}",                                   p: [[n: "Selector", t:"lifxSelector"],[n: "Switch (power)",t:sENUM,o:[sON,sOFF],d:" switch '{v}'"],[n: sCCOLOR,t:sCOLOR,d:" color '{v}'"],[n: "Level (brightness)",t:sLVL,d:" level {v}%"],[n: "Infrared level",t:"infraredLevel",d:" infrared {v}%"],[n: sDURATION,t:sDUR,d:" in {v}"]], ],
+		lifxToggle			: [ n: "LIFX - Toggle...",                              a: true,                d: "Toggle LIFX lights matching {0}{1}",                                                                p: [[n: "Selector", t:"lifxSelector"],[n: sDURATION,t:sDUR,d:" in {v}"]], ],
+		lifxBreathe			: [ n: "LIFX - Breathe...",                             a: true,                d: "Breathe LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}{7}",   p: [[n: "Selector", t:"lifxSelector"],[n: sCCOLOR,t:sCOLOR],[n: "From color",t:sCOLOR,d:" from color '{v}'"],[n: "Period", t:sDUR, d:" with a period of {v}"],[n: "Cycles", t:sINT, d:" for {v} cycles"],[n:"Peak",t:sLVL,d:" with a peak at {v}% of the period"],[n:"Power on",t:sBOOL,d:" and power on at start"],[n:"Persist",t:sBOOL,d:" and persist"] ], ],
+		lifxPulse			: [ n: "LIFX - Pulse...",                               a: true,                d: "Pulse LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}",                p: [[n: "Selector", t:"lifxSelector"],[n: sCCOLOR,t:sCOLOR],[n: "From color",t:sCOLOR,d:" from color '{v}'"],[n: "Period", t:sDUR, d:" with a period of {v}"],[n: "Cycles", t:sINT, d:" for {v} cycles"],[n:"Power on",t:sBOOL,d:" and power on at start"],[n:"Persist",t:sBOOL,d:" and persist"] ], ],
 
 		writeToFuelStream		: [ n: "Write to fuel stream...",		a: true,							d: "Write data point '{2}' to fuel stream {0}{1}{3}",					p: [[n: "Canister", t:sTXT, d:"{v} \\ "], [n:"Fuel stream name", t:sTXT], [n: "Data", t:sDYN], [n: "Data source", t:sTXT, d:" from source '{v}'"]],					],
 		iftttMaker			: [ n: "Send an IFTTT Maker event...",	a: true,							d: "Send the {0} IFTTT Maker event{1}{2}{3}",							p: [[n:"Event", t:sTXT], [n:"Value 1", t:sSTR, d:", passing value1 = '{v}'"], [n:"Value 2", t:sSTR, d:", passing value2 = '{v}'"], [n:"Value 3", t:sSTR, d:", passing value3 = '{v}'"]],				],
