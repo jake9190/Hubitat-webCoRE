@@ -2118,6 +2118,23 @@ var renderString = nanomemoize(function renderString($sce, value) {
 		return result;
     });
 
+
+app.filter('escapeHtml', escapeHtml);
+var entityMap = {
+	"&": "&amp;",
+	"<": "&lt;",
+	">": "&gt;",
+	'"': '&quot;',
+	"'": '&#39;'
+};
+var entityPattern = /[&<>"']/g;
+function charToHtmlEntity(char) { 
+	return entityMap[char] || char; 
+}
+function escapeHtml(value) {
+	return (value || '').replace(entityPattern, charToHtmlEntity);
+}
+
 var wuIconForTwcCode = {
 	0:  'tstorms',          // Tornado
 	1:  'tstorms',          // Tropical Storm
@@ -2284,31 +2301,31 @@ function atou(str) {
 
 // Split version parts for numeric and lexical comparison (e.g. v0.9.1ff < v0.10.1ff)
 function comparableVersion(version) {
-        var parts = version.split('.');
-        return [
-                // Numeric major version, without v prefix
-                +parts[0].substr(1),
-                // Numeric minor version
-                +parts[1],
-                // Hex build number remains a string
-                parts[2],
-        ];
+	var parts = version.split('.');
+	return [
+		// Numeric major version, without v prefix
+		+parts[0].substr(1),
+		// Numeric minor version
+		+parts[1],
+		// Hex build number remains a string
+		parts[2],
+	];
 }
 
 // Compare webCoRE version number format for sorting from oldest to newest
 function compareVersions(a, b) {
-        var aParts = comparableVersion(a);
-        var bParts = comparableVersion(b);
+	var aParts = comparableVersion(a);
+	var bParts = comparableVersion(b);
 
-        for (var i = 0; i < aParts.length; i++) {
-                if (aParts[i] < bParts[i]) {
-                        return -1;
-                }
-                if (aParts[i] > bParts[i]) {
-                        return 1;
-                }
-        }
-        return 0;
+	for (var i = 0; i < aParts.length; i++) {
+		if (aParts[i] < bParts[i]) {
+			return -1;
+		}
+		if (aParts[i] > bParts[i]) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 //document.documentElement.addEventListener('touchstart', function (event) {
