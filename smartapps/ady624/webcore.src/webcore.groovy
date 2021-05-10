@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update April 22, 2021 for Hubitat
+ * Last update May 7, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.113.20210203" }
-static String HEversion(){ return "v0.3.113.20210211_HE" }
+static String HEversion(){ return "v0.3.113.20210510_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -3461,9 +3461,9 @@ Map getChildCommands(){
 	pause				: [ n: "Pause",																		],
 	play				: [ n: "Play",																		],
 	playSound			: [ n: "Play Sound",				d: "Play Sound {0}",		p: [[n:"Sound Number", t:sINT]],					],
-	playText			: [ n: "Speak text...",				d: "Speak text \"{0}\"",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]]	],
-	playTextAndRestore		: [ n: "Speak text and restore...",		d: "Speak text \"{0}\" and restore",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
-	playTextAndResume		: [ n: "Speak text and resume...",		d: "Speak text \"{0}\" and resume",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
+	playText			: [ n: "Speak text...",				d: "Speak text \"{0}\"{1}",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]]	],
+	playTextAndRestore		: [ n: "Speak text and restore...",		d: "Speak text \"{0}\"{1} and restore",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
+	playTextAndResume		: [ n: "Speak text and resume...",		d: "Speak text \"{0}\"{1} and resume",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
 	playTrack			: [ n: "Play track...",					d: "Play track {0}{1}",		p: [[n:"Track URL",t:"uri"], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
 	playTrackAndRestore		: [ n: "Play track and restore...",		d: "Play track {0}{1} and restore",	p: [[n:"Track URL",t:"uri"], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],	],
 	playTrackAndResume		: [ n: "Play track and resume...",		d: "Play track {0}{1} and resume",	p: [[n:"Track URL",t:"uri"], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],	],

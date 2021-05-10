@@ -18,11 +18,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update April 26, 2021 for Hubitat
+ * Last update May 10, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.113.20210203' }
-static String HEversion(){ return 'v0.3.113.20210211_HE' }
+static String HEversion(){ return 'v0.3.113.20210510_HE' }
 
 /** webCoRE DEFINITION					**/
 
@@ -242,7 +242,7 @@ def pageMain(){
 				paragraph 'If you are trying to install webCoRE please go back one step and choose webCoRE, not webCoRE Piston. You can also visit wiki.webcore.co for more information on how to install and use webCoRE'
 				if(parent!=null){
 					String t0=(String)parent.getWikiUrl()
-					href sBLK,title:imgTitle('https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE.png',inputTitleStr('More information')),description:t0,style:'external',url:t0,required:false
+					href sBLK,title:imgTitle('app-CoRE.png',inputTitleStr('More information')),description:t0,style:'external',url:t0,required:false
 				}
 			}
 		}else{
@@ -254,7 +254,7 @@ def pageMain(){
 				String dashboardUrl=(String)parent.getDashboardUrl()
 				if(dashboardUrl!=sNULL){
 					dashboardUrl=dashboardUrl+'piston/'+hashId(app.id)
-					href sBLK,title:imgTitle('https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/dashboard.png',inputTitleStr('View piston in dashboard')),style:'external',url:dashboardUrl,required:false
+					href sBLK,title:imgTitle('dashboard.png',inputTitleStr('View piston in dashboard')),style:'external',url:dashboardUrl,required:false
 				}else paragraph 'Sorry your webCoRE dashboard does not seem to be enabled; please go to the parent app and enable the dashboard if needed.'
 			}
 
@@ -315,10 +315,11 @@ private static String inputTitleStr(String title)	{ return '<u>'+title+'</u>' }
 
 private static String imgTitle(String imgSrc,String titleStr,String color=sNULL,Integer imgWidth=30,Integer imgHeight=0){
 	String imgStyle=sBLK
+	String myImgSrc='https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/'+imgSrc
 	imgStyle += imgWidth>0 ? 'width: '+imgWidth.toString()+'px !important;':sBLK
 	imgStyle += imgHeight>0 ? imgWidth!=0 ? sSPC:sBLK+'height:'+imgHeight.toString()+'px !important;':sBLK
-	if(color!=sNULL){ return """<div style="color: ${color}; font-weight:bold;"><img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img></div>""".toString() }
-	else{ return """<img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img>""".toString() }
+	if(color!=sNULL){ return """<div style="color: ${color}; font-weight:bold;"><img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img></div>""".toString() }
+	else{ return """<img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img>""".toString() }
 }
 
 def pageClear(){
@@ -763,21 +764,24 @@ Map setup(LinkedHashMap data,chunks){
 }
 
 private void clearMsetIds(node){
-	if(item==null)return
+	if(node==null)return
 	for(list in node.findAll{ it.value instanceof List }){
 		for(item in ((List)list.value).findAll{ it instanceof Map })clearMsetIds(item)
 	}
-	if(node instanceof Map && node[sDLR]!=null)node.remove(sDLR)
+	if(node instanceof Map && node[sDLR]!=null) node[sDLR]=null
 
-	for(item in node.findAll{ it.value instanceof Map })clearMsetIds(item)
+	for(item in node.findAll{ it.value instanceof Map })clearMsetIds(item.value)
 }
 
-private Integer msetIds(Boolean shorten,LinkedHashMap<String,Object> node,Integer maxId=0,Map<String,Integer> existingIds=[:],List<Map> requiringIds=[],Integer level=0){
+private Integer msetIds(Boolean shorten, node,Integer maxId=0,Map<String,Integer> existingIds=[:],List<Map> requiringIds=[],Integer level=0){
 	String nodeT=node?.t
 	if(nodeT in [sIF, sWHILE, sREPEAT, sFOR, sEACH, sSWITCH, sACTION, sEVERY, sCONDITION, sRESTRIC, sGROUP, sDO, sON, sEVENT, sEXIT, sBREAK]){
-		Integer id=node[sDLR]!=null ? (Integer)(node[sDLR]):0
+		Integer id=node[sDLR]!=null ? (Integer)node[sDLR] :0
 		if(id==0 || existingIds[id.toString()]!=null){
 			Boolean a=requiringIds.push(node)
+			if(eric() && settings.logging?.toInteger()>2){
+				log.warn "adding id for node $nodeT ${existingIds}"
+			}
 		}else{
 			maxId=maxId<id ? id:maxId
 			existingIds[id.toString()]=id
@@ -789,7 +793,7 @@ private Integer msetIds(Boolean shorten,LinkedHashMap<String,Object> node,Intege
 				if(id==0 || existingIds[id.toString()]!=null){
 					Boolean aa=requiringIds.push(elseIf)
 				}else{
-					maxId=(maxId<id)? id:maxId
+					maxId=maxId<id ? id:maxId
 					existingIds[id.toString()]=id
 				}
 			}
@@ -799,7 +803,7 @@ private Integer msetIds(Boolean shorten,LinkedHashMap<String,Object> node,Intege
 				id=_case[sDLR]!=null ? (Integer)_case[sDLR]:0
 				if(id==0 || existingIds[id.toString()]!=null)Boolean a=requiringIds.push(_case)
 				else{
-					maxId=(maxId<id)? id:maxId
+					maxId=maxId<id ? id:maxId
 					existingIds[id.toString()]=id
 				}
 			}
@@ -809,19 +813,25 @@ private Integer msetIds(Boolean shorten,LinkedHashMap<String,Object> node,Intege
 				id=task[sDLR]!=null ? (Integer)task[sDLR]:0
 				if(id==0 || existingIds[id.toString()]!=null)Boolean a=requiringIds.push(task)
 				else{
-					maxId=(maxId<id)? id:maxId
+					maxId=maxId<id ? id:maxId
 					existingIds[id.toString()]=id
 				}
 			}
 		}
 	}
 	for(list in node.findAll{ it.value instanceof List }){
-		for(item in ((List)list.value).findAll{ it instanceof Map })maxId=msetIds(shorten,(LinkedHashMap)item,maxId,existingIds,requiringIds,level+1)
+		for(item in ((List)list.value).findAll{ it instanceof Map })maxId=msetIds(shorten,item,maxId,existingIds,requiringIds,level+1)
 	}
 	if(level==0){
+		if(eric() && settings.logging?.toInteger()>2){
+			log.warn "start id $maxId"
+		}
 		for(item in requiringIds){
 			maxId += 1
 			item[sDLR]=maxId
+			if(eric() && settings.logging?.toInteger()>2){
+				log.warn "adding id $maxId for node ${item?.t}"
+			}
 		}
 		if(shorten)cleanCode(node)
 	}
@@ -5671,7 +5681,7 @@ private void traverseExpressions(node,closure,param,parentNode=null){
 }
 
 private void updateDeviceList(Map rtD,List deviceIdList){
-	app.updateSetting('dev',[type: /*isHubitat()?*/ 'capability'/*:'capability.device'*/,value: deviceIdList.unique()])// settings update do not happen till next execution
+	app.updateSetting('dev',[type: 'capability',value: deviceIdList.unique()])// settings update do not happen till next execution
 }
 
 private void subscribeAll(Map rtD,Boolean doit=true){
