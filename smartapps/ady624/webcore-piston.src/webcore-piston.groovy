@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 3, 2021 for Hubitat
+ * Last update July 6, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.113.20210203' }
@@ -31,6 +31,9 @@ static String handle(){ return 'webCoRE' }
 import groovy.json.*
 import hubitat.helper.RMUtils
 import groovy.transform.Field
+
+import java.security.MessageDigest
+import java.util.concurrent.Semaphore
 
 definition(
 	name:handle()+' Piston',
@@ -199,7 +202,7 @@ static Boolean eric1(){ return false }
 @Field static final String sLCK1='lockOrQueue1'
 @Field static final String sLCK2='lockOrQueue2'
 @Field static final String sGETTRTD='getTempRtd'
-@Field static final String sHNDLEVT='handleEvent'
+@Field static final String sHNDLEVT='handleEvents'
 @Field static final String sVALUEN='(value1, value2,..., valueN)'
 @Field static final String sDATTRH='([device:attribute])'
 @Field static final String sDATTRHT='([device:attribute] [,.., [device:attribute]],threshold)'
@@ -518,8 +521,9 @@ def pageDumpPiston(){
 
 void installed(){
 	if(app.id==null)return
-	state.created=now()
-	state.modified=now()
+	Long t=now()
+	state.created=t
+	state.modified=t
 	state.build=0
 	state.vars=(Map)state.vars ?: [:]
 	state.subscriptions=(Map)state.subscriptions ?: [:]
@@ -667,7 +671,10 @@ private void clearMyPiston(String meth=sNULL){
 		}
 		pData=null
 	}
-	if(cleared && eric())log.debug 'clearing my piston-code-cache '+meth
+	if(cleared && eric()){
+		log.debug 'clearing piston-code-cache '+meth
+		dumpPCsize()
+	}
 }
 
 private LinkedHashMap recreatePiston(Boolean shorten=false,Boolean useCache=true){
@@ -693,7 +700,7 @@ private LinkedHashMap recreatePiston(Boolean shorten=false,Boolean useCache=true
 		i++
 	}
 	if(sdata!=sBLK){
-		def data=(LinkedHashMap)new groovy.json.JsonSlurper().parseText(decodeEmoji(new String(sdata.decodeBase64(),'UTF-8')))
+		def data=(LinkedHashMap)new JsonSlurper().parseText(decodeEmoji(new String(sdata.decodeBase64(),'UTF-8')))
 		LinkedHashMap<String,Object> piston=[
 			o: data.o ?: [:],
 			r: data.r ?: [],
@@ -1094,21 +1101,21 @@ Boolean getTheLock(String qname,String meth=sNULL,Boolean longWait=false){
 	def sema=getSema(semaNum)
 	while(!((Boolean)sema.tryAcquire())){
 		// did not get the lock
-		Long timeL=lockTimesFLD[semaSNum]
-		if(timeL==null){
-			timeL=now()
-			lockTimesFLD[semaSNum]=timeL
+		Long t=lockTimesFLD[semaSNum]
+		if(t==null){
+			t=now()
+			lockTimesFLD[semaSNum]=t
 			lockTimesFLD=lockTimesFLD
 		}
 		if(eric())log.warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderFLD[semaSNum]}"
 		pauseExecution(waitT)
 		wait=true
-		if(elapseT(timeL) > 30000L){
+		if(elapseT(t) > 30000L){
 			releaseTheLock(qname)
 			if(eric())log.warn "overriding lock $meth"
 		}
 	}
-	lockTimesFLD[semaSNum]=now()
+	lockTimesFLD[semaSNum]=(Long)now()
 	lockTimesFLD=lockTimesFLD
 	lockHolderFLD[semaSNum]=app.id.toString()+sSPC+meth
 	lockHolderFLD=lockHolderFLD
@@ -1126,7 +1133,7 @@ void releaseTheLock(String qname){
 	sema.release()
 }
 
-@Field static java.util.concurrent.Semaphore theSerialLockFLD=new java.util.concurrent.Semaphore(0)
+@Field static Semaphore theSerialLockFLD=new Semaphore(0)
 
 // Memory Barrier
 static void mb(){
@@ -1135,31 +1142,31 @@ static void mb(){
 	}
 }
 
-@Field static java.util.concurrent.Semaphore theLock0FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock1FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock2FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock3FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock4FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock5FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock6FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock7FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock8FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock9FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock10FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock11FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock12FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock13FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock14FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock15FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock16FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock17FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock18FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock19FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock20FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock21FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock22FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock23FLD=new java.util.concurrent.Semaphore(1)
-@Field static java.util.concurrent.Semaphore theLock24FLD=new java.util.concurrent.Semaphore(1)
+@Field static Semaphore theLock0FLD=new Semaphore(1)
+@Field static Semaphore theLock1FLD=new Semaphore(1)
+@Field static Semaphore theLock2FLD=new Semaphore(1)
+@Field static Semaphore theLock3FLD=new Semaphore(1)
+@Field static Semaphore theLock4FLD=new Semaphore(1)
+@Field static Semaphore theLock5FLD=new Semaphore(1)
+@Field static Semaphore theLock6FLD=new Semaphore(1)
+@Field static Semaphore theLock7FLD=new Semaphore(1)
+@Field static Semaphore theLock8FLD=new Semaphore(1)
+@Field static Semaphore theLock9FLD=new Semaphore(1)
+@Field static Semaphore theLock10FLD=new Semaphore(1)
+@Field static Semaphore theLock11FLD=new Semaphore(1)
+@Field static Semaphore theLock12FLD=new Semaphore(1)
+@Field static Semaphore theLock13FLD=new Semaphore(1)
+@Field static Semaphore theLock14FLD=new Semaphore(1)
+@Field static Semaphore theLock15FLD=new Semaphore(1)
+@Field static Semaphore theLock16FLD=new Semaphore(1)
+@Field static Semaphore theLock17FLD=new Semaphore(1)
+@Field static Semaphore theLock18FLD=new Semaphore(1)
+@Field static Semaphore theLock19FLD=new Semaphore(1)
+@Field static Semaphore theLock20FLD=new Semaphore(1)
+@Field static Semaphore theLock21FLD=new Semaphore(1)
+@Field static Semaphore theLock22FLD=new Semaphore(1)
+@Field static Semaphore theLock23FLD=new Semaphore(1)
+@Field static Semaphore theLock24FLD=new Semaphore(1)
 
 static Integer getSemaNum(String name){
 	if(name==sTCCC)return 22
@@ -1172,7 +1179,7 @@ static Integer getSemaNum(String name){
 //	if(eric())log.info "sema $name # $sema"
 }
 
-java.util.concurrent.Semaphore getSema(Integer snum){
+Semaphore getSema(Integer snum){
 	switch(snum){
 		case 0: return theLock0FLD
 		case 1: return theLock1FLD
@@ -1605,23 +1612,8 @@ private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object>
 			pData=null
 			mb()
 			if(eric()){
-				Map pL
-				Integer t0=0
-				Integer t1=0
-				try{
-					pL=[:]+thePistonCacheFLD
-					t0=(Integer)pL.size()
-					t1=(Integer)"${pL}".size()
-				}catch(ignored){}
-				pL=null
-				String mStr=" piston plist is ${t0} elements, and ${t1} bytes".toString()
-				log.debug 'creating my piston-code-cache'
-				log.debug "saving"+mStr
-				if(t1>40000000){
-					thePistonCacheFLD=[:]
-					mb()
-					log.warn "clearing entire"+mStr
-				}
+				log.debug 'creating piston-code-cache'
+				dumpPCsize()
 			}
 		}
 	}
@@ -1630,6 +1622,25 @@ private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object>
 	rtD.ended=t0
 	rtD.generatedIn=t0-started
 	return rtD
+}
+
+private void dumpPCsize(){
+	Map pL
+	Integer t0=0
+	Integer t1=0
+	try{
+		pL=[:]+thePistonCacheFLD
+		t0=(Integer)pL.size()
+		t1=(Integer)"${pL}".size()
+	}catch(ignored){}
+	pL=null
+	String mStr="piston plist is ${t0} elements, and ${t1} bytes".toString()
+	log.debug mStr
+	if(t1>40000000){
+		thePistonCacheFLD=[:]
+		mb()
+		log.warn "clearing entire "+mStr
+	}
 }
 
 private void checkVersion(Map rtD){
@@ -1765,8 +1776,10 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 	Long t4=(Long)rtD.lended-startTime
 	Long t5=theend-(Long)rtD.lended
 	rtD.curStat=[i:t0,l:t1,r:t2,p:t3,s:stAccess]
-	if((Integer)rtD.logging>1){
-		if((Integer)rtD.logging>2)debug "RunTime initialize > ${t0} LockT > ${t1}ms > rtDT > ${t2}ms > pistonT > ${t3}ms (first state access ${missing} $t4 $t5)".toString(),rtD
+	String myId=(String)rtD.id
+	Integer lg=(Integer)rtD.logging
+	if(lg>1){
+		if(lg>2)debug "RunTime initialize > ${t0} LockT > ${t1}ms > rtDT > ${t2}ms > pistonT > ${t3}ms (first state access ${missing} $t4 $t5)".toString(),rtD
 		String adMsg=sBLK
 		if(eric())adMsg=" (Init:$t0, Lock: $t1, pistonT $t3 first state access $missing ($t4 $t5) $stAccess".toString()
 		trace "Runtime (${(Integer)"$rtD".size()} bytes) successfully initialized in ${t2}ms (${HEversion()})".toString()+adMsg,rtD
@@ -1782,11 +1795,11 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 	}else{
 		startTime=now()
 		Map msg2=null
-		if((Integer)rtD.logging>0)msg2=timer "Execution stage complete.",rtD,-1
+		if(lg>0)msg2=timer "Execution stage complete.",rtD,-1
 		Boolean success=true
 		Boolean firstTime=true
 		if(evntName!=sTIME && evntName!=sASYNCREP){
-			if((Integer)rtD.logging>0)info "Execution stage started",rtD,1
+			if(lg>0)info "Execution stage started",rtD,1
 			success=executeEvent(rtD,event)
 			firstTime=false
 		}
@@ -1797,14 +1810,16 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 		}
 	
 		Boolean syncTime=true
-		String myId=(String)rtD.id
-		while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-now()>(Long)getPistonLimits.scheduleRemain){
+		Long t=now()
+		while(success&&firstTime){
+		//while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-t >(Long)getPistonLimits.scheduleRemain){
 			List<Map> schedules
-			Map tt0=getCachedMaps()
+			Map tt0=getCachedMaps(sHNDLEVT)
 			if(tt0!=null)schedules=(List<Map>)[]+(List<Map>)tt0.schedules
 			else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
+			
 			if(schedules==null || schedules==(List<Map>)[] || (Integer)schedules.size()==0)break
-			Long t=now()
+			
 			if(evntName==sASYNCREP){
 				event.schedule=schedules.sort{ (Long)it.t }.find{ (String)it.d==evntVal }
 				syncTime=false
@@ -1816,9 +1831,9 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 				event=[(sDATE):(Date)event.date,(sDEV):location,(sNAME):evntName,(sVAL):t,schedule:schedules.sort{ (Long)it.t }.find{ (Long)it.t<t+(Long)getPistonLimits.scheduleVariance }]
 			}
 			if(event.schedule==null) break
-			schedules.remove(event.schedule)
-	
-			tt0=getCachedMaps()
+			Boolean a=schedules.remove(event.schedule)
+
+			tt0=getCachedMaps(sHNDLEVT+sONE)
 			if(tt0!=null){
 				String semaName=app.id.toString()
 				Boolean aa=getTheLock(semaName,sX)
@@ -1828,7 +1843,7 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 			tt0=null
 			if(myPep)atomicState.schedules=schedules
 			else state.schedules=schedules
-	
+
 			if(evntName==sASYNCREP){
 				if((Boolean)rtD.eric) myDetail rtD,"async event $event"
 				Integer responseCode=(Integer)event.responseCode
@@ -1904,30 +1919,36 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 					Long actDelay=doPause("Synchronizing scheduled event, waiting for ${delay}ms".toString(),delay,rtD,true)
 				}
 			}
-			if(firstTime&&(Integer)rtD.logging>0){
+			if(firstTime&& lg>0){
 				msg2=timer "Execution stage complete.",rtD,-1
 				info "Execution stage started",rtD,1
 			}
 			success=executeEvent(rtD,event)
-			syncTime=true
+			//syncTime=true
 			firstTime=false
+			//t=now()
 		}
 
 		rtD.stats.timing.e=elapseT(startTime)
-		if((Integer)rtD.logging>0)info msg2,rtD
+		if(lg>0)info msg2,rtD
 		if(!success)msg.m='Event processing failed'
-		if(eric())msg.m=(String)msg.m+' Total Pauses ms: '+((Long)rtD.tPause).toString()
+		if(eric()){
+			msg.m=(String)msg.m+' Total Pauses ms: '+((Long)rtD.tPause).toString()
+			if(firstTime) {
+				msg.m=(String)msg.m+' found nothing to do'
+			}
+		}
 		finalizeEvent(rtD,msg,success)
 
 		if((Boolean)rtD.logPExec){
-			Map rtCurE = (Map)rtD.currentEvent
-			if(rtCurE!=null){
+			Map rtCE = (Map)rtD.currentEvent
+			if(rtCE!=null){
 				String desc='webCore piston \''+(String)app.label+'\' was executed'
 				sendLocationEvent((sNAME):'webCoRE',(sVAL):'pistonExecuted',isStateChange:true,displayed:false,linkText:desc,descriptionText:desc,
 					data:[
 						id:appId,
 						(sNAME):(String)app.label,
-						event:[(sDATE):new Date((Long)rtCurE.date),delay:(Long)rtCurE.delay,duration:elapseT((Long)rtCurE.date),(sDEV):"${rtD.event.device}".toString(),(sNAME):(String)rtCurE.name,(sVAL):rtCurE.value,physical:(Boolean)rtCurE.physical,index:(Integer)rtCurE.index],
+						event:[(sDATE):new Date((Long)rtCE.date),delay:(Long)rtCE.delay,duration:elapseT((Long)rtCE.date),(sDEV):"${rtD.event.device}".toString(),(sNAME):(String)rtCE.name,(sVAL):rtCE.value,physical:(Boolean)rtCE.physical,index:(Integer)rtCE.index],
 						state:[old:(String)rtD.state.old,new:(String)rtD.state.new]
 					]
 				)
@@ -1936,39 +1957,87 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 	}
 	for(String foo in heData) rtD.remove(foo)
 
-// any queued events?
-	String msgt=sNULL
-	if((Integer)rtD.logging>2)msgt='Exiting'
 	String semName=(String)rtD.semaphoreName
-	while(doSerialization && semName!=sNULL){
-		Boolean a=getTheLock(semName,sHNDLEVT)
-		List<Map> evtQ=(List<Map>)theQueuesFLD[semName]
-		if(evtQ==null || evtQ==[]){
-			if((Long)theSemaphoresFLD[semName]<=(Long)rtD.semaphore){
-				if((Integer)rtD.logging>2) msgt='Released Lock and exiting'
-				theSemaphoresFLD[semName]=0L
-				theSemaphoresFLD=theSemaphoresFLD
-			}
-			releaseTheLock(semName)
-			break
-		}
-		List<Map>evtList=evtQ.sort{ (Long)it.t }
-		Map theEvent=evtList.remove(0)
-		theQueuesFLD[semName]=evtList
-		theQueuesFLD=theQueuesFLD
-		releaseTheLock(semName)
+	Long lS=(Long)rtD.semaphore
 
-		Integer qsize=(Integer)evtQ.size()
-		if(qsize>8) log.error "large queue size ${qsize}".toString()
-		theEvent.date=new Date((Long)theEvent.t)
-		handleEvents(theEvent,false,true)
-	}
-	if((Integer)rtD.logging>2) log.debug msgt
 	if((Boolean)rtD.updateDevices) clearMyCache('updateDeviceList')
-	data=rtD.collect{ it.key }
+	List<String>data=rtD.collect{ it.key }
 	for(item in data)rtD.remove((String)item)
 	event=null
 	rtD=null
+
+// any queued events?
+	String msgt=sNULL
+	if(lg>2)msgt='Exiting'
+	Boolean allDone=false
+	Boolean haveLock=false
+	while(doSerialization && semName!=sNULL){
+		if(!haveLock) { a=getTheLock(semName,sHNDLEVT); haveLock=true }
+		List<Map> evtQ=(List<Map>)theQueuesFLD[semName]
+		Map theEvent=null
+		if(evtQ==null || evtQ==[]){
+			while(true){
+				if(clearC||clearL) break
+
+				if(haveLock){ releaseTheLock(semName); haveLock=false }
+				List<Map> schedules
+				Map tt0=getCachedMaps(sHNDLEVT+'2')
+				if (tt0!=null) schedules=(List<Map>) []+(List<Map>)tt0.schedules
+				else schedules = myPep ? (List<Map>)atomicState.schedules : (List<Map>)state.schedules
+
+				if(schedules==null || schedules==(List<Map>)[] || (Integer)schedules.size()==0) break
+
+				Long t=now()
+				Map sch=schedules.sort{(Long)it.t }.find{(Long)it.t<t+(Long)getPistonLimits.scheduleVariance }
+				if(!sch) break
+
+				theEvent=[(sDATE):new Date((Long)sch.t),(sDEV):location,(sNAME):sTIME,(sVAL):t,schedule:sch]
+				Boolean aa=schedules.remove(sch)
+
+				tt0=getCachedMaps(sHNDLEVT+'3')
+				if(tt0!=null){
+					String semaName=app.id.toString()
+					a=getTheLock(semaName,sX)
+					theCacheFLD[myId].schedules=schedules
+					releaseTheLock(semaName)
+				}
+				tt0=null
+				if(myPep)atomicState.schedules=schedules
+				else state.schedules=schedules
+				break
+			}
+
+			if(!theEvent) allDone=true
+		}
+		if(!theEvent && !allDone){
+			if(!haveLock) { a=getTheLock(semName,sHNDLEVT); haveLock=true }
+			evtQ=(List<Map>)theQueuesFLD[semName]
+			List<Map>evtList=evtQ.sort{(Long)it.t }
+			theEvent=evtList.remove(0)
+			theQueuesFLD[semName]=evtList
+			theQueuesFLD=theQueuesFLD
+			if(haveLock){ releaseTheLock(semName); haveLock=false }
+
+			Integer qsize=(Integer)evtQ.size()
+			if(qsize>8) log.error "large queue size ${qsize}".toString()
+			theEvent.date=new Date((Long)theEvent.t)
+		}
+		if(theEvent) {
+			if(haveLock){ releaseTheLock(semName); haveLock=false }
+			handleEvents(theEvent,false,true)
+		}
+        if(allDone) {
+			if(!haveLock){ a=getTheLock(semName,sHNDLEVT); haveLock=true }
+			if((Long)theSemaphoresFLD[semName] <= lS){
+				if(lg>2)msgt='Released Lock and exiting'
+				theSemaphoresFLD[semName]=0L
+				theSemaphoresFLD=theSemaphoresFLD
+			}
+			if(haveLock){ releaseTheLock(semName); haveLock=false }
+			break
+		}
+	}
+	if(lg>2) log.debug msgt
 }
 
 @Field static final List<String>heData=[ 'event','currentEvent','state','created','modified','sunTimes']
@@ -2165,8 +2234,8 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 	for(item in (Map)rtD.newCache) ((Map)rtD.cache)[(String)item.key]=item.value
 
 	//overwrite state,might have changed meanwhile
-	Map t0=getCachedMaps()
 	String str='finalize '
+	Map t0=getCachedMaps(str)
 	String semaName=app.id.toString()
 	if(t0!=null){
 		Boolean aa=getTheLock(semaName,str)
@@ -2258,7 +2327,7 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 	else state.stats=stats
 	rtD.stats.timing=null
 
-	t0=getCachedMaps()
+	t0=getCachedMaps(str+sONE)
 	if(t0!=null){
 		Long totTime=elapseT((Long)rtD.timestamp)
 		t1=20
@@ -2277,9 +2346,10 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 
 private void processSchedules(Map rtD,Boolean scheduleJob=false){
 	Boolean myPep=(Boolean)rtD.pep
+	String str='processSchedules'
 
 	List<Map> schedules
-	Map t0=getCachedMaps()
+	Map t0=getCachedMaps(str)
 	if(t0!=null)schedules=(List<Map>)[]+(List<Map>)t0.schedules
 	else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
 
@@ -2309,7 +2379,7 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 	else state.schedules=(List<Map>)[]+schedules
 	String myId=(String)rtD.id
 	String semaName=app.id.toString()
-	t0=getCachedMaps()
+	t0=getCachedMaps(str+sONE)
 	if(t0!=null){
 		Boolean aa=getTheLock(semaName,sT)
 		theCacheFLD[myId].schedules=(List<Map>)[]+schedules
@@ -2335,7 +2405,7 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 		rtD.nextSchedule=nextT
 		rtD.stats.nextSchedule=nextT
 		state.nextSchedule=nextT
-		t0=getCachedMaps()
+		t0=getCachedMaps(str+'2')
 		if(t0!=null){
 			Boolean aa=getTheLock(semaName,sT+sONE)
 			theCacheFLD[myId].nextSchedule=nextT
@@ -2348,12 +2418,13 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 private void updateLogs(Map rtD,Long lastExecute=null){
 	if(!rtD || !rtD.logs)return
 
+	String str='updateLogs'
 	String myId=(String)rtD.id
 	Map cacheMap
 	String semaName=app.id.toString()
 	if(lastExecute!=null){
 		state.lastExecuted=lastExecute
-		cacheMap=getCachedMaps()
+		cacheMap=getCachedMaps(str)
 		if(cacheMap!=null){
 			Boolean aa=getTheLock(semaName,sE)
 			theCacheFLD[myId].lastExecuted=lastExecute
@@ -2369,7 +2440,7 @@ private void updateLogs(Map rtD,Long lastExecute=null){
 		if(t1<0)t1=(Integer)getPistonLimits.maxLogs
 
 		List t0
-		cacheMap=getCachedMaps()
+		cacheMap=getCachedMaps(str+sONE)
 		if(cacheMap!=null)t0=[]+(List)cacheMap.logs
 		else t0=myPep ? (List)atomicState.logs:(List)state.logs
 		List logs=[]+(List)rtD.logs+t0
@@ -2385,7 +2456,7 @@ private void updateLogs(Map rtD,Long lastExecute=null){
 				}
 			}
 		}
-		cacheMap=getCachedMaps()
+		cacheMap=getCachedMaps(str+'2')
 		if(cacheMap!=null){
 			Boolean aa=getTheLock(semaName,sE+sONE)
 			theCacheFLD[myId].logs=logs
@@ -2414,6 +2485,7 @@ private Boolean executeStatements(Map rtD,List<Map> statements,Boolean async=fal
 }
 
 private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
+	String str='executeStatement'
 	//if rtD.ffTo is a positive,non-zero number,we need to fast forward through all
 	//branches until we find the task with an id equal to that number,then we play nicely after that
 	if(statement==null)return false
@@ -2443,7 +2515,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
 	}
 	String mySt=sNULL
 	if((Boolean)rtD.eric){
-		mySt='executeStatement '+(String)statement.t
+		mySt=str+' '+(String)statement.t
 		myDetail rtD,mySt,1
 	}
 	Boolean a=((List<Integer>)rtD.stack.ss).push((Integer)rtD.stack.s)
@@ -2523,7 +2595,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
 					Boolean ownEvent= rtD.event!=null && (String)rtD.event.name==sTIME && rtD.event.schedule!=null && (Integer)rtD.event.schedule.s==statementNum && (Integer)rtD.event.schedule.i<0
 
 					List<Map> schedules
-					Map t0=getCachedMaps()
+					Map t0=getCachedMaps(str)
 					if(t0!=null)schedules=[]+(List<Map>)t0.schedules
 					else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
 					if(ownEvent || !schedules.find{ (Integer)it.s==statementNum }){
@@ -2731,7 +2803,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
 				if(overBy>(Long)getPistonLimits.useBigDelay){
 					delay=(Long)getPistonLimits.taskLongDelay
 				}
-				String mstr="executeStatement:Execution time exceeded by ${overBy}ms,".toString()
+				String mstr=str+":Execution time exceeded by ${overBy}ms,".toString()
 				if(repeat && overBy>(Long)getPistonLimits.executionTime){
 					error mstr+'Terminating',rtD
 					rtD.terminated=true
@@ -2748,7 +2820,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
 			Map t0=((List<Map>)rtD.schedules).find{ (Integer)it.s==statementNum}
 			if(t0==null){
 				List<Map> schedules
-				Map t1=getCachedMaps()
+				Map t1=getCachedMaps(str+sONE)
 				if(t1!=null)schedules=[]+(List<Map>)t1.schedules
 				else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
 				schedule=schedules.find{ (Integer)it.s==statementNum }
@@ -3196,20 +3268,20 @@ private void scheduleTimer(Map rtD,Map timer,Long lastRun=0L){
 							day=(day>=1)? day:0
 						}
 					}else{
-						odw=odw.toInteger()
+						Integer iodw=odw.toInteger()
 						//find the nth week day of the month
 						if(odm>0){
 							//going forward
 							Integer firstDayOfMonthDOW=(Integer)(new Date((Integer)date.year,(Integer)date.month,1)).day
 							//find the first matching day
-							Integer firstMatch=Math.round(1+odw-firstDayOfMonthDOW+(odw<firstDayOfMonthDOW ? 7.0D:0.0D)).toInteger()
+							Integer firstMatch=Math.round(1+iodw-firstDayOfMonthDOW+(iodw<firstDayOfMonthDOW ? 7.0D:0.0D)).toInteger()
 							day=Math.round(firstMatch+7.0D*(odm-1.0D)).toInteger()
 							day=(day<=lastDayOfMonth)? day:0
 						}else{
 							//going backwards
 							Integer lastDayOfMonthDOW=(Integer)(new Date((Integer)date.year,(Integer)date.month+1,0)).day
 							//find the first matching day
-							Integer firstMatch=lastDayOfMonth+odw-lastDayOfMonthDOW-(odw>lastDayOfMonthDOW ? 7:0)
+							Integer firstMatch=lastDayOfMonth+iodw-lastDayOfMonthDOW-(iodw>lastDayOfMonthDOW ? 7:0)
 							day=Math.round(firstMatch+7.0D*(odm+1)).toInteger()
 							day=(day>=1)? day:0
 						}
@@ -4414,7 +4486,7 @@ private Long vcmd_httpRequest(Map rtD,device,List params){
 		Map requestParams=[
 			uri: protocol+'://'+userPart+uri,
 			query: useQueryString ? data:null,
-			headers: (auth ? (((Boolean)auth.startsWith('{') && (Boolean)auth.endsWith('}'))? (new groovy.json.JsonSlurper().parseText(auth)):[Authorization: auth]):[:]),
+			headers: (auth ? (((Boolean)auth.startsWith('{') && (Boolean)auth.endsWith('}'))? (new JsonSlurper().parseText(auth)):[Authorization: auth]):[:]),
 			contentType: '*/*',
 			requestContentType: requestContentType,
 			body: !useQueryString ? data:null,
@@ -4555,9 +4627,9 @@ private parseMyResp(a,String mediaType=sNULL){
 		Boolean expectJson = mediaType ? (Boolean)mediaType.contains('json') : false
 		try{
 			if((Boolean)a.startsWith('{') && (Boolean)a.endsWith('}')){
-				ret=(LinkedHashMap)new groovy.json.JsonSlurper().parseText(a)
+				ret=(LinkedHashMap)new JsonSlurper().parseText(a)
 			}else if((Boolean)a.startsWith(sLB) && (Boolean)a.endsWith(sRB)){
-				ret=(List)new groovy.json.JsonSlurper().parseText(a)
+				ret=(List)new JsonSlurper().parseText(a)
 			}else if(expectJson || (mediaType in ['application/octet-stream'] && a.size() % 4 == 0) ){ // HE can return data Base64
 				String dec=new String(a.decodeBase64())
 				if(dec!=sNULL){
@@ -4722,9 +4794,9 @@ private Long vcmd_parseJson(Map rtD,device,List params){
 	String data=params[0]
 	try{
 		if((Boolean)data.startsWith('{') && (Boolean)data.endsWith('}')){
-			rtD.json=(LinkedHashMap)new groovy.json.JsonSlurper().parseText(data)
+			rtD.json=(LinkedHashMap)new JsonSlurper().parseText(data)
 		}else if((Boolean)data.startsWith(sLB) && (Boolean)data.endsWith(sRB)){
-			rtD.json=(List)new groovy.json.JsonSlurper().parseText(data)
+			rtD.json=(List)new JsonSlurper().parseText(data)
 		}else{
 			rtD.json=[:]
 		}
@@ -5017,8 +5089,9 @@ private Map evaluateScalarOperand(Map rtD,Map node,Map operand,index=null,String
 
 private Boolean evaluateCondition(Map rtD,Map condition,String collection,Boolean async){
 	String myS=sBLK
+	String str='evaluateCondition'
 	if((Boolean)rtD.eric){
-		myS="evaluateCondition $condition".toString()
+		myS=str+" $condition".toString()
 		myDetail rtD,myS,1
 	}
 
@@ -5098,7 +5171,7 @@ private Boolean evaluateCondition(Map rtD,Map condition,String collection,Boolea
 						Long delay=(Long)evaluateExpression(rtD,[t:sDURATION,v:tvalue.v,vt:(String)tvalue.vt],sLONG).v
 
 						List<Map> schedules
-						Map t0=getCachedMaps()
+						Map t0=getCachedMaps(str)
 						if(t0!=null)schedules=[]+(List<Map>)t0.schedules
 						else schedules=(Boolean)rtD.pep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
 
@@ -6297,7 +6370,7 @@ private Map getJsonData(Map rtD,data,String name,String feature=sNULL){
 	if(data!=null){
 	try{
 		List parts=name.replace('][','].[').tokenize(sDOT)
-		def args=(data instanceof Map ? [:]+(Map)data : (data instanceof List ? []+(List)data : new groovy.json.JsonSlurper().parseText((String)data)))
+		def args=(data instanceof Map ? [:]+(Map)data : (data instanceof List ? []+(List)data : new JsonSlurper().parseText((String)data)))
 		Integer partIndex=-1
 		for(String part in parts){
 			partIndex=partIndex+1
@@ -6505,7 +6578,7 @@ private Map getNFLDataFeature(String dataFeature){
 	httpGet(requestParams){ response ->
 		if(response.status==200 && response.data){
 			try{
-				return response.data instanceof Map ? response.data : (LinkedHashMap)new groovy.json.JsonSlurper().parseText((String)response.data)
+				return response.data instanceof Map ? response.data : (LinkedHashMap)new JsonSlurper().parseText((String)response.data)
 			}catch(ignored){}
 		}
 		return null
@@ -6693,7 +6766,7 @@ private Map setVariable(Map rtD,String name,value){
 			}
 			if(!variable.f){
 				Map<String,Object> vars
-				Map t0=getCachedMaps()
+				Map t0=getCachedMaps('setVariable')
 				if(t0!=null)vars=(Map<String,Object>)t0.vars
 				else{ vars=(Boolean)rtD.pep ? (Map<String,Object>)atomicState.vars:(Map<String,Object>)state.vars }
 
@@ -6893,7 +6966,7 @@ private Map evaluateExpression(Map rtD,Map expression,String dataType=sNULL){
 			break
 		case sEXPR:
 			//if we have a single item, we simply traverse the expression
-			List items=[]
+			List<Map> items=[]
 			Integer operand=-1
 			Integer lastOperand=-1
 			for(Map item in (List<Map>)expression.i){
@@ -8576,7 +8649,7 @@ private Map func_distance(Map rtD,List<Map> params){
 @SuppressWarnings('unused')
 private static Map func_json(Map rtD,List<Map> params){
 	if(!checkParams(rtD,params,1) || (Integer)params.size()>2) return rtnErr('json(value[, format])')
-	def builder=new groovy.json.JsonBuilder([params[0].v])
+	def builder=new JsonBuilder([params[0].v])
 	String op=params[1] ? 'toPrettyString' : 'toString'
 	String json=builder."${op}"()
 	return [t:sSTR,v:json[1..-2].trim()]
@@ -8596,7 +8669,7 @@ private Map func_encodeuricomponent(Map rtD,List params){ return func_urlencode(
 /** COMMON PUBLISHED METHODS							**/
 
 private String mem(Boolean showBytes=true){
-	String mbytes=new groovy.json.JsonOutput().toJson(state)
+	String mbytes=new JsonOutput().toJson(state)
 	Integer bytes=(Integer)mbytes.length()
 	return Math.round(100.0D*(bytes/100000.0D))+"%${showBytes ? " ($bytes bytes)".toString() : sBLK}"
 }
@@ -8620,7 +8693,7 @@ private String encodeURIComponent(value){
 }
 
 private String md5(String md5){
-	java.security.MessageDigest md=java.security.MessageDigest.getInstance('MD5')
+	MessageDigest md= MessageDigest.getInstance('MD5')
 	byte[] array=md.digest(md5.getBytes())
 	String result=sBLK
 	for(Integer i=0; i<array.length; ++i){
@@ -9300,7 +9373,7 @@ private void initSunriseAndSunset(Map rtD){
 		Long nmnght = getNextMidnightTime()
 		Long c,d = 0L
 		Long a1 = a
-		Long b2 = b
+		Long b1 = b
 		Boolean good = true
 		try{
 			a1=(Long)((Date)todaysSunrise).getTime() // requires FW 2.2.3.132 or later
