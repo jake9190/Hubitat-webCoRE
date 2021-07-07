@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 6, 2021 for Hubitat
+ * Last update July 7, 2021 for Hubitat
 */
 
 static String version(){ return 'v0.3.113.20210203' }
@@ -630,7 +630,7 @@ Map curPState(){
 	Map t0=getCachedMaps('curPState',true,false)
 	if(t0==null)return null
 	Map st=[:] + (Map)t0.state
-	st.remove('old')
+	def a=st.remove('old')
 	Map rVal=[
 		a:(Boolean)t0.active,
 		c:t0.category,
@@ -661,10 +661,11 @@ private void clearMyPiston(String meth=sNULL){
 	Boolean cleared=false
 	Map pData=(Map)thePistonCacheFLD[pisName]
 	if(pData!=null){
-		LinkedHashMap t0=(LinkedHashMap)pData.pis
+		LinkedHashMap<String,Object> t0=(LinkedHashMap<String,Object>)pData.pis
 		if(t0){
-			List data=t0.collect{ it.key }
-			for(item in data)t0.remove((String)item)
+			List<String> data=t0.collect{ (String)it.key }
+			def a
+			for(item in data)a=t0.remove((String)item)
 			thePistonCacheFLD[pisName].pis=null
 			mb()
 			cleared=true
@@ -726,7 +727,7 @@ Map setup(LinkedHashMap data,chunks){
 	clearMyCache('setup')
 
 	String semaName=app.id.toString()
-	Boolean aa=getTheLock(semaName,'setup')
+	getTheLock(semaName,'setup')
 
 	state.modified=now()
 	state.build=(Integer)state.build!=null ? (Integer)state.build+1:1
@@ -803,9 +804,8 @@ private Integer msetIds(Boolean shorten,node,Integer maxId=0,Map<String,Integer>
 			Boolean a=((List<Map>)node.ei).removeAll{ !it.c && !it.s }
 			for(Map elseIf in (List<Map>)node.ei){
 				id=elseIf[sDLR]!=null ? (Integer)elseIf[sDLR]:0
-				if(id==0 || existingIds[id.toString()]!=null){
-					Boolean aa=requiringIds.push(elseIf)
-				}else{
+				if(id==0 || existingIds[id.toString()]!=null) Boolean aa=requiringIds.push(elseIf)
+				else{
 					maxId=maxId<id ? id:maxId
 					existingIds[id.toString()]=id
 				}
@@ -814,7 +814,7 @@ private Integer msetIds(Boolean shorten,node,Integer maxId=0,Map<String,Integer>
 		if(nodeT==sSWITCH && node.cs){
 			for(Map _case in (List<Map>)node.cs){
 				id=_case[sDLR]!=null ? (Integer)_case[sDLR]:0
-				if(id==0 || existingIds[id.toString()]!=null)Boolean a=requiringIds.push(_case)
+				if(id==0 || existingIds[id.toString()]!=null) Boolean a=requiringIds.push(_case)
 				else{
 					maxId=maxId<id ? id:maxId
 					existingIds[id.toString()]=id
@@ -824,7 +824,7 @@ private Integer msetIds(Boolean shorten,node,Integer maxId=0,Map<String,Integer>
 		if(nodeT==sACTION && node.k){
 			for(Map task in (List<Map>)node.k){
 				id=task[sDLR]!=null ? (Integer)task[sDLR]:0
-				if(id==0 || existingIds[id.toString()]!=null)Boolean a=requiringIds.push(task)
+				if(id==0 || existingIds[id.toString()]!=null) Boolean a=requiringIds.push(task)
 				else{
 					maxId=maxId<id ? id:maxId
 					existingIds[id.toString()]=id
@@ -854,36 +854,38 @@ private Integer msetIds(Boolean shorten,node,Integer maxId=0,Map<String,Integer>
 	return maxId
 }
 
+@SuppressWarnings('unused')
 private void cleanCode(item){
 	if(item==null || !(item instanceof Map))return
 
+	def a
 	if((String)item.t in [sC,sS,sV,sE]){ // operand values that don't need g,a
-		if((String)item.g=='avg')item.remove('g')
-		if(item.a instanceof String)item.remove('a')
+		if((String)item.g=='avg')a=item.remove('g')
+		if(item.a instanceof String)a=item.remove('a')
 	}
 	if((String)item.t in [sC,sS,sX,sV,sE]){ // operand values that don't need d
-		if(item.d instanceof List)item.remove(sD)
+		if(item.d instanceof List)a=item.remove(sD)
 	}
 	if((String)item.t in [sS,sX,sV,sE] || ((String)item.t==sC && !((String)item.vt in [sTIME,sDATE,sDTIME])) ){ // operand values that don't need c
-		item.remove(sC)
+		a=item.remove(sC)
 	}
 	if(item.t==null && item.size()==4 && item.d instanceof List && !item.d && (String)item.g=='avg' && item.f=='l' && item.vt){
-		item.remove(sD); item.remove('g'); item.remove('f')
+		a=item.remove(sD); a=item.remove('g'); a=item.remove('f')
 	}
-	if(item.fs instanceof List && !item.fs)item.remove('fs')
-	if(item.ts instanceof List && !item.ts)item.remove('ts')
-	if(item.e instanceof List && !item.e)item.remove(sE)
-	if(item.ei instanceof List && !item.ei)item.remove('ei')
-	if(item.s instanceof List && !item.s)item.remove(sS)
-	if(item.r instanceof List && !item.r)item.remove(sR)
-	if(item.d instanceof List && !item.d)item.remove(sD)
+	if(item.fs instanceof List && !item.fs)a=item.remove('fs')
+	if(item.ts instanceof List && !item.ts)a=item.remove('ts')
+	if(item.e instanceof List && !item.e)a=item.remove(sE)
+	if(item.ei instanceof List && !item.ei)a=item.remove('ei')
+	if(item.s instanceof List && !item.s)a=item.remove(sS)
+	if(item.r instanceof List && !item.r)a=item.remove(sR)
+	if(item.d instanceof List && !item.d)a=item.remove(sD)
 
-	if(item.str!=null)item.remove('str')
-	if(item.ok!=null)item.remove('ok')
-	if(item.z!=null)item.remove('z')
-	if(item.zc!=null)item.remove('zc')
-	if(item.e!=null && item.e instanceof String)item.remove(sE)
-	if(item.l!=null && item.l instanceof String)item.remove('l')
+	if(item.str!=null)a=item.remove('str')
+	if(item.ok!=null)a=item.remove('ok')
+	if(item.z!=null)a=item.remove('z')
+	if(item.zc!=null)a=item.remove('zc')
+	if(item.e!=null && item.e instanceof String)a=item.remove(sE)
+	if(item.l!=null && item.l instanceof String)a=item.remove('l')
 
 	if(item.v!=null)cleanCode(item.v)
 	if(item.exp!=null)cleanCode(item.exp)
@@ -891,19 +893,19 @@ private void cleanCode(item){
 	if(item.lo2!=null)cleanCode(item.lo2)
 	if(item.lo3!=null)cleanCode(item.lo3)
 	if(item.ro!=null){
-		if(item.ro instanceof String || fndEmptyOper((Map)item.ro))item.remove('ro')
+		if(item.ro instanceof String || fndEmptyOper((Map)item.ro))a=item.remove('ro')
 		else cleanCode(item.ro)
 	}
 	if(item.ro2!=null){
-		if(fndEmptyOper((Map)item.ro2))item.remove('ro2')
+		if(fndEmptyOper((Map)item.ro2))a=item.remove('ro2')
 		else cleanCode(item.ro2)
 	}
 	if(item.to!=null){
-		if(fndEmptyOper((Map)item.to))item.remove('to')
+		if(fndEmptyOper((Map)item.to))a=item.remove('to')
 		else cleanCode(item.to)
 	}
 	if(item.to2!=null){
-		if(fndEmptyOper((Map)item.to2))item.remove('to2')
+		if(fndEmptyOper((Map)item.to2))a=item.remove('to2')
 		else cleanCode(item.to2)
 	}
 	for(list in item.findAll{ it.value instanceof List }){
@@ -992,7 +994,7 @@ Map pausePiston(){
 	updateLogs(rtD)
 	state.active=false
 	state.state=[:]+(Map)rtD.state
-	state.remove('lastEvent')
+	def a=state.remove('lastEvent')
 	clear1(true,false,false,false)	// calls clearMyCache(meth) && clearMyPiston
 	Map nRtd=shortRtd(rtD)
 	rtD=null
@@ -1023,7 +1025,7 @@ Map resume(LinkedHashMap piston=null){
 
 static Map shortRtd(Map rtD){
 	Map st=[:]+(Map)rtD.state
-	st.remove('old')
+	def a=st.remove('old')
 	Map myRt=[
 		id:(String)rtD.id,
 		active:(Boolean)rtD.active,
@@ -1093,7 +1095,11 @@ private Map getCachedAtomicState(){
 @Field volatile static Map<String,Long> lockTimesFLD=[:]
 @Field volatile static Map<String,String> lockHolderFLD=[:]
 
-Boolean getTheLock(String qname,String meth=sNULL,Boolean longWait=false){
+void getTheLock(String qname,String meth=sNULL,Boolean longWait=false) {
+	Boolean a=getTheLockW(qname,meth,longWait)
+}
+
+Boolean getTheLockW(String qname,String meth=sNULL,Boolean longWait=false){
 	Long waitT=longWait? 1000L:60L
 	Boolean wait=false
 	Integer semaNum=getSemaNum(qname)
@@ -1217,7 +1223,7 @@ private static Integer smear(Integer hashCode){
 }
 
 void getCacheLock(String meth=sNULL){
-	Boolean w=getTheLock(sTCCC,meth+sSPC+sTCL)
+	getTheLock(sTCCC,meth+sSPC+sTCL)
 }
 
 void releaseCacheLock(){
@@ -1239,7 +1245,7 @@ private Map lockOrQueueSemaphore(Boolean synchr,event,Boolean queue,Map rtD){
 
 	if(synchr){
 		String semaName=app.id.toString()
-		waited=getTheLock(semaName,sLCK1)
+		waited=getTheLockW(semaName,sLCK1)
 		tt1=now()
 
 		Long lastSemaphore
@@ -1299,7 +1305,7 @@ private Map lockOrQueueSemaphore(Boolean synchr,event,Boolean queue,Map rtD){
 				releaseTheLock(semaName)
 				waited=true
 				pauseExecution(100L)
-				Boolean a=getTheLock(semaName,sLCK2)
+				getTheLock(semaName,sLCK2)
 				tt1=now()
 			}
 		}
@@ -1321,7 +1327,7 @@ private Map lockOrQueueSemaphore(Boolean synchr,event,Boolean queue,Map rtD){
 private LinkedHashMap<String,Object> getTemporaryRunTimeData(Long startTime=now()){
 	if(thePhysCommandsFLD==null){ //do one time load once
 		String semName=sTSLF
-		Boolean a=getTheLock(semName,sGETTRTD,true)
+		getTheLock(semName,sGETTRTD,true)
 		if(thePhysCommandsFLD==null){ // load caches
 			Map comparison=Comparisons()
 			Map vcmd=VirtualCommands()
@@ -1349,7 +1355,7 @@ private void clearMyCache(String meth=sNULL){
 	if(!myId)return
 	String semaName=appStr
 	String str='clearMyCache'
-	Boolean a=getTheLock(semaName,str)
+	getTheLock(semaName,str)
 	getCacheLock(str)
 	Map t0=(Map)theCacheFLD[myId]
 	if(t0){
@@ -1370,7 +1376,7 @@ private LinkedHashMap<String,Object> getCachedMaps(String meth=sNULL,Boolean ret
 			return result
 		}
 		String semaName=app.id.toString()
-		Boolean aa=getTheLock(semaName,sI)
+		getTheLock(semaName,sI)
 		theCacheFLD[myId]=null
 		releaseTheLock(semaName)
 	}
@@ -1395,7 +1401,7 @@ private LinkedHashMap<String,Object> getDSCache(String meth,Boolean Upd=true){
 	if(result==null){
 		String lockTyp='getDSCache'
 		String semaName=appStr
-		Boolean a=getTheLock(semaName,lockTyp)
+		getTheLock(semaName,lockTyp)
 		result=(LinkedHashMap)theCacheFLD[myId]
 		if(result==null){
 			Long stateStart=now()
@@ -1488,7 +1494,7 @@ void clearParentCache(String meth=sNULL){
 	String lockTyp='clearParentCache'
 	String semName=sTSLF
 	String wName = parent.id.toString()
-	Boolean a=getTheLock(semName,lockTyp)
+	getTheLock(semName,lockTyp)
 
 	theParentCacheFLD[wName]=null
 
@@ -1509,7 +1515,7 @@ private LinkedHashMap<String,Object> getParentCache(){
 	LinkedHashMap<String,Object> result=theParentCacheFLD[wName]
 	if(result==null){
 		String semName=sTSLF
-		Boolean a=getTheLock(semName,lockTyp)
+		getTheLock(semName,lockTyp)
 		result=theParentCacheFLD[wName]
 		Boolean sendM=false
 		if(result==null){
@@ -1560,7 +1566,7 @@ private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object>
 	}else rtD=getTemporaryRunTimeData(started)
 	Long timestamp=(Long)rtD.timestamp
 
-	if(rtD.temporary!=null) rtD.remove('temporary')
+	if(rtD.temporary!=null) def a=rtD.remove('temporary')
 
 	LinkedHashMap<String,Object> m1=[semaphore:0L,semaphoreName:sNULL,semaphoreDelay:0L] as LinkedHashMap<String,Object>
 	if(retSt!=null){
@@ -1831,12 +1837,12 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 				event=[(sDATE):(Date)event.date,(sDEV):location,(sNAME):evntName,(sVAL):t,schedule:schedules.sort{ (Long)it.t }.find{ (Long)it.t<t+(Long)getPistonLimits.scheduleVariance }]
 			}
 			if(event.schedule==null) break
-			Boolean a=schedules.remove(event.schedule)
+			def a=schedules.remove(event.schedule)
 
 			tt0=getCachedMaps(sHNDLEVT+sONE)
 			if(tt0!=null){
 				String semaName=app.id.toString()
-				Boolean aa=getTheLock(semaName,sX)
+				getTheLock(semaName,sX)
 				theCacheFLD[myId].schedules=schedules
 				releaseTheLock(semaName)
 			}
@@ -1916,7 +1922,7 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 				if(delay>0L){
 					Long ty0=(Long)getPistonLimits.scheduleVariance
 					delay=delay<ty0 ? delay : ty0
-					Long actDelay=doPause("Synchronizing scheduled event, waiting for ${delay}ms".toString(),delay,rtD,true)
+					doPause("Synchronizing scheduled event, waiting for ${delay}ms".toString(),delay,rtD,true)
 				}
 			}
 			if(firstTime&& lg>0){
@@ -1955,14 +1961,15 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 			}
 		}
 	}
-	for(String foo in heData) rtD.remove(foo)
+	def a
+	for(String foo in heData) a=rtD.remove(foo)
 
 	String semName=(String)rtD.semaphoreName
 	Long lS=(Long)rtD.semaphore
 
 	if((Boolean)rtD.updateDevices) clearMyCache('updateDeviceList')
 	List<String>data=rtD.collect{ it.key }
-	for(item in data)rtD.remove((String)item)
+	for(item in data)a=rtD.remove((String)item)
 	event=null
 	rtD=null
 
@@ -1972,7 +1979,7 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 	Boolean allDone=false
 	Boolean haveLock=false
 	while(doSerialization && semName!=sNULL){
-		if(!haveLock) { a=getTheLock(semName,sHNDLEVT); haveLock=true }
+		if(!haveLock) { getTheLock(semName,sHNDLEVT); haveLock=true }
 		List<Map> evtQ=(List<Map>)theQueuesFLD[semName]
 		Map theEvent=null
 		if(evtQ==null || evtQ==[]){
@@ -1992,12 +1999,12 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 				if(!sch) break
 
 				theEvent=[(sDATE):new Date((Long)sch.t),(sDEV):location,(sNAME):sTIME,(sVAL):t,schedule:sch]
-				Boolean aa=schedules.remove(sch)
+				def aa=schedules.remove(sch)
 
 				tt0=getCachedMaps(sHNDLEVT+'3')
 				if(tt0!=null){
 					String semaName=app.id.toString()
-					a=getTheLock(semaName,sX)
+					getTheLock(semaName,sX)
 					theCacheFLD[myId].schedules=schedules
 					releaseTheLock(semaName)
 				}
@@ -2010,7 +2017,7 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 			if(!theEvent) allDone=true
 		}
 		if(!theEvent && !allDone){
-			if(!haveLock) { a=getTheLock(semName,sHNDLEVT); haveLock=true }
+			if(!haveLock) { getTheLock(semName,sHNDLEVT); haveLock=true }
 			evtQ=(List<Map>)theQueuesFLD[semName]
 			List<Map>evtList=evtQ.sort{(Long)it.t }
 			theEvent=evtList.remove(0)
@@ -2027,7 +2034,7 @@ void handleEvents(event,Boolean queue=true,Boolean callMySelf=false){
 			handleEvents(theEvent,false,true)
 		}
         if(allDone) {
-			if(!haveLock){ a=getTheLock(semName,sHNDLEVT); haveLock=true }
+			if(!haveLock){ getTheLock(semName,sHNDLEVT); haveLock=true }
 			if((Long)theSemaphoresFLD[semName] <= lS){
 				if(lg>2)msgt='Released Lock and exiting'
 				theSemaphoresFLD[semName]=0L
@@ -2238,7 +2245,7 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 	Map t0=getCachedMaps(str)
 	String semaName=app.id.toString()
 	if(t0!=null){
-		Boolean aa=getTheLock(semaName,str)
+		getTheLock(semaName,str)
 		theCacheFLD[myId].cache=[:]+(Map)rtD.cache
 		theCacheFLD[myId].store=[:]+(Map)rtD.store
 		theCacheFLD[myId].state=[:]+(Map)rtD.state
@@ -2258,7 +2265,8 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 	}
 
 //remove large stuff
-	for(String foo in cleanData) rtD.remove(foo)
+	def aa
+	for(String foo in cleanData) aa=rtD.remove(foo)
 	if(!(rtD.event instanceof com.hubitat.hub.domain.Event)){
 		if(rtD.event?.responseData)rtD.event.responseData=[:]
 		if(rtD.event?.jsonData)rtD.event.jsonData=[:]
@@ -2267,7 +2275,7 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 	}
 
 	if((Boolean)rtD.updateDevices) updateDeviceList(rtD,rtD.devices*.value.id)
-	rtD.remove('devices')
+	aa=rtD.remove('devices')
 
 	Boolean a
 	if(rtD.gvCache!=null || rtD.gvStoreCache!=null){
@@ -2279,7 +2287,7 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 			String lockTyp='finalize'
 			String semName=sTGBL
 			String wName = parent.id.toString()
-			a=getTheLock(semName,lockTyp)
+			getTheLock(semName,lockTyp)
 			for(var in rtD.gvCache){
 				Map vars=globalVarsFLD[wName]
 				String varName=(String)var.key
@@ -2291,8 +2299,8 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 			releaseTheLock(semName)
 		}
 		parent.pCallupdateRunTimeData(rtD)
-		rtD.remove('gvCache')
-		rtD.remove('gvStoreCache')
+		aa=rtD.remove('gvCache')
+		aa=rtD.remove('gvStoreCache')
 		rtD.initGStore=false
 	}else{
 		Map myRt=shortRtd(rtD)
@@ -2332,7 +2340,7 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 		Long totTime=elapseT((Long)rtD.timestamp)
 		t1=20
 		String t4=mem()
-		Boolean aa=getTheLock(semaName,str+sONE)
+		getTheLock(semaName,str+sONE)
 		theCacheFLD[myId].mem=t4
 		theCacheFLD[myId].runStats=[:]+(Map)rtD.curStat
 		List hisList=(List)theCacheFLD[myId].runTimeHis
@@ -2357,19 +2365,20 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 	if(rtD.piston.o?.mps==null || !rtD.piston.o.mps) rtD.state.new=(String)rtD.state.autoNew ?: sTRUE
 	rtD.state.old=(String)rtD.state.new
 
-	if((Boolean)rtD.cancelations.all) Boolean a=schedules.removeAll{ (Integer)it.i>0 }
+    Boolean a
+	if((Boolean)rtD.cancelations.all) a=schedules.removeAll{ (Integer)it.i>0 }
 
 	//cancel statements
-	Boolean b=schedules.removeAll{ Map schedule -> !!((List<Map>)rtD.cancelations.statements).find{ Map cancelation -> (Integer)cancelation.id==(Integer)schedule.s && (!cancelation.data || ((String)cancelation.data==(String)schedule.d))}}
+	a=schedules.removeAll{ Map schedule -> !!((List<Map>)rtD.cancelations.statements).find{ Map cancelation -> (Integer)cancelation.id==(Integer)schedule.s && (!cancelation.data || ((String)cancelation.data==(String)schedule.d))}}
 
 	//cancel on conditions
 	for(Integer cid in (List<Integer>)rtD.cancelations.conditions){
-		Boolean a=schedules.removeAll{ cid in (List)it.cs }
+		a=schedules.removeAll{ cid in (List)it.cs }
 	}
 
 	//cancel on piston state change
 	if((Boolean)rtD.pistonStateChanged){
-		Boolean a=schedules.removeAll{ (Integer)it.ps!=0 }
+		a=schedules.removeAll{ (Integer)it.ps!=0 }
 	}
 
 	rtD.cancelations=[statements:[],conditions:[],all:false]
@@ -2381,7 +2390,7 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 	String semaName=app.id.toString()
 	t0=getCachedMaps(str+sONE)
 	if(t0!=null){
-		Boolean aa=getTheLock(semaName,sT)
+		getTheLock(semaName,sT)
 		theCacheFLD[myId].schedules=(List<Map>)[]+schedules
 		releaseTheLock(semaName)
 	}
@@ -2407,7 +2416,7 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 		state.nextSchedule=nextT
 		t0=getCachedMaps(str+'2')
 		if(t0!=null){
-			Boolean aa=getTheLock(semaName,sT+sONE)
+			getTheLock(semaName,sT+sONE)
 			theCacheFLD[myId].nextSchedule=nextT
 			releaseTheLock(semaName)
 		}
@@ -2426,7 +2435,7 @@ private void updateLogs(Map rtD,Long lastExecute=null){
 		state.lastExecuted=lastExecute
 		cacheMap=getCachedMaps(str)
 		if(cacheMap!=null){
-			Boolean aa=getTheLock(semaName,sE)
+			getTheLock(semaName,sE)
 			theCacheFLD[myId].lastExecuted=lastExecute
 			theCacheFLD[myId].temp=[:]+(Map)rtD.temp
 			theCacheFLD[myId].cachePersist=[:]+(Map)rtD.cachePersist
@@ -2458,7 +2467,7 @@ private void updateLogs(Map rtD,Long lastExecute=null){
 		}
 		cacheMap=getCachedMaps(str+'2')
 		if(cacheMap!=null){
-			Boolean aa=getTheLock(semaName,sE+sONE)
+			getTheLock(semaName,sE+sONE)
 			theCacheFLD[myId].logs=logs
 			releaseTheLock(semaName)
 		}
@@ -2489,25 +2498,26 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
 	//if rtD.ffTo is a positive,non-zero number,we need to fast forward through all
 	//branches until we find the task with an id equal to that number,then we play nicely after that
 	if(statement==null)return false
+	Integer lg=(Integer)rtD.logging
 	Integer statementNum=statement.$!=null ? (Integer)statement.$:0
 	if((Integer)rtD.ffTo==0){
 		String sMsg="Skipping execution for statement #${statementNum} because "
 		switch((String)statement.tep){ // Task Execution Policy
 			case sC:
 				if(!(Boolean)rtD.conditionStateChanged){
-					if((Integer)rtD.logging>2)debug sMsg+'condition state did not change',rtD
+					if(lg>2)debug sMsg+'condition state did not change',rtD
 					return true
 				}
 				break
 			case sP:
 				if(!(Boolean)rtD.pistonStateChanged){
-					if((Integer)rtD.logging>2)debug sMsg+'piston state did not change',rtD
+					if(lg>2)debug sMsg+'piston state did not change',rtD
 					return true
 				}
 				break
 			case sB:
 				if( !(Boolean)rtD.conditionStateChanged && !(Boolean)rtD.pistonStateChanged){
-					if((Integer)rtD.logging>2)debug sMsg+'neither condition state nor piston state changed',rtD
+					if(lg>2)debug sMsg+'neither condition state nor piston state changed',rtD
 					return true
 				}
 				break
@@ -2719,7 +2729,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
 					Boolean implicitBreaks= (String)statement.ctp==sI // case traversal policy
 					Boolean fallThrough=!implicitBreaks
 					perform=false
-					if((Integer)rtD.logging>2)debug "Evaluating switch with values $lo.values",rtD
+					if(lg>2)debug "Evaluating switch with values $lo.values",rtD
 					for(Map _case in (List<Map>)statement.cs){
 						Map ro=[operand: (Map)_case.ro,values: (List)evaluateOperand(rtD,_case,(Map)_case.ro)]
 						Map ro2= (String)_case.t==sR ? [operand: (Map)_case.ro2,values: (List)evaluateOperand(rtD,_case,(Map)_case.ro2,null,false,true)]:null
@@ -2809,7 +2819,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean async=false){
 					rtD.terminated=true
 					repeat=false
 				}else{
-					Long b=doPause(mstr+'Waiting for '+delay+'ms',delay,rtD)
+					doPause(mstr+'Waiting for '+delay+'ms',delay,rtD)
 				}
 			}
 		}
@@ -2871,7 +2881,7 @@ private Long checkForSlowdown(Map rtD){
 	return overBy
 }
 
-private Long doPause(String mstr,Long delay,Map rtD,Boolean ign=false){
+private void doPause(String mstr,Long delay,Map rtD,Boolean ign=false){
 	Long actDelay=0L
 	Long t0=now()
 	if((Long)rtD.lastPause==null || ign || (t0-(Long)rtD.lastPause)>(Long)getPistonLimits.slTime){
@@ -2888,7 +2898,7 @@ private Long doPause(String mstr,Long delay,Map rtD,Boolean ign=false){
 		t2=t2!=null ? t2 : 0L
 		state.pauses=t2+1L
 	}
-	return actDelay
+	//return actDelay
 }
 
 private Boolean executeAction(Map rtD,Map statement,Boolean async){
@@ -3023,7 +3033,7 @@ private Boolean executeTask(Map rtD,List devices,Map statement,Map task,Boolean 
 			if((Boolean)rtD.eric) myDetail rtD,mySt+" result:FALSE".toString(),-1
 			return false
 		}else{
-			Long actDelay=doPause("executeTask: Waiting for ${delay}ms",delay,rtD,true)
+			doPause("executeTask: Waiting for ${delay}ms",delay,rtD,true)
 		}
 	}
 	tracePoint(rtD,myS,elapseT(t),delay)
@@ -3035,7 +3045,7 @@ private Boolean executeTask(Map rtD,List devices,Map statement,Map task,Boolean 
 		if(overBy>(Long)getPistonLimits.useBigDelay){
 			mdelay=(Long)getPistonLimits.taskLongDelay
 		}
-		Long actDelay=doPause("executeTask: Execution time exceeded by ${overBy}ms,Waiting for ${mdelay}ms",mdelay,rtD)
+		doPause("executeTask: Execution time exceeded by ${overBy}ms,Waiting for ${mdelay}ms",mdelay,rtD)
 	}
 	if((Boolean)rtD.eric) myDetail rtD,mySt+" result:TRUE".toString(),-1
 	return true
@@ -3114,7 +3124,7 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 				Long t1 = (Long)getPistonLimits.deviceMaxDelay
 				delay=delay>t1 ? t1 : delay
 				if(delay>0L){
-					Long actDelay=doPause("wait before device command: Waiting for ${delay}ms",delay,rtD,true)
+					doPause("wait before device command: Waiting for ${delay}ms",delay,rtD,true)
 					if(doL) tailStr="[delay: $delay])".toString()
 				}
 				if(doL) tstr='Executed'+tstr
@@ -3134,7 +3144,7 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 		if(t0!=0L){
 			Long t1 = (Long)getPistonLimits.deviceMaxDelay
 			t0=t0>t1 ? t1 : t0
-			Long actDelay=doPause("Injected command execution delay ${t0}ms after [$device].$command(${nparams ? "$nparams":sBLK})",t0,rtD,true)
+			doPause("Injected command execution delay ${t0}ms after [$device].$command(${nparams ? "$nparams":sBLK})",t0,rtD,true)
 		}
 	}
 }
@@ -4745,13 +4755,14 @@ private Long vcmd_loadStateLocally(Map rtD,device,List params,Boolean global=fal
 		}
 		def value=global ? rtD.globalStore[n]:rtD.store[n]
 		if(attr==sHUE)value=(Double)cast(rtD,value,sDCML)/3.6D
+		def a
 		if(empty){
 			if(global){
-				rtD.globalStore.remove(n)
+				a=rtD.globalStore.remove(n)
 				Map cache=(Map)rtD.gvStoreCache ?: [:]
 				cache[n]=null
 				rtD.gvStoreCache=cache
-			}else rtD.store.remove(n)
+			}else a=rtD.store.remove(n)
 		}
 		if(value==null)continue
 		String exactCommand=sNULL
@@ -4816,7 +4827,8 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 	if((Boolean)rtD.eric) myDetail rtD,"evaluateConditions",1
 	Long t=now()
 	Map msg=null
-	if((Integer)rtD.logging>2)msg=timer sBLK,rtD
+	Integer lg=(Integer)rtD.logging
+	if(lg>2)msg=timer sBLK,rtD
 	//override condition id
 	Integer c=(Integer)rtD.stack.c
 	Integer myC=conditions.$!=null ? (Integer)conditions.$:0
@@ -4847,7 +4859,7 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 					//time has expired
 					value=((String)condition.wt=='n')
 					if(!value){
-						if((Integer)rtD.logging>2)debug "Conditional ladder step failed due to a timeout",rtD
+						if(lg>2)debug "Conditional ladder step failed due to a timeout",rtD
 					}
 				}else{
 					value=evaluateCondition(rtD,condition,collection,async)
@@ -4866,7 +4878,7 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 					ladderIndex += 1
 					ladderUpdated=now()
 					cancelStatementSchedules(rtD,myC)
-					if((Integer)rtD.logging>2)debug "Condition group #${myC} made progress up the ladder; currently at step $ladderIndex of $steps",rtD
+					if(lg>2)debug "Condition group #${myC} made progress up the ladder; currently at step $ladderIndex of $steps",rtD
 					if(ladderIndex<steps){
 						//delay decision, there are more steps to go through
 						value=null
@@ -4922,7 +4934,7 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 			if((result || (Integer)rtD.ffTo!=0) && conditions.ts!=null && (List)(conditions.ts).length)Boolean a=executeStatements(rtD,(List)conditions.ts,async)
 			if((!result || (Integer)rtD.ffTo!=0) && conditions.fs!=null && (List)(conditions.fs).length)Boolean a=executeStatements(rtD,(List)conditions.fs,async)
 		}
-		if((Integer)rtD.ffTo==0 && (Integer)rtD.logging>2){
+		if((Integer)rtD.ffTo==0 && lg>2){
 			msg.m="Condition group #${myC} evaluated $result (state ${(Boolean)rtD.conditionStateChanged ? 'changed' : 'did not change'})".toString()
 			debug msg,rtD
 		}
@@ -5288,6 +5300,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 		mySt="evaluateComparison $comparison"
 		myDetail rtD,mySt,1
 	}
+	Integer lg=(Integer)rtD.logging
 	String fn="comp_"+comparison
 	Boolean result= (String)lo.operand.g!=sANY
 	if((Boolean)options.matches){
@@ -5305,7 +5318,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 				if(value && ((String)value.v.t==sDEV))value.v=evaluateExpression(rtD,(Map)value.v,sDYN)
 				if(!ro){
 					Map msg=[:]
-					if((Integer)rtD.logging>2)msg=timer sBLK,rtD
+					if(lg>2)msg=timer sBLK,rtD
 					if(comparison=='event_occurs'){
 						String compS = (String)lo.operand.v
 						if(compS == 'alarmSystemStatus') compS = 'hsmStatus'
@@ -5317,12 +5330,12 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 							res=true
 							compS = (String)value.v.a
 						}
-						if(res && (Integer)rtD.logging>2) msg.m="Comparison (string) ${compS} $comparison = $res"
+						if(res && lg>2) msg.m="Comparison (string) ${compS} $comparison = $res"
 					}else{
 						res=(Boolean)"$fn"(rtD,value,null,null,tvalue,tvalue2)
-						if((Integer)rtD.logging>2)msg.m="Comparison (${value?.v?.t}) ${value?.v?.v} $comparison = $res"
+						if(lg>2)msg.m="Comparison (${value?.v?.t}) ${value?.v?.v} $comparison = $res"
 					}
-					if((Integer)rtD.logging>2) debug msg,rtD
+					if(lg>2) debug msg,rtD
 				}else{
 					Boolean rres
 					res= (String)ro.operand.g!=sANY
@@ -5331,9 +5344,9 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 						if(rvalue && ((String)rvalue.v.t==sDEV))rvalue.v=evaluateExpression(rtD,(Map)rvalue.v,sDYN)
 						if(!ro2){
 							Map msg=[:]
-							if((Integer)rtD.logging>2)msg=timer sBLK,rtD
+							if(lg>2)msg=timer sBLK,rtD
 							rres=(Boolean)"$fn"(rtD,value,rvalue,null,tvalue,tvalue2)
-							if((Integer)rtD.logging>2){
+							if(lg>2){
 								msg.m="Comparison (${value?.v?.t}) ${value?.v?.v} $comparison  (${rvalue?.v?.t}) ${rvalue?.v?.v} = $rres"
 								debug msg,rtD
 							}
@@ -5343,11 +5356,11 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 							for(Map r2value in (List<Map>)ro2.values){
 								if(r2value && ((String)r2value.v.t==sDEV))r2value.v=evaluateExpression(rtD,(Map)r2value.v,sDYN)
 								Map msg=[:]
-								if((Integer)rtD.logging>2)msg=timer sBLK,rtD
+								if(lg>2)msg=timer sBLK,rtD
 //if((Boolean)rtD.eric) myDetail rtD,"$fn $value   $rvalue    $r2value    $tvalue   $tvalue2",1
 								Boolean r2res=(Boolean)"$fn"(rtD,value,rvalue,r2value,tvalue,tvalue2)
 //if((Boolean)rtD.eric) myDetail rtD,"$r2res  ${myObj(value?.v?.v)}    ${myObj(rvalue?.v?.v)}  $fn $value   $rvalue    $r2value    $tvalue   $tvalue2",-1
-								if((Integer)rtD.logging>2){
+								if(lg>2){
 									msg.m="Comparison (${value?.v?.t}) ${value?.v?.v} $comparison  (${rvalue?.v?.t}) ${rvalue?.v?.v} .. (${r2value?.v?.t}) ${r2value?.v?.v} = $r2res"
 									debug msg,rtD
 								}
@@ -5370,7 +5383,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 					case sDATE:
 					case sDTIME:
 						Boolean pass=(checkTimeRestrictions(rtD,(Map)lo.operand,(Long)now(),5,1)==0L)
-						if((Integer)rtD.logging>2)debug "Time restriction check ${pass ? 'passed' : 'failed'}",rtD
+						if(lg>2)debug "Time restriction check ${pass ? 'passed' : 'failed'}",rtD
 						if(!pass)res=false
 				}
 			}
@@ -6608,7 +6621,7 @@ void clearGlobalCache(String meth=sNULL){
 	String lockTyp='clearGlobalCache '+meth
 	String semaName=sTGBL
 	String wName = parent.id.toString()
-	Boolean a=getTheLock(semaName,lockTyp)
+	getTheLock(semaName,lockTyp)
 	globalVarsFLD[wName]=null
 	initGlobalFLD[wName]=false
 	releaseTheLock(semaName)
@@ -6620,7 +6633,7 @@ private void loadGlobalCache(){
 	if(!initGlobalFLD[wName]){
 		String lockTyp='loadGlobalCache'
 		String semaName=sTGBL
-		Boolean a=getTheLock(semaName,lockTyp)
+		getTheLock(semaName,lockTyp)
 		globalVarsFLD[wName]=(Map)parent.listAvailableVariables()
 		initGlobalFLD[wName]=true
 		releaseTheLock(semaName)
@@ -6724,7 +6737,7 @@ private Map setVariable(Map rtD,String name,value){
 		String lockTyp='setGlobalvar'
 		String semaName=sTGBL
 		String wName = parent.id.toString()
-		Boolean a=getTheLock(semaName,lockTyp)
+		getTheLock(semaName,lockTyp)
 		def tvariable=globalVarsFLD[wName][tname]
 		if(tvariable instanceof Map){
 			Map variable=(Map)globalVarsFLD[wName][tname]
@@ -6776,7 +6789,7 @@ private Map setVariable(Map rtD,String name,value){
 				String myId=(String)rtD.id
 				if(t0!=null){
 					String semaName=app.id.toString()
-					Boolean aa=getTheLock(semaName,sV)
+					getTheLock(semaName,sV)
 					theCacheFLD[myId].vars=vars
 					releaseTheLock(semaName)
 				}
@@ -7054,6 +7067,7 @@ private Map evaluateExpression(Map rtD,Map expression,String dataType=sNULL){
 			}
 			//do the job
 			idx=0
+			def a
 			while ((Integer)items.size()>1){
 				Integer itmSz=(Integer)items.size()
 				//ternary
@@ -7397,7 +7411,9 @@ private Map evaluateExpression(Map rtD,Map expression,String dataType=sNULL){
 					if(match)items[idxPlus].v=v
 					else items[idxPlus].v=cast(rtD,v,t)
 				} // end else
-				items.remove(idx)
+
+				a=items.remove(idx)
+
 			} //end while
 			result=items[0] ? ((String)items[0].t==sDEV ? (Map)items[0] : evaluateExpression(rtD,(Map)items[0])) : [t:sDYN,v:null]
 			break
