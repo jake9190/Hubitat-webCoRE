@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update July 3, 2021 for Hubitat
+ * Last update July 9, 2021 for Hubitat
 */
 
 static String version(){ return "v0.3.113.20210203" }
@@ -2710,9 +2710,9 @@ void pCallupdateRunTimeData(Map data){
 	String id=(String)data.id
 	String wName=app.id.toString()
 	if(p_executionFLD[wName]==null){ p_executionFLD[wName]=(Map)[:]; p_executionFLD=p_executionFLD }
-	Long cnt=p_executionFLD[wName][id]!=null ? (Long)p_executionFLD[wName][id] : 0L
-	cnt +=1
-	p_executionFLD[wName][id]=cnt
+	Long cnt=p_executionFLD[wName]."${id}"!=null ? (Long)p_executionFLD[wName][id] : 0L
+	cnt +=1L
+	p_executionFLD[wName]."${id}"=cnt
 	p_executionFLD=p_executionFLD
 	updateRunTimeData(data)
 }
