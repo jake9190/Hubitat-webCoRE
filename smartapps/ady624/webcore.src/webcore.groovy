@@ -3266,7 +3266,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	videoCamera			: [ n: "Video Camera",			d: "cameras",				a: "camera",		c: ["flip", "mute", sOFF, sON, "unmute"],				],
 	voltageMeasurement	: [ n: "Voltage Measurement",	d: "voltmeters",			a: "voltage",											],
 	waterSensor			: [ n: "Water Sensor",			d: "water and leak sensors",		a: "water",											],
-	windowBlind			: [ n: "Window Blind",			d: "automatic window blindss",		a: "windowShade",	c: [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange", "setTiltLevel"],					],
+	windowBlind			: [ n: "Window Blind",			d: "automatic window blinds",		a: "windowShade",	c: [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange", "setTiltLevel"],					],
 	windowShade			: [ n: "Window Shade",			d: "automatic window shades",		a: "windowShade",	c: [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange"],					],
 ]
 
