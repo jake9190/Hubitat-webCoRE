@@ -18,17 +18,17 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update August 5, 2021 for Hubitat
+ * Last update August 25, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
-//file:noinspection GroovyUnusedAssignment
 //file:noinspection GrDeprecatedAPIUsage
 //file:noinspection unused
 //file:noinspection GroovyDoubleNegation
+//file:noinspection GroovyUnusedAssignment
 
 static String version(){ return 'v0.3.113.20210203' }
-static String HEversion(){ return 'v0.3.113.20210805_HE' }
+static String HEversion(){ return 'v0.3.113.20210825_HE' }
 
 /** webCoRE DEFINITION	**/
 
@@ -4216,27 +4216,36 @@ private Long vcmd_resumePiston(Map rtD,device,List params){
 private Long vcmd_executeRule(Map rtD,device,List params){
 	String ruleId=(String)params[0]
 	String action=(String)params[1]
-	Boolean wait=((Integer)params.size()>2)? (Boolean)cast(rtD,params[2],sBOOLN):false
-	def rules=RMUtils.getRuleList()
-	List myRule=[]
-	rules.each{rule->
-		List t0=rule.find{ hashId((String)it.key)==ruleId }.collect{(String)it.key}
-		myRule += t0
-	}
-
-	if(myRule){
-		String ruleAction=sNULL
-		if(action=="Run")ruleAction="runRuleAct"
-		if(action=="Stop")ruleAction="stopRuleAct"
-		if(action=="Pause")ruleAction="pauseRule"
-		if(action=="Resume")ruleAction="resumeRule"
-		if(action=="Evaluate")ruleAction="runRule"
-		if(action=="Set Boolean True")ruleAction="setRuleBooleanTrue"
-		if(action=="Set Boolean False")ruleAction="setRuleBooleanFalse"
-		RMUtils.sendAction(myRule,ruleAction,(String)app.label)
-	}else{
-		String message="Rule not found "+ruleId
+	//Boolean wait=((Integer)params.size()>2)? (Boolean)cast(rtD,params[2],sBOOLN):false
+	String ruleAction=sNULL
+	if(action=="Run")ruleAction="runRuleAct"
+	if(action=="Stop")ruleAction="stopRuleAct"
+	if(action=="Pause")ruleAction="pauseRule"
+	if(action=="Resume")ruleAction="resumeRule"
+	if(action=="Evaluate")ruleAction="runRule"
+	if(action=="Set Boolean True")ruleAction="setRuleBooleanTrue"
+	if(action=="Set Boolean False")ruleAction="setRuleBooleanFalse"
+	if(!ruleAction){
+		String message="No Rule action found "+action
 		error message,rtD
+	}else{
+		Boolean sent=false
+		['4.1', '5.0'].each { String ver->
+			List<Map> rules=RMUtils.getRuleList(ver ?: sNULL)
+			List myRule=[]
+			rules.each{rule->
+				List t0=rule.find{ hashId((String)it.key)==ruleId }.collect{(String)it.key}
+				myRule += t0
+			}
+			if(myRule){
+				RMUtils.sendAction(myRule,ruleAction,(String)app.label, ver ?: sNULL)
+				sent=true
+			}
+		}
+		if(!sent){
+			String message="Rule not found "+ruleId
+			error message,rtD
+		}
 	}
 	return lZERO
 }
@@ -8976,7 +8985,7 @@ private String formatLocalTime(time,String format='EEE, MMM d yyyy @ h:mm:ss a z
 		return sNULL
 	}
 	SimpleDateFormat formatter=new SimpleDateFormat(format)
-	formatter.setTimeZone(location.timeZone)
+	formatter.setTimeZone((TimeZone)location.timeZone)
 	return (String)formatter.format(nTime)
 }
 
@@ -9234,8 +9243,8 @@ private void initSunriseAndSunset(Map rtD){
 		Long b = (Long)((Date)sunTimes.sunset).getTime()
 		Long nmnght = getNextMidnightTime()
 		Long c,d = lZERO
-		Long a1 = a
-		Long b1 = b
+		Long a1// = a
+		Long b1// = b
 		Boolean good = true
 		try{
 			a1=(Long)((Date)todaysSunrise).getTime() // requires FW 2.2.3.132 or later
@@ -9306,7 +9315,7 @@ private Long getNextSunsetTime(Map rtD){
 Long getSkew(Long t4,String ttyp){
 	Date t1=new Date(t4)
 	Integer curMon=(Integer)t1.month
-	curMon=location.latitude>0 ? curMon: ((curMon+6)%12) // normalize for southern hemisphere
+	curMon=(BigDecimal)location.latitude>0 ? curMon: ((curMon+6)%12) // normalize for southern hemisphere
 	Integer day=(Integer)t1.date
 
 	Integer addr
@@ -9314,7 +9323,7 @@ Long getSkew(Long t4,String ttyp){
 
 	if( (shorteningDays && ttyp=='Sunset') || (!shorteningDays && ttyp=='Sunrise') ) addr=1000 // minimize skew when sunrise or sunset moving earlier in day
 	else{
-		Integer t2=Math.abs(location.latitude).toInteger()
+		Integer t2=Math.abs((BigDecimal)location.latitude).toInteger()
 		Integer t3=curMon%6
 		Integer t5=(Integer)Math.round(t3*(365.0D/12.0D)+day).toInteger() // days into period
 		addr=Math.round((t5>37 && t5<(182-37) ? t2*2.8D:t2*1.9D)*dTHOUS).toInteger()
@@ -9491,8 +9500,8 @@ private getSystemVariableValue(Map rtD,String name){
 	case '$minute': return (Integer)localDate().minutes
 	case '$second': return (Integer)localDate().seconds
 	case '$zipCode': return location.zipCode
-	case '$latitude': return location.latitude.toString()
-	case '$longitude': return location.longitude.toString()
+	case '$latitude': return ((BigDecimal)location.latitude).toString()
+	case '$longitude': return ((BigDecimal)location.longitude).toString()
 	case '$meridian': Integer h=(Integer)localDate().hours; return (h<12 ? 'AM' : 'PM')
 	case '$meridianWithDots': Integer h=(Integer)localDate().hours; return (h<12 ? 'A.M.' : 'P.M.')
 	case '$day': return (Integer)localDate().date

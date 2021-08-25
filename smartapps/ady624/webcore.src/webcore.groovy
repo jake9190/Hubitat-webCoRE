@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update August 5, 2021 for Hubitat
+ * Last update August 25, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -26,7 +26,7 @@
 //file:noinspection GroovySillyAssignment
 
 static String version(){ return "v0.3.113.20210203" }
-static String HEversion(){ return "v0.3.113.20210805_HE" }
+static String HEversion(){ return "v0.3.113.20210825_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -1015,7 +1015,7 @@ private Map api_get_base_result(Boolean updateCache=false){
 
 	cntbase_resultFLD[wName]=0
 
-	def tz=location.getTimeZone()
+	TimeZone tz=location.getTimeZone()
 	String currentDeviceVersion=(String)state.deviceVersion
 	String name=handle() + ' Piston'
 	Long incidentThreshold=Math.round((Long)now() - 604800000.0D)
@@ -3267,7 +3267,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	touchSensor			: [ n: "Touch Sensor",			d: "touch sensors",			a: "touch",  /* m: true */									],
 	ultravioletIndex	: [ n: "Ultraviolet Index",		d: "ultraviolet sensors",		a: "ultravioletIndex",										],
 	valve				: [ n: "Valve",					d: "valves",				a: "valve",		c: [sCLOSE, sOPEN],							],
-	variable			: [ n: "Variable",				d: "variables",				a: "variable",		c: ["setVariable"],							],
+//	variable			: [ n: "Variable",				d: "variables",				a: "variable",		c: ["setVariable"],							],
 	videoCamera			: [ n: "Video Camera",			d: "cameras",				a: "camera",		c: ["flip", "mute", sOFF, sON, "unmute"],				],
 	voltageMeasurement	: [ n: "Voltage Measurement",	d: "voltmeters",			a: "voltage",											],
 	waterSensor			: [ n: "Water Sensor",			d: "water and leak sensors",		a: "water",											],
@@ -3529,7 +3529,7 @@ Map getChildCommands(){
 	setTiltLevel		: [ n: "Move to tilt",				d: "Set tilt to {0}",					a: "tilt",				p: [[n:"Tilt", t:"tilt"]],		],
 	setTimeRemaining	: [ n: "Set remaining time...",			d: "Set remaining time to {0}s",			a: "timeRemaining",			p: [[n:"Remaining time [seconds]", t:"number"]],	],
 	setTrack			: [ n: "Set track...",				d: "Set track to <uri>{0}</uri>",								p: [[n:"Track URL",t:"url"]],			],
-	setVariable			: [ n: "Set Device Variable...",		d: "Set Device Variable to {0}",			a: "variable",				p:[[n:"device variable value",t:"variable"]],			],
+//	setVariable			: [ n: "Set Device Variable...",		d: "Set Device Variable to {0}",			a: "variable",				p:[[n:"device variable value",t:"variable"]],			],
 	setVolume			: [ n: "Set Volume...",				d: "Set Volume to {0}",					a: "volume",				p:[[n:"Level",t:"volume"]],			],
 	siren				: [ n: "Siren",												a: "alarm",				v: "siren",					],
 	speak				: [ n: "Speak...",				d: "Speak \"{0}\"{1}",								p: [[n:"Message", t:sSTR],[n:sVOLUME,t:sLVL,d:" at volume {v}" ]],			],
@@ -4029,10 +4029,12 @@ import hubitat.helper.RMUtils
 
 private Map getRuleOptions(Boolean updateCache){
 	Map result=[:]
-	def rules=RMUtils.getRuleList()
-	rules.each{rule->
-		rule.each{pair->
-			result[hashId(pair.key, updateCache)]=pair.value
+	['4.1', '5.0'].each { String ver ->
+		def rules=RMUtils.getRuleList(ver ?: sNULL)
+		rules.each{rule->
+			rule.each{pair->
+				result[hashId(pair.key, updateCache)]=pair.value
+			}
 		}
 	}
 	return result
