@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update August 25, 2021 for Hubitat
+ * Last update August 30, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -26,7 +26,7 @@
 //file:noinspection GroovySillyAssignment
 
 static String version(){ return "v0.3.113.20210203" }
-static String HEversion(){ return "v0.3.113.20210825_HE" }
+static String HEversion(){ return "v0.3.113.20210830_HE" }
 
 
 /*** webCoRE DEFINITION	***/
@@ -3393,7 +3393,7 @@ Map getChildAttributes(){
 	trackDescription	: [ n: "track description",		t: sSTR,											],
 	ultravioletIndex	: [ n: "UV index",			t: sINT,		r: [0, null],									],
 	valve				: [ n: "valve",				t: sENUM,		o: ["closed", sOPEN],							],
-	variable			: [ n: "variable value",	t: sSTR,											],
+//	variable			: [ n: "variable value",	t: sSTR,											],
 	voltage				: [ n: "voltage",			t: sDEC,		r: [null, null],	u: "V",							],
 	volume				: [ n: "volume",			t: sINT,		r: [0, 100],		u: "%",							],
 	water				: [ n: "water",				t: sENUM,		o: ["dry", "wet"],							],
