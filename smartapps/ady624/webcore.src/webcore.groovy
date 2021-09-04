@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update August 30, 2021 for Hubitat
+ * Last update September 4, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -2263,31 +2263,47 @@ private Boolean isCustomEndpoint(){
 	(Boolean)settings.customEndpoints && (Boolean)settings.localHubUrl
 }
 
+String getDashboardUrl(){
+	if(!(String)state.endpoint) return sNULL
+
+	String aa = settings.customWebcoreInstanceUrl
+	if((Boolean)customEndpoints && aa){
+		if(aa.endsWith("/")) return aa
+		else return aa + "/"
+	}else{
+	//if((Boolean)state.installed && (Boolean)settings.agreement){
+		return "https://dashboard.${domain()}/".toString()
+	}
+}
+
 private String getDashboardInitUrl(Boolean reg=false){
+	if(eric()) log.debug "getDashboardInitUrl: reg: $reg"
 	String url=reg ? getDashboardRegistrationUrl() : getDashboardUrl()
 	if(!url) return sNULL
 	String t0=url + (reg ? "register/" : "init/")
-	String t1
+	String regkey
 	if(isCustomEndpoint()){
-		t1=customApiServerUrl('/')
-//		t1=customApiServerUrl('/?access_token=' + state.accessToken)
-//    log.debug "t0 $t0"
-//    log.debug "t1 $t1"
-//		t1=customApiServerUrl('/?access_token=' + state.accessToken).bytes.encodeBase64()
-//	 	t0 = t0+t1
+		if(eric())log.debug "getDashboardInitUrl: isCustomEndpoint"
+		//regkey=customApiServerUrl('/')
+		//regkey=customApiServerUrl('/?access_token=' + state.accessToken)
+		regkey=customApiServerUrl('/?access_token=' + state.accessToken).bytes.encodeBase64()
+		if(eric())log.debug "getDashboardInitUrl: t0 $t0"
+		if(eric())log.debug "getDashboardInitUrl: regkey $regkey"
+	 	t0 = t0+regkey
 	}else{
-	//if((Boolean)state.installed && (Boolean)settings.agreement){
-		t1= apiServerUrl("")
-	}
-//    log.debug "t0 $t0"
+		//if((Boolean)state.installed && (Boolean)settings.agreement){
+		if(eric())log.debug "getDashboardInitUrl: NOT isCustomEndpoint"
+		regkey= apiServerUrl("")
+
+// 	   	log.debug "t0 $t0"
 /*		String a =(
-			t1.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
+			regkey.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
 			(hubUID.toString() + app.id.toString()).replace("-", "") + '/?access_token=' + (String)state.accessToken ) */
-//    log.debug "t1 $a"
-		t0=t0+( t1.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
+//   		log.debug "regkey $a"
+		t0=t0+( regkey.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
 			(hubUID.toString() + app.id.toString()).replace("-", "") + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
-//	}
-//	log.debug "Url: $t0"
+	}
+	if(eric())log.debug "getDashboardInitUrl result: $t0"
 	return t0
 }
 
@@ -2305,45 +2321,46 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 	if(storageApp){
 		result=storageApp.listAvailableDevices(raw, offset)
 	}else{
-		def myDevices=settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
-		def devices=myDevices.unique{ it.id }
+		List myDevices=(List)settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
+		List devices=(List)myDevices.unique{ it.id }
 		if(raw){
 			result=devices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}
 		}else{
-			Map<String,Map> overrides=commandOverrides()
+//			Map<String,Map> overrides=commandOverrides()
 			Integer deviceCount=devices.size()
 			result.devices=[:]
 			if(devices){
-			devices=devices[offset..-1]
-			Integer dsz=(Integer)devices.size()
-			result.complete=!devices.indexed().find{ idx, dev ->
+				devices=devices[offset..-1]
+				Integer dsz=(Integer)devices.size()
+				result.complete=!devices.indexed().find{ idx, dev ->
 //				log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${result.toString().size()}"
-				result.devices[hashId(dev.id)]=[
-					n: dev.getDisplayName(),
-					cn: dev.getCapabilities()*.name,
-					a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
-						n: (String)it.name,
-						t: it.getDataType(),
-						o: it.getValues()
-					]},
-					c: dev.getSupportedCommands().unique{ transformCommand(it, overrides) }.collect{[
-						n: transformCommand(it, overrides),
-						p: it.getArguments()
-					]}
-				]
-				Boolean stop=false
-				String jsonData=JsonOutput.toJson(result)
-				Integer responseLength=jsonData.getBytes("UTF-8").length
-				if(responseLength > (50 * 1024)){
-					stop=true // Stop if large
+					result.devices[hashId(dev.id)]=getDevDetails(dev, true)
+/*					result.devices[hashId(dev.id)]=[
+							n: dev.getDisplayName(),
+							cn: dev.getCapabilities()*.name,
+							a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
+									n: (String)it.name,
+									t: it.getDataType(),
+									o: it.getValues()
+							]},
+							c: dev.getSupportedCommands().unique{ transformCommand(it, overrides) }.collect{[
+									n: transformCommand(it, overrides),
+									p: it.getArguments()
+							]}
+					] */
+					Boolean stop=false
+					String jsonData=JsonOutput.toJson(result)
+					Integer responseLength=jsonData.getBytes("UTF-8").length
+					if(responseLength > 50000){
+						stop=true // Stop if large
+					}
+					if(now()-time > 4000) stop=true
+					if(stop && idx < dsz-1 ){
+						result.nextOffset= offset+idx+1
+						return true
+					}
+					false
 				}
-				if(now()-time > 4000) stop=true
-				if(idx < dsz-1 && stop){
-					result.nextOffset= offset+idx+1
-					return true
-				}
-				false
-			}
 			} else result.complete=true
 			debug "Generated list of ${offset}-${offset + (Integer)((Map)result.devices).size()-1} of ${deviceCount} devices in ${now() - time}ms. Data size is ${result.toString().size()}"
 		}
@@ -2354,11 +2371,47 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 			if(raw){
 				result << presenceDevices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}
 			}else{
-				result.devices << presenceDevices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}.collectEntries{ id, dev -> [ (id): [ n: dev.getDisplayName(), cn: dev.getCapabilities()*.name, a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{def x=[n: (String)it.name, t: it.getDataType(), o: it.getValues()]; x}, c: dev.getSupportedCommands().unique{ it.getName() }.collect{[n: it.getName(), p: it.getArguments()]} ]]}
+				result.devices << presenceDevices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}.collectEntries{ id, dev ->
+					[
+							(id): getDevDetails(dev)
+/*							(id): [
+									n: dev.getDisplayName(),
+									cn: dev.getCapabilities()*.name,
+									a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{
+										def x=[
+												n: (String)it.name,
+												t: it.getDataType(),
+												o: it.getValues()
+										]
+										x
+									},
+									c: dev.getSupportedCommands().unique{ it.getName() }.collect{[
+											n: it.getName(),
+											p: it.getArguments()
+									]}
+							] */
+					]}
 			}
 		}
 	}
 	return result
+}
+
+Map getDevDetails(dev, Boolean transform=false){
+	Map<String,Map> overrides=commandOverrides()
+	return [
+			n: dev.getDisplayName(),
+			cn: dev.getCapabilities()*.name,
+			a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
+					n: (String)it.name,
+					t: it.getDataType(),
+					o: it.getValues()
+			]},
+			c: dev.getSupportedCommands().unique{ transform ? transformCommand(it, overrides) : it.getName() }.collect{[
+					n: transform ? transformCommand(it, overrides) : it.getName(),
+					p: it.getArguments()
+			]}
+	]
 }
 
 /*
@@ -2629,17 +2682,6 @@ String generatePistonName(){
 			continue
 		}
 		return name
-	}
-}
-
-String getDashboardUrl(){
-	if(!(String)state.endpoint) return sNULL
-
-	if((Boolean)customEndpoints && (String)customWebcoreInstanceUrl){
-		return (String)customWebcoreInstanceUrl + "/"
-	}else{
-	//if((Boolean)state.installed && (Boolean)settings.agreement){
-		return "https://dashboard.${domain()}/".toString()
 	}
 }
 

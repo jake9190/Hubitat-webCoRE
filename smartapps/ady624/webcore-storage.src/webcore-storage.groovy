@@ -16,10 +16,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update December 8,2020 for Hubitat
+ * Last update August 31, 2021 for Hubitat
  */
-public static String version(){ return "v0.3.110.20191009" }
-public static String HEversion(){ return "v0.3.110.20200906_HE" }
+//file:noinspection unused
+
+static String version(){ return 'v0.3.113.20210203' }
+static String HEversion(){ return 'v0.3.113.20210830_HE' }
 /******************************************************************************/
 /*** webCoRE DEFINITION														***/
 /******************************************************************************/
@@ -45,6 +47,8 @@ preferences {
 	page(name: "pageDumpWeather")
 }
 
+
+import groovy.json.JsonOutput
 import groovy.transform.Field
 
 @Field static final String sBLK=''
@@ -59,7 +63,7 @@ import groovy.transform.Field
 def pageSettings(){
 	//clear devices cache
 	if(!parent || !parent.isInstalled()){
-		return dynamicPage(name: "pageSettings", title: "", install: false, uninstall: false){
+		return dynamicPage(name: "pageSettings", title: sBLK, install: false, uninstall: false){
 			section(){
 				paragraph "Sorry, you cannot install a piston directly from the Dashboard, please use the webCoRE App instead."
 			}
@@ -67,12 +71,12 @@ def pageSettings(){
 				paragraph "If you are trying to install webCoRE, please go back one step and choose webCoRE, not webCoRE Piston. You can also visit wiki.webcore.co for more information on how to install and use webCoRE"
 				if(parent){
 					def t0 = parent.getWikiUrl()
-					href "", title: imgTitle("https://cdn.rawgit.com/ady624/webCoRE/master/resources/icons/app-CoRE.png", inputTitleStr("More information")), description: t0, style: "external", url: t0, required: false
+					href sBLK, title: imgTitle("https://cdn.rawgit.com/ady624/webCoRE/master/resources/icons/app-CoRE.png", inputTitleStr("More information")), description: t0, style: "external", url: t0, required: false
 				}
 			}
 		}
 	}
-	dynamicPage(name: "pageSettings", title: "", install: true, uninstall: false){
+	dynamicPage(name: "pageSettings", title: sBLK, install: true, uninstall: false){
 /*
 		section("Available devices"){
 			href "pageSelectDevices", title: "Available devices", description: "Tap here to select which devices are available to pistons"
@@ -91,7 +95,7 @@ def pageSettings(){
 
 private pageSelectDevices(){
 	parent.refreshDevices()
-	dynamicPage(name: "pageSelectDevices", title: ""){
+	dynamicPage(name: "pageSelectDevices", title: sBLK){
 		section(){
 			paragraph "Select the devices you want ${handle()} to have access to."
 			paragraph "It is a good idea to only select the devices you plan on using with ${handle()} pistons. Pistons will only have access to the devices you selected."
@@ -122,8 +126,8 @@ private static String inputTitleStr(String title)	{ return '<u>'+title+'</u>' }
 
 private static String imgTitle(String imgSrc, String titleStr, String color=(String)null, Integer imgWidth=30, Integer imgHeight=0){
 	String imgStyle = sBLK
-	imgStyle += imgWidth ? "width: ${imgWidth}px !important;" : ""
-	imgStyle += imgHeight ? "${imgWidth ? " " : ""}height: ${imgHeight}px !important;" : ""
+	imgStyle += imgWidth ? "width: ${imgWidth}px !important;" : sBLK
+	imgStyle += imgHeight ? "${imgWidth ? " " : ""}height: ${imgHeight}px !important;" : sBLK
 	if(color!=(String)null){ return """<div style="color: ${color}; font-weight: bold;"><img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img></div>""".toString()
 	}
 	else { return """<img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img>""".toString()
@@ -223,7 +227,7 @@ public void ahttpRequestHandler(resp, callbackData){
 	if((resp.status == 200) && resp.data){
 		try {
 			json = resp.getJson()
-		} catch (all){
+		} catch (ignored){
 			json = [:]
 			return
 		}
@@ -590,22 +594,23 @@ public void initData(devices, contacts){
 	}
 }
 
-public Map listAvailableDevices(Boolean raw = false, Integer offset = 0){
+public Map listAvailableDevices(Boolean raw=false, Integer offset=0){
 	Long time = now()
 	Map response = [:]
-	def myDevices = settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
-	def devices = myDevices.unique{ it.id }
+	List myDevices = (List)settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
+	List devices = (List)myDevices.unique{ it.id }
 	if(raw){
 		response = devices.collectEntries{ dev -> [(hashId(dev.id)): dev]}
 	}else{
 		Integer deviceCount = devices.size()
-		Map<String,Map> overrides = commandOverrides()
+		//Map<String,Map> overrides = commandOverrides()
 		response.devices = [:]
 		if(devices){
 		devices = devices[offset..-1]
 		response.complete = !devices.indexed().find{ idx, dev ->
 //			log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${response.toString().size()}"
-			response.devices[hashId(dev.id)] = [
+			response.devices[hashId(dev.id)]=getDevDetails(dev, true)
+/*			response.devices[hashId(dev.id)] = [
 				n: dev.getDisplayName(),
 				cn: dev.getCapabilities()*.name,
 				a: dev.getSupportedAttributes().unique{ it.name }.collect{[
@@ -617,15 +622,15 @@ public Map listAvailableDevices(Boolean raw = false, Integer offset = 0){
 					n: transformCommand(it, overrides),
 					p: it.getArguments()
 				]}
-			]
+			] */
 			Boolean stop = false
-			def jsonData = groovy.json.JsonOutput.toJson(response)
+			String jsonData = JsonOutput.toJson(response)
 			Integer responseLength = jsonData.getBytes("UTF-8").length
 			if(responseLength > (50 * 1024)){
 				stop = true // Stop if large
 			}
 			if(now() - time > 4000) stop = true
-			if(idx < devices.size() - 1 && stop){
+			if(stop && idx < devices.size()-1){
 				response.nextOffset = offset + idx + 1
 				return true
 			}
@@ -635,6 +640,23 @@ public Map listAvailableDevices(Boolean raw = false, Integer offset = 0){
 		log.debug "Generated list of ${offset}-${offset + devices.size()} of ${deviceCount} devices in ${now() - time}ms. Data size is ${response.toString().size()}"
 	}
 	return response
+}
+
+Map getDevDetails(dev, Boolean transform=false){
+	Map<String,Map> overrides=commandOverrides()
+	return [
+			n: dev.getDisplayName(),
+			cn: dev.getCapabilities()*.name,
+			a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
+					n: (String)it.name,
+					t: it.getDataType(),
+					o: it.getValues()
+			]},
+			c: dev.getSupportedCommands().unique{ transform ? transformCommand(it, overrides) : it.getName() }.collect{[
+					n: transform ? transformCommand(it, overrides) : it.getName(),
+					p: it.getArguments()
+			]}
+	]
 }
 
 private static String transformCommand(command, Map<String,Map> overrides){
@@ -650,7 +672,7 @@ public Map getDashboardData(){
 //	def start = now()
 	return settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
 		[ (id): dev.getSupportedAttributes().collect{ it.name }.unique().collectEntries{
-			try { value = dev.currentValue(it) } catch (all){ value = null}
+			try { value = dev.currentValue(it) } catch (ignored){ value = null}
 			return [ (it) : value]
 		}]
 	}

@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update August 30, 2021 for Hubitat
+ * Last update August 31, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -3026,7 +3026,7 @@ private Boolean executeTask(Map rtD,List devices,Map statement,Map task,Boolean 
 	Map vcmd=VirtualCommands()[command]
 	Long delay=lZERO
 	for(device in (virtualDevice!=null ? [virtualDevice]:devices)){
-		if(virtualDevice==null && device?.hasCommand(command) && !(vcmd && vcmd.o /*virtual command overrides physical command*/)){
+		if(virtualDevice==null && device?.hasCommand(command) && !(vcmd && vcmd.o /* does virtual command overrides physical command? */)){
 			Map msg=timer "Executed [$device].${command}",rtD
 			try{
 				delay="cmd_${command}"(rtD,device,params)
