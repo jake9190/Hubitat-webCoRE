@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update September 4, 2021 for Hubitat
+ * Last update October 5, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -26,8 +26,7 @@
 //file:noinspection GroovySillyAssignment
 
 static String version(){ return "v0.3.113.20210203" }
-static String HEversion(){ return "v0.3.113.20210830_HE" }
-
+static String HEversion(){ return "v0.3.113.20211005_HE" }
 
 /*** webCoRE DEFINITION	***/
 
@@ -3605,7 +3604,7 @@ Map getChildCommands(){
 	startLoop			: [ n: "Start color loop",																					],
 	stopLoop			: [ n: "Stop color loop",																					],
 	setLoopTime			: [ n: "Set loop duration...",			d: "Set loop duration to {0}",				p: [[n:sDURATION, t:sDUR]]							],
-	setDirection		: [ n: "Switch loop direction",																					],
+//	setDirection		: [ n: "Switch loop direction",																					],
 	alert				: [ n: "Alert with lights...",			d: "Alert \"{0}\" with lights",				p: [[n:"Alert type", t:sENUM, o:["Blink","Breathe","Okay","Stop"]]],			],
 	setAdjustedColor	: [ n: "Transition to color...",		d: "Transition to color {0} in {1}{2}",			p: [[n:sCCOLOR, t:sCOLOR], [n:sDURATION,t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],
 	setAdjustedHSLColor	: [ n: "Transition to HSL color...",		d: "Transition to color H:{0}° / S:{1}% / L:{2}% in {3}{4}",			p: [[n:"Hue", t:"hue"],[n:"Saturation", t:"saturation"],[n:"Level", t:sLVL],[n:sDURATION,t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],

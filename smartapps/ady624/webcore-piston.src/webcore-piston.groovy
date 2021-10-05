@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update August 31, 2021 for Hubitat
+ * Last update October 5, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -28,7 +28,7 @@
 //file:noinspection GroovyUnusedAssignment
 
 static String version(){ return 'v0.3.113.20210203' }
-static String HEversion(){ return 'v0.3.113.20210830_HE' }
+static String HEversion(){ return 'v0.3.113.20211005_HE' }
 
 /** webCoRE DEFINITION	**/
 
@@ -3356,7 +3356,7 @@ private Long pushTimeAhead(Long pastTime,Long curTime){
 	Long retTime=pastTime
 	while(retTime<curTime){
 		Long t0=Math.round(retTime+dMSDAY)
-		Long t1=Math.round(t0+((Integer)location.timeZone.getOffset(retTime)-(Integer)location.timeZone.getOffset(t0))*dONE)
+		Long t1=Math.round(t0+((Integer)((TimeZone)location.timeZone).getOffset(retTime)-(Integer)((TimeZone)location.timeZone).getOffset(t0))*dONE)
 		retTime=t1
 	}
 	return retTime
@@ -3868,6 +3868,7 @@ private Long vcmd_waitForDateTime(Map rtD,device,List params){
 }
 
 private Long vcmd_setSwitch(Map rtD,device,List params){
+	//noinspection GroovyAssignabilityCheck
 	executePhysicalCommand(rtD,device,(Boolean)cast(rtD,params[0],sBOOLN) ? sON : sOFF)
 	return lZERO
 }
@@ -4177,7 +4178,8 @@ private Long vcmd_setVariable(Map rtD,device,List params){
 private Long vcmd_executePiston(Map rtD,device,List params){
 	String selfId=(String)rtD.id
 	String pistonId=(String)params[0]
-	List<String> arguments=(params[1] instanceof List ? (List)params[1]:params[1].toString().tokenize(sCOMMA)).unique()
+	List<String> arguments=(params[1] instanceof List ? (List<String>)params[1]:params[1].toString().tokenize(sCOMMA)).unique()
+	//noinspection GroovyAssignabilityCheck
 	Boolean wait=((Integer)params.size()>2)? (Boolean)cast(rtD,params[2],sBOOLN):false
 	String description="webCoRE: Piston ${(String)app.label} requested execution of piston $pistonId".toString()
 	Map data=[:]
@@ -4458,7 +4460,8 @@ private Long vcmd_httpRequest(Map rtD,device,List params){
 	String protocol="https"
 	String requestContentType=(method==sGET || requestBodyType=='FORM')? sAPPFORM : (requestBodyType=="JSON")? sAPPJSON:contentType
 	String userPart=sBLK
-	List uriParts=uri.split("://").toList()
+	//List uriParts=uri.split("://").toList()
+	String[] uriParts=uri.split("://")
 	if((Integer)uriParts.size()>2){
 		warn "Invalid URI for web request:$uri",rtD
 		return lZERO
@@ -4470,9 +4473,10 @@ private Long vcmd_httpRequest(Map rtD,device,List params){
 	}
 	//support for user:pass@IP
 	if((Boolean)uri.contains(sAT)){
-		List uriSubParts= uri.split(sAT).toList()
-		userPart=(String)uriSubParts[0]+sAT
-		uri=(String)uriSubParts[1]
+		//List uriSubParts= uri.split(sAT).toList()
+		String[] uriSubParts= uri.split(sAT)
+		userPart=uriSubParts[0]+sAT
+		uri=uriSubParts[1]
 	}
 	def data=null
 	if(requestBodyType=='CUSTOM' && !useQueryString){
@@ -4667,6 +4671,7 @@ private Long vcmd_writeToFuelStream(Map rtD,device,List params){
 			path: "/fuelStream/write",
 			headers: [ 'ST': (String)rtD.instanceId ],
 			body: req,
+			contentType: sAPPJSON,
 			requestContentType: sAPPJSON,
 			timeout:20
 		]
@@ -4679,7 +4684,7 @@ void asyncFuel(response,data){
 	if(response.status==200){
 		return
 	}
-	error "Error storing fuel stream: $response.data.message",[:]
+	error "Error storing fuel stream: $response?.data?.message",[:]
 }
 
 private Long vcmd_storeMedia(Map rtD,device,List params){
@@ -4706,6 +4711,7 @@ private Long vcmd_storeMedia(Map rtD,device,List params){
 private Long vcmd_saveStateLocally(Map rtD,device,List params,Boolean global=false){
 	List<String> attributes=((String)cast(rtD,params[0],sSTR)).tokenize(sCOMMA)
 	String canister=((Integer)params.size()>1 ? (String)cast(rtD,params[1],sSTR)+sCOLON : sBLK)+hashId(device.id)+sCOLON
+	//noinspection GroovyAssignabilityCheck
 	Boolean overwrite=!((Integer)params.size()>2 ? (Boolean)cast(rtD,params[2],sBOOLN):false)
 	for(String attr in attributes){
 		String n=canister+attr
@@ -4736,6 +4742,7 @@ private Long vcmd_saveStateGlobally(Map rtD,device,List params){
 private Long vcmd_loadStateLocally(Map rtD,device,List params,Boolean global=false){
 	List<String> attributes=((String)cast(rtD,params[0],sSTR)).tokenize(sCOMMA)
 	String canister=((Integer)params.size()>1 ? (String)cast(rtD,params[1],sSTR)+sCOLON : sBLK)+hashId(device.id)+sCOLON
+	//noinspection GroovyAssignabilityCheck
 	Boolean empty=(Integer)params.size()>2 ? (Boolean)cast(rtD,params[2],sBOOLN):false
 	for(String attr in attributes){
 		String n=canister+attr
@@ -5768,7 +5775,7 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 			String attribute=sNULL
 			String exprID=(String)expression.id
 			if((String)expression.t==sDEV && exprID){
-				if(exprId==(String)rtD.oldLocationId)exprId=(String)rtD.locationId
+				if(exprID==(String)rtD.oldLocationId)exprID=(String)rtD.locationId
 				devices[exprID]=[c: (comparisonType ? 1:0)+(devices[exprID]?.c ? (Integer)devices[exprID].c:0)]
 				deviceId=exprID
 				attribute=(String)expression.a
@@ -5787,7 +5794,8 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 				}else{
 					ct=ct ?: comparisonType
 				}
-				subscriptions[subsId]=[d: deviceId,a: attribute,t:ct,c: (subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+[condition]]
+				//subscriptions[subsId]=[d: deviceId,a: attribute,t:ct,c: (subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+ [condition]]
+				subscriptions[subsId]=[d: deviceId,a: attribute,t:ct,c: (subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(comparisonType? [expression]:[])]
 				if(deviceId!=(String)rtD.locationId && (Boolean)deviceId.startsWith(sCOLON)){
 					if(doit)rawDevices[deviceId]=getDevice(rtD,deviceId)
 					devices[deviceId]=[c: (comparisonType ? 1:0)+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:0)]
@@ -6156,8 +6164,9 @@ private List<String> expandDeviceList(Map rtD,List devices,Boolean localVarsOnly
 				if(var && (String)var.t==sDEV && var.v instanceof Map && (String)var.v.t==sD && var.v.d instanceof List && (Integer)((List)var.v.d).size()!=0)result += (List)var.v.d
 			}else{
 				Map var=getVariable(rtD,deviceId)
-				if((String)var.t==sDEV && var.v instanceof List && (Integer)((List)var.v).size()!=0)result += (List)var.v
-				if((String)var.t!=sDEV){
+				Boolean isD=((String)var.t==sDEV)
+				if(isD && var.v instanceof List && (Integer)((List)var.v).size()!=0)result += (List)var.v
+				if(!isD){
 					def device=getDevice(rtD,(String)cast(rtD,var.v,sSTR))
 					if(device!=null)result += [hashId(device.id)]
 				}
@@ -6559,10 +6568,9 @@ private void loadGlobalCache(){
 
 private Map getVariable(Map rtD,String name){
 	Map var=parseVariableName(name)
-	name=sanitizeVariableName((String)var.name)
-	if(name==sNULL)return [t:sERROR,v:'Invalid empty variable name']
+	String tname=sanitizeVariableName((String)var.name)
+	if(tname==sNULL)return [t:sERROR,v:'Invalid empty variable name']
 	Map result
-	String tname=name
 	Map err=[t:sERROR,v:"Variable '$tname' not found".toString()]
 	if((Boolean)tname.startsWith(sAT)){
 		loadGlobalCache()
@@ -6645,9 +6653,8 @@ private Map getVariable(Map rtD,String name){
 
 private Map setVariable(Map rtD,String name,value){
 	Map var=parseVariableName(name)
-	name=sanitizeVariableName((String)var.name)
-	if(name==sNULL)return [t:sERROR,v:'Invalid empty variable name']
-	String tname=name
+	String tname=sanitizeVariableName((String)var.name)
+	if(tname==sNULL)return [t:sERROR,v:'Invalid empty variable name']
 	if((Boolean)tname.startsWith(sAT)){
 		loadGlobalCache()
 		String lockTyp='setGlobalvar'
@@ -6720,11 +6727,11 @@ private Map setVariable(Map rtD,String name,value){
 }
 
 Map setLocalVariable(String name,value){ // called by parent (IDE)to set value to a variable
-	name=sanitizeVariableName(name)
-	if(name==sNULL || (Boolean)name.startsWith(sAT))return [:]
+	String tname=sanitizeVariableName(name)
+	if(tname==sNULL || (Boolean)tname.startsWith(sAT))return [:]
 	Map<String,Object> vars=(Map<String,Object>)atomicState.vars
 	vars=vars!=null ? vars:[:]
-	vars[name]=value
+	vars[tname]=value
 	atomicState.vars=vars
 	clearMyCache('setLocalVariable')
 	return vars
@@ -7962,7 +7969,8 @@ private Map func_count(Map rtD,List<Map> params){
 	}
 	Integer count=0
 	if((Integer)params.size()==1 && ((String)params[0].t==sSTR || (String)params[0].t==sDYN)){
-		List list=((String)evaluateExpression(rtD,params[0],sSTR).v).split(sCOMMA).toList()
+		//List list=((String)evaluateExpression(rtD,params[0],sSTR).v).split(sCOMMA).toList()
+		String[] list=((String)evaluateExpression(rtD,params[0],sSTR).v).split(sCOMMA)
 		Integer sz=(Integer)list.size()
 		for(Integer i=0; i<sz; i++){
 			count += (Boolean)cast(rtD,list[i],sBOOLN) ? 1:0
@@ -7984,7 +7992,8 @@ private Map func_size(Map rtD,List<Map> params){
 	Integer count
 	Integer sz=(Integer)params.size()
 	if(sz==1 && ((String)params[0].t==sSTR || (String)params[0].t==sDYN)){
-		List list=((String)evaluateExpression(rtD,params[0],sSTR).v).split(sCOMMA).toList()
+		//List list=((String)evaluateExpression(rtD,params[0],sSTR).v).split(sCOMMA).toList()
+		String[] list=((String)evaluateExpression(rtD,params[0],sSTR).v).split(sCOMMA)
 		count=(Integer)list.size()
 	}else{
 		count=sz
@@ -8047,7 +8056,7 @@ private Map func_previousvalue(Map rtD,List<Map> params){
 		if(attribute!=null){
 			def device=getDevice(rtD,(String)((List)param.v)[0])
 			if(device!=null && !isDeviceLocation(device)){
-				List states=device.statesSince((String)param.a,new Date(elapseT(604500000)),[max:5])
+				List states=device.statesSince((String)param.a,new Date(elapseT(604500000L)),[max:5])
 				if((Integer)states.size()>1){
 					def newValue=states[0].getValue()
 					//some events get duplicated,so we really want to look for the last "different valued" state
@@ -8311,7 +8320,8 @@ private Map func_arrayitem(Map rtD,List<Map> params){
 	Integer index=(Integer)evaluateExpression(rtD,params[0],sINT).v
 	Integer sz=(Integer)params.size()
 	if(sz==2 && ((String)params[1].t==sSTR || (String)params[1].t==sDYN)){
-		List list=((String)evaluateExpression(rtD,params[1],sSTR).v).split(sCOMMA).toList()
+		//List list=((String)evaluateExpression(rtD,params[1],sSTR).v).split(sCOMMA).toList()
+		String[] list=((String)evaluateExpression(rtD,params[1],sSTR).v).split(sCOMMA)
 		if(index<0 || index>=(Integer)list.size()) return serr
 		return [t:sSTR,v:list[index]]
 	}
@@ -8592,15 +8602,16 @@ private String hashId(id,Boolean updateCache=true){
 
 private static getThreeAxisOrientation(value,Boolean getIndex=false){
 	if(value instanceof Map){
-		if((value.x!=null)&& (value.y!=null)&& (value.z!=null)){
-			Integer x=Math.abs(value.x.toDouble()).toInteger()
-			Integer y=Math.abs(value.y.toDouble()).toInteger()
-			Integer z=Math.abs(value.z.toDouble()).toInteger()
+		Map m=(Map)value
+		if((m.x!=null)&& (m.y!=null)&& (m.z!=null)){
+			Integer x=Math.abs(m.x.toDouble()).toInteger()
+			Integer y=Math.abs(m.y.toDouble()).toInteger()
+			Integer z=Math.abs(m.z.toDouble()).toInteger()
 			Integer side=(x>y ? (x>z ? 0:2):(y>z ? 1:2))
-			side+= ( (side==0 && value.x<0) || (side==1 && value.y<0) || (side==2 && value.z<0) ? 3:0 )
-			List orientations=['rear','down','left','front','up','right']
-			def result=getIndex ? side : (String)orientations[side]+' side up'
-			return result
+			side+= ( (side==0 && m.x<0) || (side==1 && m.y<0) || (side==2 && m.z<0) ? 3:0 )
+			if(getIndex){ return side }
+			List<String> orientations=['rear','down','left','front','up','right']
+			return orientations[side]+' side up'
 		}
 	}
 	return value
@@ -8610,14 +8621,19 @@ private Long getTimeToday(Long time){
 	Long t0=getMidnightTime()
 	Long result=time+t0
 	//we need to adjust for time overlapping during DST changes
-	return Math.round(result+((Integer)location.timeZone.getOffset(t0)-(Integer)location.timeZone.getOffset(result))*dONE)
+	return Math.round(result+((Integer)((TimeZone)location.timeZone).getOffset(t0)-(Integer)((TimeZone)location.timeZone).getOffset(result))*dONE)
 }
 
 @Field static final List<String> trueStrings= [ '1','true', "on", "open",  "locked",  "active",  "wet",           "detected",    "present",    "occupied",    "muted",  "sleeping"]
 @Field static final List<String> falseStrings=[ '0','false',"off","closed","unlocked","inactive","dry","clear",   "not detected","not present","not occupied","unmuted","not sleeping","null"]
 
-private cast(Map rtD,value,String dataType,String srcDataType=sNULL){
-	if(dataType==sDYN)return value
+private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
+	if(dataT==sDYN)return ival
+
+	String dataType=dataT
+	String srcDataType=isrcDT
+	def value=ival
+
 	if(value==null){
 		value=sBLK
 		srcDataType=sSTR
@@ -8741,8 +8757,9 @@ private cast(Map rtD,value,String dataType,String srcDataType=sNULL){
 					return value instanceof List && (Integer)value.size()>0
 			}
 			if(value){
-				if("$value".toLowerCase().trim() in trueStrings)return true
-				if("$value".toLowerCase().trim() in falseStrings)return false
+				String s= "$value".toLowerCase().trim()
+				if(s in falseStrings)return false
+				if(s in trueStrings)return true
 			}
 			return !!value
 		case sTIME:
@@ -8870,7 +8887,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 		}catch(ignored){}
 
 		try{
-			Date tt1=toDateTime(dateOrTimeOrString)
+			Date tt1=(Date)toDateTime(dateOrTimeOrString)
 			result=(Long)tt1.getTime()
 			return result
 		}catch(ignored){}
@@ -8896,7 +8913,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 		}catch(ignored){}
 
 		try{
-			def tz=location.timeZone
+			TimeZone tz=(TimeZone)location.timeZone
 			if(dateOrTimeOrString =~ /\s[A-Z]{3}$/){ // this is not the timezone... strings like CET are not unique.
 				try{
 					tz=TimeZone.getTimeZone(dateOrTimeOrString[-3..-1])
@@ -8932,7 +8949,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 					time = (new Date()).parse('HH:mm:ss',tt).getTime()
 					time=getTimeToday(time)
 				}else{
-					time=timeToday(t0,tz).getTime()
+					time=((Date)timeToday(t0,tz)).getTime()
 				}
 			}catch(ignored){}
 
@@ -8951,7 +8968,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 				if(min<10)str2=String.format('%02d',min)
 				//if(sec<10)str3=String.format('%02d',sec)
 				String str=str1+sCOLON+str2
-				time=timeToday(str,tz).getTime()
+				time=((Date)timeToday(str,tz)).getTime()
 				if(sec != 0) time += sec*1000
 			}
 			result=time ?: lZERO
@@ -9057,7 +9074,9 @@ private static List<Integer> hexToHsl(String hex){
 
 	Double max=Math.max(Math.max(r,g),b)
 	Double min=Math.min(Math.min(r,g),b)
-	Double h,s,l=(max+min)/2.0D
+	Double h=dZERO
+	Double s=dZERO
+	Double l=(max+min)/2.0D
 
 	if(max==min){
 		h=s=dZERO // achromatic
@@ -9332,19 +9351,19 @@ Long getSkew(Long t4,String ttyp){
 }
 
 private Long getMidnightTime(){
-	return timeToday('00:00',location.timeZone).getTime()
+	return (Long)((Date)timeToday('00:00',(TimeZone)location.timeZone)).getTime()
 }
 
 private Long getNextMidnightTime(){
-	return timeTodayAfter('23:59','00:00',location.timeZone).getTime()
+	return (Long)((Date)timeTodayAfter('23:59','00:00',(TimeZone)location.timeZone)).getTime()
 }
 
 private Long getNoonTime(){
-	return timeToday('12:00',location.timeZone).getTime()
+	return (Long)((Date)timeToday('12:00',(TimeZone)location.timeZone)).getTime()
 }
 
 private Long getNextNoonTime(){
-	return timeTodayAfter('23:59','12:00',location.timeZone).getTime()
+	return (Long)((Date)timeTodayAfter('23:59','12:00',(TimeZone)location.timeZone)).getTime()
 }
 
 private void getLocalVariables(Map rtD,List<Map> vars,Map atomState){
@@ -9487,9 +9506,9 @@ private getSystemVariableValue(Map rtD,String name){
 	case '$mediaSize': return (rtD.mediaData!=null ? (Integer)rtD.mediaData.size():0)
 	case '$name': return (String)app.label
 	case '$state': return (String)rtD.state?.new
-	case '$tzName': return (String)location.timeZone.displayName
-	case '$tzId': return (String)location.timeZone.getID()
-	case '$tzOffset': return (Integer)location.timeZone.rawOffset
+	case '$tzName': return (String)((TimeZone)location.timeZone).displayName
+	case '$tzId': return (String)((TimeZone)location.timeZone).getID()
+	case '$tzOffset': return (Integer)((TimeZone)location.timeZone).rawOffset
 	case '$version': return version()
 	case '$versionH': return HEversion()
 	case '$localNow': //return (Long)localTime()
