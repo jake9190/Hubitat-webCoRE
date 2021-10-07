@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update October 5, 2021 for Hubitat
+ * Last update October 6, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -5522,8 +5522,8 @@ private Boolean valueChanged(Map rtD,Map comparisonValue,Map timeValue){
 private static Boolean match(String str,String pattern){
 	Integer sz=(Integer)pattern.size()
 	if(sz>2 && (Boolean)pattern.startsWith(sDIV) && (Boolean)pattern.endsWith(sDIV)){
-		pattern=~pattern.substring(1,sz-1)
-		return !!(str =~ pattern)
+		def ppattern = ~pattern.substring(1,sz-1)
+		return !!(str =~ ppattern)
 	}
 	return (Boolean)str.contains(pattern)
 }
@@ -7694,9 +7694,10 @@ private Map func_replace(Map rtD,List<Map> params){
 	for(Integer i=0; i<cnt; i++){
 		String search=(String)evaluateExpression(rtD,params[i*2+1],sSTR).v
 		String replace=(String)evaluateExpression(rtD,params[i*2+2],sSTR).v
-		if(((Integer)search.size()>2)&& (Boolean)search.startsWith(sDIV)&& (Boolean)search.endsWith(sDIV)){
-			search=~search.substring(1,(Integer)search.size()-1)
-			value=value.replaceAll(search,replace)
+		Integer sz=search.size()
+		if((sz>2)&& (Boolean)search.startsWith(sDIV)&& (Boolean)search.endsWith(sDIV)){
+			def ssearch= ~search.substring(1,sz-1)
+			value=value.replaceAll(ssearch,replace)
 		}else{
 			value=value.replace(search,replace)
 		}
@@ -8151,11 +8152,14 @@ private Map func_matches(Map rtD,List<Map> params){
 	if(!checkParams(rtD,params,2)) return rtnErr('matches(string, pattern)')
 	String string=(String)evaluateExpression(rtD,params[0],sSTR).v
 	String pattern=(String)evaluateExpression(rtD,params[1],sSTR).v
-	if(((Integer)pattern.size()>2)&& (Boolean)pattern.startsWith(sDIV)&& (Boolean)pattern.endsWith(sDIV)){
-		pattern=~pattern.substring(1,(Integer)pattern.size()-1)
-		return [t:sBOOLN,v:!!(string =~ pattern)]
+	/*Integer t0=(Integer)pattern.size()
+	if((t0>2)&& (Boolean)pattern.startsWith(sDIV)&& (Boolean)pattern.endsWith(sDIV)){
+		def ppattern= ~pattern.substring(1,t0-1)
+		return [t:sBOOLN,v:!!(string =~ ppattern)]
 	}
-	return [t:sBOOLN,v:(Boolean)string.contains(pattern)]
+	return [t:sBOOLN,v:(Boolean)string.contains(pattern)]*/
+	Boolean r=match(string,pattern)
+	return [t:sBOOLN,v:r]
 }
 
 /** eq returns true if two values are equal					**/
