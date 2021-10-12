@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update October 5, 2021 for Hubitat
+ * Last update October 11, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -81,13 +81,17 @@ private static Boolean eric(){ return false }
 /******************************************************************************/
 
 @Field static final String sNULL=(String)null
+@Field static final String sBLK=''
+@Field static final String sSPC=' '
 @Field static final String sCOLON=':'
+@Field static final String sBOOL1='bool'
 @Field static final String sAPPJAVA="application/javascript;charset=utf-8"
 @Field static final String sSUCC="ST_SUCCESS"
 @Field static final String sERRID="ERR_INVALID_ID"
 @Field static final String sERRTOK="ERR_INVALID_TOKEN"
 @Field static final String sERROR="ST_ERROR"
 @Field static final String sERRCHUNK="ERR_INVALID_CHUNK"
+@Field static final String sERRUNK="ERR_UNKNOWN"
 @Field static final String sTXT='text'
 @Field static final String sAPPJSON='application/json'
 
@@ -103,7 +107,7 @@ def pageMain(){
 	//webCoRE Dashboard initialization
 	Boolean success=initializeWebCoREEndpoint()
 	if(!(Boolean)state.installed){
-		return dynamicPage(name: "pageMain", title: "", install: false, uninstall: false, nextPage: "pageInitializeDashboard"){
+		return dynamicPage(name: "pageMain", title: sBLK, install: false, uninstall: false, nextPage: "pageInitializeDashboard"){
 			section(){
 				paragraph "Welcome to "+handle()
 				paragraph "You will be guided through a few installation steps that should only take a minute."
@@ -136,30 +140,29 @@ def pageMain(){
 		}
 	}
 	//webCoRE main page
-	dynamicPage(name: "pageMain", title: "", install: true, uninstall: false){
-		if(settings.agreement == undefined){
+	dynamicPage(name: "pageMain", title: sBLK, install: true, uninstall: false){
+		if(!(Boolean)settings.agreement){
 			pageSectionDisclaimer()
-		}
-
-		if((Boolean)settings.agreement){
+		} else {
 			section("Engine block"){
-				href "pageEngineBlock", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE.png", inputTitleStr("Cast iron")), description: app.version()+" HE: "+ app.HEversion(), required: false, state: "complete"
+				href "pageEngineBlock", title: imgTitle("app-CoRE.png", inputTitleStr("Cast iron")), description: app.version()+" HE: "+ app.HEversion(), required: false, state: "complete"
 			}
+
 		}
 
 		section("Dashboard"){
-			String mPng="https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/dashboard.png"
+			String mPng="dashboard.png"
 			if(!(String)state.endpoint){
 				href "pageInitializeDashboard", title: imgTitle(mPng, inputTitleStr("Dashboard")), description: "Tap to initialize", required: false, state: "complete"
 			}else{
 				//trace "*** DO NOT SHARE THIS LINK WITH ANYONE *** Dashboard URL: ${getDashboardInitUrl()}"
-				href "", title: imgTitle(mPng, inputTitleStr("Dashboard")), style: "external", url: getDashboardInitUrl(), description: "Tap to open", required: false
-				href "", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/browser-reg.png", inputTitleStr("Register a browser")), style: "external", url: getDashboardInitUrl(true), description: "Tap to open", required: false
+				href sBLK, title: imgTitle(mPng, inputTitleStr("Dashboard")), style: "external", url: getDashboardInitUrl(), description: "Tap to open", required: false
+				href sBLK, title: imgTitle("browser-reg.png", inputTitleStr("Register a browser")), style: "external", url: getDashboardInitUrl(true), description: "Tap to open", required: false
 			}
 		}
 
 		section(title:"Settings"){
-			href "pageSettings", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/settings.png", inputTitleStr("Settings")), required: false, state: "complete"
+			href "pageSettings", title: imgTitle("settings.png", inputTitleStr("Settings")), required: false, state: "complete"
 		}
 	}
 }
@@ -169,13 +172,13 @@ private static String inputTitleStr(String title)	{ return '<u>'+title+'</u>' }
 //private static String pageTitleStr(String title)	{ return '<h1>'+title+'</h1>' }
 //private static String paraTitleStr(String title)	{ return '<b>'+title+'</b>' }
 
-private static String imgTitle(String imgSrc, String titleStr, String color=(String)null, Integer imgWidth=30, Integer imgHeight=0){
-	String imgStyle=''
-	imgStyle += imgWidth ? "width: ${imgWidth}px !important;" : ""
-	imgStyle += imgHeight ? "${imgWidth ? " " : ""}height: ${imgHeight}px !important;" : ""
-	if(color!=(String)null){ return """<div style="color: ${color}; font-weight: bold;"><img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img></div>""".toString()
-	}else{ return """<img style="${imgStyle}" src="${imgSrc}"> ${titleStr}</img>""".toString()
-	}
+private static String imgTitle(String imgSrc,String titleStr,String color=sNULL,Integer imgWidth=30,Integer imgHeight=0){
+	String imgStyle=sBLK
+	String myImgSrc='https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/'+imgSrc
+	imgStyle += imgWidth>0 ? 'width: '+imgWidth.toString()+'px !important;':sBLK
+	imgStyle += imgHeight>0 ? imgWidth!=0 ? sSPC:sBLK+'height:'+imgHeight.toString()+'px !important;':sBLK
+	if(color!=sNULL){ return """<div style="color: ${color}; font-weight:bold;"><img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img></div>""".toString() }
+	else{ return """<img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img>""".toString() }
 }
 
 private pageSectionDisclaimer(){
@@ -198,11 +201,11 @@ private pageSectionDisclaimer(){
 		paragraph "The information you provide while using the Fuel Stream feature is not encrypted and is not filtered in any way. Please avoid providing personally identifiable information in either the canister name, the fuel stream name, or the data point."
 	}
 	section('Local webCoRE servers'){
-		paragraph "Advanced users may enable a local webcore server. No data sharing with external webCoRE servers is done if this is configured/enabled. Some features may not be available if you choose to do this."
+		paragraph "Advanced users may enable a local webcore www server. Less data sharing with external webCoRE servers is done if this is configured/enabled. Some features may not be available if you choose to do this."
 	}
 	section('Agreement'){
 		paragraph "Certain advanced features may not work if you do not agree to the webcore.co servers collecting the anonymized information described above."
-		input "agreement", "bool", title: "Allow webcore.co to collect basic, anonymized, non-personally identifiable information", defaultValue: true
+		input "agreement", sBOOL1, title: "Allow webcore.co to collect basic, anonymized, non-personally identifiable information", defaultValue: true
 	}
 }
 
@@ -284,7 +287,7 @@ private pageInitializeDashboard(){
 }
 
 private pageEngineBlock(){
-	dynamicPage(name: "pageEngineBlock", title: ""){
+	dynamicPage(name: "pageEngineBlock", title: sBLK){
 		section(){
 			paragraph "Under construction. This will help you upgrade your engine block to get access to extra features such as email triggers, fuel streams, and more."
 		}
@@ -329,7 +332,7 @@ private pageFinishInstall(){
 	Boolean inst=(Boolean)state.installed
 	if(!inst) initTokens()
 	refreshDevices()
-	dynamicPage(name: "pageFinishInstall", /* nextPage: (inst ? "pageSettings" : ""),*/ install: true){
+	dynamicPage(name: "pageFinishInstall", /* nextPage: (inst ? "pageSettings" : sBLK),*/ install: true){
 		if(!inst){
 			section(){
 				paragraph "Excellent! You are now ready to use webCoRE"
@@ -374,7 +377,7 @@ def pageSettings(){
 		}
 
 		section(sectionTitleStr('enable \$weather via external provider')){
-			input "weatherType", sENUM, title: "Weather Type to enable?", defaultValue: '', submitOnChange: true, required: false, options:['apiXU', 'DarkSky','OpenWeatherMap', '']
+			input "weatherType", sENUM, title: "Weather Type to enable?", defaultValue: sBLK, submitOnChange: true, required: false, options:['apiXU', 'DarkSky','OpenWeatherMap', sBLK]
 			String defaultLoc=sNULL
 			String defaultLoc1=sNULL
 			String mreq=settings.weatherType ? (String)settings.weatherType : sNULL
@@ -406,7 +409,7 @@ def pageSettings(){
 		}
 
 		section(sectionTitleStr("Fuel Streams")){
-			input "localFuelStreams", "bool", title: "Use local fuel streams?", defaultValue: (settings.localFuelStreams != null) ? (Boolean)settings.localFuelStreams : true , submitOnChange: true
+			input "localFuelStreams", sBOOL1, title: "Use local fuel streams?", defaultValue: (settings.localFuelStreams != null) ? (Boolean)settings.localFuelStreams : true , submitOnChange: true
 			if((Boolean)settings.localFuelStreams){
 				href "pageFuelStreams", title: "Fuel Streams", description: "Tap to manage fuel streams", state: "complete"
 			}
@@ -422,13 +425,13 @@ def pageSettings(){
 
 		section(sectionTitleStr("Custom Endpoints - Advanced")){
 			paragraph "Custom Endpoints allows use of a local webserver for webCoRE IDE pages and local hub API endpoint address.  webCoRE servers are still used for instance registration, non-local backup / restore / import, send email, NFL, store media, and optionally fuel streams"
-			input "customEndpoints", "bool", submitOnChange: true, title: "Use custom endpoints?", default: false, required: true
+			input "customEndpoints", sBOOL1, submitOnChange: true, title: "Use custom endpoints?", default: false, required: true
 			if((Boolean)customEndpoints){
 				Boolean req=false
 				if((Boolean)customEndPoints && (Boolean)localHubUrl) req=true
 				input "customWebcoreInstanceUrl", sSTR, title: "Custom webcore webserver (local webserver url different from dashboard.webcore.co)", default: null, required: req
 				if((Boolean)localHubUrl && !customWebcoreInstanceUrl) paragraph "If you use a local hub API url you MUST use a custom webcore server url, as dashboard.webcore.co site is restricted to Hubitat and Smartthing's cloud API access only"
-				input "localHubUrl", "bool", title: "Use local hub URL for API access?", submitOnChange: true, default: false, required: false
+				input "localHubUrl", sBOOL1, title: "Use local hub URL for API access?", submitOnChange: true, default: false, required: false
 			} else {
 				app.clearSetting('localHubUrl')
 				app.clearSetting('customWebcoreInstanceUrl')
@@ -444,14 +447,14 @@ def pageSettings(){
 		}
 
 		section(title:"Privacy"){
-			href "pageDisclaimer", title: imgTitle("https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/settings.png", inputTitleStr("Data Collection Notice")), required: false, state: "complete"
+			href "pageDisclaimer", title: imgTitle("settings.png", inputTitleStr("Data Collection Notice")), required: false, state: "complete"
 		}
 
 		section(title: "Maintenance"){
 			paragraph "Memory usage is at ${mem()}", required: false
-			input "disabled", "bool", title: "Disable all pistons", description: "Disable all pistons belonging to this instance", defaultValue: false, required: false
-			input "logPistonExecutions", "bool", title: "Log piston executions?", description: "Tap to change logging pistons as hub location events", defaultValue: false, required: false
-			input "enableDashNotifications", "bool", title: "Enable Dashboard Notifications for device state changes?", description: "Tap to change enable dashboard notifications of device state changes (more overhead)", defaultValue: false, required: false
+			input "disabled", sBOOL1, title: "Disable all pistons", description: "Disable all pistons belonging to this instance", defaultValue: false, required: false
+			input "logPistonExecutions", sBOOL1, title: "Log piston executions?", description: "Tap to change logging pistons as hub location events", defaultValue: false, required: false
+			input "enableDashNotifications", sBOOL1, title: "Enable Dashboard Notifications for device state changes?", description: "Tap to change enable dashboard notifications of device state changes (more overhead)", defaultValue: false, required: false
 			href "pageRebuildCache", title: "Clean up and rebuild data cache", description: "Tap to change your clean up and rebuild your data cache", state: "complete"
 		}
 
@@ -486,7 +489,7 @@ private pageFuelStreams(){
 private pageChangePassword(){
 	dynamicPage(name: "pageChangePassword", uninstall: false, install: false){
 		section(title: "Location SID"){
-			input "properSID", "bool", title: "Use New SID for location?", description: "Tap to change", defaultValue: true, required: false
+			input "properSID", sBOOL1, title: "Use New SID for location?", description: "Tap to change", defaultValue: true, required: false
 		}
 		section(){
 			paragraph "Choose a security password for your dashboard. You will need to enter this password when accessing your dashboard for the first time and possibly from time to time.", required: false
@@ -566,7 +569,7 @@ def pageLogCleanups(){
 }
 
 def pageRemove(){
-	dynamicPage(name: "pageRemove", title: "", install: false, uninstall: true){
+	dynamicPage(name: "pageRemove", title: sBLK, install: false, uninstall: true){
 		section('CAUTION'){
 			paragraph "You are about to completely remove webCoRE and all of its pistons.", required: true
 			paragraph "This action is irreversible.", required: true
@@ -744,7 +747,7 @@ private void initialize(){
 		Boolean t0=settings.properSID!=null ? (Boolean)settings.properSID : true
 		atomicState.properSID=t0
 		state.properSID=t0
-		if(settings.properSID==null) app.updateSetting("properSID", [type: "bool", value: true])
+		if(settings.properSID==null) app.updateSetting("properSID", [type: sBOOL1, value: true])
 		initTokens()
 	}
 	subscribeAll()
@@ -947,7 +950,7 @@ private Map getHubitatVersion(){
 private static String normalizeLabel(pisN){
 	String label=(String)pisN.label
 	String regex=' <span style.*$'
-	String t0=label.replaceAll(regex, "")
+	String t0=label.replaceAll(regex, sBLK)
 	return t0!=sNULL ? t0 : label
 }
 
@@ -957,7 +960,7 @@ private static String normalizeLabel(pisN){
 Boolean getTheLock(String meth=sNULL){
 	Long waitT=1600L
 	Boolean wait=false
-	def sema=theSerialLockFLD
+	Semaphore sema=theSerialLockFLD
 	while(!((Boolean)sema.tryAcquire())){
 		// did not get the lock
 		Long timeL=lockTimeFLD
@@ -979,7 +982,7 @@ Boolean getTheLock(String meth=sNULL){
 
 static void releaseTheLock(String meth=sNULL){
 	lockTimeFLD=null
-	def sema=theSerialLockFLD
+	Semaphore sema=theSerialLockFLD
 	sema.release()
 }
 
@@ -1109,7 +1112,7 @@ private Map<String,Map> getFuelStreamUrls(String iid){
 	//if((Boolean)state.installed && (Boolean)settings.agreement){
 	String baseUrl=isCustomEndpoint() && useLocalFuelStreams() ? customApiServerUrl("/") : apiServerUrl("$hubUID/apps/${app.id}/".toString())
 
-	String params=baseUrl.contains((String)state.accessToken) ? "" : "access_token=${state.accessToken}".toString()
+	String params=baseUrl.contains((String)state.accessToken) ? sBLK : "access_token=${state.accessToken}".toString()
 
 	return [
 		list : [l: true, u: baseUrl + "intf/fuelstreams/list?${params}".toString() ],
@@ -1255,11 +1258,11 @@ private api_intf_dashboard_piston_create(){
 				result=[status: sSUCC, id: hashId(piston.id)]
 			}catch(ignored){
 				error "Please install the webCoRE Piston app"
-				result=[status: sERROR, error: "ERR_UNKNOWN"]
+				result=[status: sERROR, error: sERRUNK]
 			}
 		}else{
 			error "create piston: Name in use "+pname
-			result=[status: sERROR, error: "ERR_UNKNOWN"]
+			result=[status: sERROR, error: sERRUNK]
 		}
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -1366,7 +1369,7 @@ private api_intf_dashboard_piston_backup(){
 	Map result=[pistons: []]
 	debug "Dashboard: Request received to backup pistons ${params?.ids}"
 	if(verifySecurityToken((String)params.token)){
-		List pistonIds=((String)params.ids ?: '').tokenize(',')
+		List pistonIds=((String)params.ids ?: sBLK).tokenize(',')
 		for(String pistonId in pistonIds){
 			if(pistonId){
 				def piston=getChildApps().find{ hashId(it.id) == pistonId }
@@ -1396,7 +1399,7 @@ private api_intf_dashboard_piston_backup(){
 }
 
 private String decodeEmoji(String value){
-	if(!value) return ''
+	if(!value) return sBLK
 	return value.replaceAll(/(\:%[0-9A-F]{2}%[0-9A-F]{2}%[0-9A-F]{2}%[0-9A-F]{2}\:)/, { m -> URLDecoder.decode(m[0].substring(1, 13), 'UTF-8') })
 }
 
@@ -1438,7 +1441,7 @@ private api_intf_dashboard_piston_set(){
 			}
 			result=[status: sSUCC] + saved
 		}else{
-			result=[status: sERROR, error: "ERR_UNKNOWN"]
+			result=[status: sERROR, error: sERRUNK]
 		}
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -1509,7 +1512,7 @@ private api_intf_dashboard_piston_set_end(){
 		LinkedHashMap<String,Object> chunks=pPistonChunksFLD[wName]
 		if(chunks && (Integer)chunks.count){
 			Boolean ok=true
-			String data=""
+			String data=sBLK
 			Integer i=0
 			Integer count=(Integer)chunks.count
 			while(i<count){
@@ -1517,7 +1520,7 @@ private api_intf_dashboard_piston_set_end(){
 				if(s){
 					data += s
 				}else{
-					data=""
+					data=sBLK
 					ok=false
 					break
 				}
@@ -1537,7 +1540,7 @@ private api_intf_dashboard_piston_set_end(){
 					}
 					result=[status: sSUCC] + saved
 				}else{
-					result=[status: sERROR, error: "ERR_UNKNOWN"]
+					result=[status: sERROR, error: sERRUNK]
 				}
 			}else{
 				result=[status: sERROR, error: sERRCHUNK]
@@ -1866,7 +1869,7 @@ void writeToFuelStream(Map req){
 				atomicState.fuelStreams=fuelStreams
 			}
 */
-			result.createStream([id: id, name: req.n, canister: req.c ?: ""])
+			result.createStream([id: id, name: req.n, canister: req.c ?: sBLK])
 		}
 		catch(ignored){
 			error "Please install the webCoRE Fuel Streams app for local Fuel Streams"
@@ -1981,7 +1984,7 @@ def api_ifttt(){
 
 def api_email(){
 	def data=request?.JSON ?: [:]
-	def from=data.from ?: ''
+	def from=data.from ?: sBLK
 	def pistonId=params?.pistonId
 	if(pistonId){
 		sendLocationEvent([name: "email.${pistonId}", value: pistonId, isStateChange: true, linkText: "Email event", descriptionText: "${handle()} has received an email from $from", data: data])
@@ -2248,7 +2251,7 @@ private getDashboardApp(Boolean install=false){
 }
 
 private String customApiServerUrl(String path){
-	path = path ?: ""
+	path = path ?: sBLK
 	if(!path.startsWith("/")){
 		path="/" + path
 	}
@@ -2285,22 +2288,22 @@ private String getDashboardInitUrl(Boolean reg=false){
 		if(eric())log.debug "getDashboardInitUrl: isCustomEndpoint"
 		//regkey=customApiServerUrl('/')
 		//regkey=customApiServerUrl('/?access_token=' + state.accessToken)
-		regkey=customApiServerUrl('/?access_token=' + state.accessToken).bytes.encodeBase64()
+		regkey=customApiServerUrl('/?access_token=' + (String)state.accessToken).bytes.encodeBase64()
 		if(eric())log.debug "getDashboardInitUrl: t0 $t0"
 		if(eric())log.debug "getDashboardInitUrl: regkey $regkey"
 	 	t0 = t0+regkey
 	}else{
 		//if((Boolean)state.installed && (Boolean)settings.agreement){
 		if(eric())log.debug "getDashboardInitUrl: NOT isCustomEndpoint"
-		regkey= apiServerUrl("")
+		regkey= apiServerUrl(sBLK)
 
 // 	   	log.debug "t0 $t0"
 /*		String a =(
-			regkey.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
-			(hubUID.toString() + app.id.toString()).replace("-", "") + '/?access_token=' + (String)state.accessToken ) */
+			regkey.replace('http://',sBLK).replace('https://', sBLK).replace('.api.smartthings.com', sBLK).replace(':443', sBLK).replace('/', sBLK) +
+			(hubUID.toString() + app.id.toString()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ) */
 //   		log.debug "regkey $a"
-		t0=t0+( regkey.replace('http://','').replace('https://', '').replace('.api.smartthings.com', '').replace(':443', '').replace('/', '') +
-			(hubUID.toString() + app.id.toString()).replace("-", "") + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
+		t0=t0+( regkey.replace('http://',sBLK).replace('https://', sBLK).replace('.api.smartthings.com', sBLK).replace(':443', sBLK).replace('/', sBLK) +
+			(hubUID.toString() + app.id.toString()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
 	}
 	if(eric())log.debug "getDashboardInitUrl result: $t0"
 	return t0
@@ -2492,7 +2495,7 @@ private String createSecurityToken(){
 	Map a = atomicState.securityTokens
 	LinkedHashMap<String,Long> tokens= (a ?: [:]) as LinkedHashMap<String,Long>
 	Long mexpiry=0L
-	String eo=((String)settings.expiry).toLowerCase().replace("every ", "").replace("(recommended)", "").replace("(not recommended)", "").trim()
+	String eo=((String)settings.expiry).toLowerCase().replace("every ", sBLK).replace("(recommended)", sBLK).replace("(not recommended)", sBLK).trim()
 	switch(eo){
 		case "hour": mexpiry=3600L; break
 		case "day": mexpiry=86400L; break
@@ -2874,31 +2877,37 @@ void broadcastPistonList(){
 }
 
 def webCoREHandler(event){
+	String eN=(String)event.name
+	def eV=event.value
+	info "received event ${eN} with value $eV"
 // receive notification of super Global change
-	if(!event || (!event.name.startsWith(handle()) && !event.name.endsWith(handle()) )) return
+	if(!event || (!eN.startsWith(handle()) && !eN.endsWith(handle()) )) return
 	def data=event.jsonData ?: null
 //log.error "GOT EVENT WITH DATA $data"
-	if(data && data.variable && ((String)data.event == 'variable') && event.value && event.value.startsWith('@@')){
+	if(data && data.variable && ((String)data.event == 'variable') && eV && eV.startsWith('@@')){
 		Map variable=data.variable
 		String vType=(String)variable.type ?: sDYN
+		String vN=(String)variable.name
+		def vV=variable.value
+		if(vN){
+			String t='updateGlobal'
+			Boolean didw=getTheLock(t)
 
-		String t='updateGlobal'
-		Boolean didw=getTheLock(t)
-
-		Map vars=(Map)atomicState.vars
-		vars=vars ?: [:]
-		def oldVar=vars[(String)variable.name] ?: [t:'', v:'']
-		if(((String)oldVar.t != vType) || (oldVar.v != variable.value)){ // only notify if it is a change for us.
-			vars[(String)variable.name]=[t: vType, v: variable.value]
-			atomicState.vars=vars
-			releaseTheLock(t)
-			clearGlobalPistonCache("variable event")
+			Map<String,Map> vars=(Map<String,Map>)atomicState.vars
+			vars=vars ?: [:]
+			Map oldVar= vars[vN] ?: [t:sBLK, v:sBLK]
+			if(((String)oldVar.t != vType) || (oldVar.v != vV)){ // only notify if it is a change for us.
+				vars[vN]=[t: vType, v: vV]
+				atomicState.vars=vars
+				releaseTheLock(t)
+				clearGlobalPistonCache("variable event")
 // notify my child instances
-			sendVariableEvent([name: (String)variable.name, value: variable.value, type: vType], true)
-		} else releaseTheLock(t)
+				sendVariableEvent([name: vN, value: vV, type: vType], true)
+			} else releaseTheLock(t)
+		} else warn "no variable name $data"
 		return
 	}
-	switch (event.value){
+	switch (eV){
 		case 'poll':
 			Long delay=Math.round(2000.0D * Math.random())
 			pauseExecution(delay)
@@ -3061,7 +3070,7 @@ private static String md5(String md5){
 //log.debug "doing md5 $md5"
 	MessageDigest md= MessageDigest.getInstance("MD5")
 	byte[] array=md.digest(md5.getBytes())
-	String result=''
+	String result=sBLK
 	for (Integer i=0; i<array.length; ++i){
 		result += Integer.toHexString((array[i] & 0xFF) | 0x100).substring(1,3)
 	}
@@ -3122,7 +3131,7 @@ private Map log(message, Integer shift=-2, err=null, String cmd=sNULL){
 		if(!((Boolean)myLog.trace) && cmd=='trace') return [:]
 		if(!((Boolean)myLog.debug) && cmd=='debug') return [:]
 	}
-	String prefix=""
+	String prefix=sBLK
 /*	Boolean debugging=false
 	if(debugging){
 		//mode is
@@ -3138,7 +3147,7 @@ private Map log(message, Integer shift=-2, err=null, String cmd=sNULL){
 		switch (shift){
 			case 0:
 				level=0
-				prefix=""
+				prefix=sBLK
 				break
 			case 1:
 				level += 1
@@ -3163,7 +3172,7 @@ private Map log(message, Integer shift=-2, err=null, String cmd=sNULL){
 	}*/
 
 	if(err){
-		myMsg += ' '+err.toString()
+		myMsg += sSPC+err.toString()
 	}
 	log."$cmd" prefix+myMsg
 	return [:]
@@ -3323,6 +3332,7 @@ private Map capabilities(){
 Map getChildAttributes(){
 	Map result=attributesFLD
 	Map cleanResult=[:]
+	Map defv=[n:"a"]
 	result.each{
 		Map t0=[:]
 		String hasI=it.value.i
@@ -3333,7 +3343,7 @@ Map getChildAttributes(){
 		if(hasP != null) t0=t0 + [p:hasP.toBoolean()]
 		if(hasT) t0=t0 + [t:hasT]
 		if(hasM != null) t0=t0 + [m:hasM.toBoolean()]
-		if(t0 == [:]) t0=[ n:"a" ]
+		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
 	return cleanResult
@@ -3484,13 +3494,14 @@ private static Map<String,Map> commandOverrides(){
 Map getChildCommands(){
 	Map result=commands()
 	Map cleanResult=[:]
+	Map defv=[n:"a"]
 	result.each{
 		Map t0=[:]
 		String hasA=it.value.a
 		String hasV=it.value.v
 		if(hasA) t0=t0 + [a:hasA]
 		if(hasV) t0=t0 + [v:hasV]
-		if(t0 == [:]) t0=[ n:"a" ]
+		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
 	return cleanResult
@@ -3656,13 +3667,14 @@ private Map commands(){
 static Map getChildVirtCommands(){
 	Map result=virtualCommands()
 	Map cleanResult=[:]
+	Map defv=[n:"a"]
 	result.each{
 		Map t0=[:]
 		def hasA=it.value.a
 		def hasO=it.value.o
 		if(hasA != null) t0=t0 + [a:hasA.toBoolean()]
 		if(hasO != null) t0=t0 + [o:hasO.toBoolean()]
-		if(t0 == [:]) t0=[ n:"a" ]
+		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
 	return cleanResult
@@ -3750,13 +3762,14 @@ static Map getChildComparisons(){
 	Map result=comparisonsFLD
 	Map cleanResult=[:]
 	cleanResult.conditions=[:]
+	Map defv=[n:"a"]
 	result.conditions.each{
 		Map t0=[:]
 		def hasP=it.value.p
 		def hasT=it.value.t
 		if(hasP != null) t0=t0 + [p:hasP.toInteger()]
 		if(hasT != null) t0=t0 + [t:hasT.toInteger()]
-		if(t0 == [:]) t0=[ n:"a" ]
+		if(t0 == [:]) t0=defv
 		cleanResult.conditions[it.key.toString()]=t0
 	}
 	cleanResult.triggers=[:]
@@ -3766,7 +3779,7 @@ static Map getChildComparisons(){
 		def hasT=it.value.t
 		if(hasP != null) t0=t0 + [p:hasP.toInteger()]
 		if(hasT != null) t0=t0 + [t:hasT.toInteger()]
-		if(t0 == [:]) t0=[ n:"a" ]
+		if(t0 == [:]) t0=defv
 		cleanResult.triggers[it.key.toString()]=t0
 	}
 	return cleanResult
@@ -4048,7 +4061,7 @@ private Map getRoutineOptions(updateCache=false){
 	def routines=location.helloHome?.getPhrases()
 	def result=[:]
 	if(routines){
-		routines=routines.sort{ it?.label ?: '' }
+		routines=routines.sort{ it?.label ?: sBLK }
 		for(routine in routines){
 			if(routine && routine?.label)
 				result[hashId(routine.id, updateCache)]=routine.label
@@ -4084,13 +4097,14 @@ private Map getRuleOptions(Boolean updateCache){
 Map getChildVirtDevices(){
 	Map result=virtualDevices()
 	Map cleanResult=[:]
+	Map defv=[n:"a"]
 	result.each{
 		Map t0=[:]
 		def hasAC=it.value.ac
 		def hasO=it.value.o
 		if(hasAC != null) t0=t0 + [ac:hasAC]
 		if(hasO != null) t0=t0 + [o:hasO]
-		if(t0 == [:]) t0=[ n:"a" ]
+		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
 	return cleanResult
