@@ -1,5 +1,5 @@
 /*
- *  webCoRE - Community's own Rule Engine - Web Edition
+ *  webCoRE - Community's own Rule Engine - Web Edition for HE
  *
  *  Copyright 2016 Adrian Caramaliu <ady624("at" sign goes here)gmail.com>
  *
@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update October 11, 2021 for Hubitat
+ * Last update October 19, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -49,6 +49,7 @@ definition(
 )
 
 
+import java.text.SimpleDateFormat
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import groovy.transform.Field
@@ -57,21 +58,21 @@ import java.util.concurrent.Semaphore
 
 preferences{
 	//UI pages
-	page(name: "pageMain")
-	page(name: "pageDisclaimer")
-	page(name: "pageEngineBlock")
-	page(name: "pageInitializeDashboard")
-	page(name: "pageFinishInstall")
-	page(name: "pageSelectDevices")
-	page(name: "pageFuelStreams")
-	page(name: "pageSettings")
-	page(name: "pageChangePassword")
-	page(name: "pageSavePassword")
-	page(name: "pageRebuildCache")
-	page(name: "pageResetEndpoint")
-	page(name: "pageCleanups")
-	page(name: "pageLogCleanups")
-	page(name: "pageRemove")
+	page((sNM): "pageMain")
+	page((sNM): "pageDisclaimer")
+	page((sNM): "pageEngineBlock")
+	page((sNM): "pageInitializeDashboard")
+	page((sNM): "pageFinishInstall")
+	page((sNM): "pageSelectDevices")
+	page((sNM): "pageFuelStreams")
+	page((sNM): "pageSettings")
+	page((sNM): "pageChangePassword")
+	page((sNM): "pageSavePassword")
+	page((sNM): "pageRebuildCache")
+	page((sNM): "pageResetEndpoint")
+	page((sNM): "pageCleanups")
+	page((sNM): "pageLogCleanups")
+	page((sNM): "pageRemove")
 }
 
 private static Boolean eric(){ return false }
@@ -84,8 +85,11 @@ private static Boolean eric(){ return false }
 @Field static final String sBLK=''
 @Field static final String sSPC=' '
 @Field static final String sCOLON=':'
-@Field static final String sBOOL1='bool'
+@Field static final String sBOOL='bool'
 @Field static final String sAPPJAVA="application/javascript;charset=utf-8"
+@Field static final String sDATA='data'
+@Field static final String sSTS='status'
+@Field static final String sERR='error'
 @Field static final String sSUCC="ST_SUCCESS"
 @Field static final String sERRID="ERR_INVALID_ID"
 @Field static final String sERRTOK="ERR_INVALID_TOKEN"
@@ -94,6 +98,31 @@ private static Boolean eric(){ return false }
 @Field static final String sERRUNK="ERR_UNKNOWN"
 @Field static final String sTXT='text'
 @Field static final String sAPPJSON='application/json'
+@Field static final String sTIT='title'
+@Field static final String sDESC='description'
+@Field static final String sREQ='required'
+@Field static final String sNM='name'
+@Field static final String sVAL='value'
+@Field static final String sVARIABLE='variable'
+@Field static final String sRGB='rgb'
+@Field static final String sT='t'
+@Field static final String sH='h'
+@Field static final String sI='i'
+@Field static final String sC='c'
+@Field static final String sS='s'
+@Field static final String sL='l'
+@Field static final String sM='m'
+@Field static final String sN='n'
+@Field static final String sA='a'
+@Field static final String sD='d'
+@Field static final String sP='p'
+@Field static final String sG='g'
+@Field static final String sR='r'
+@Field static final String sV='v'
+@Field static final String sO='o'
+@Field static final String sDD='dd'
+@Field static final String sDI='di'
+@Field static final String sBVB='{v}'
 
 
 /******************************************************************************/
@@ -107,7 +136,7 @@ def pageMain(){
 	//webCoRE Dashboard initialization
 	Boolean success=initializeWebCoREEndpoint()
 	if(!(Boolean)state.installed){
-		return dynamicPage(name: "pageMain", title: sBLK, install: false, uninstall: false, nextPage: "pageInitializeDashboard"){
+		return dynamicPage((sNM): "pageMain", (sTIT): sBLK, install: false, uninstall: false, nextPage: "pageInitializeDashboard"){
 			section(){
 				paragraph "Welcome to "+handle()
 				paragraph "You will be guided through a few installation steps that should only take a minute."
@@ -115,7 +144,7 @@ def pageMain(){
 			if(success){
 				if(!state.oAuthRequired){
 					section('Note'){
-						paragraph "If you have previously installed webCoRE and are trying to open it, please go back to Apps in the HE console access webCoRE.\r\n\r\nIf you are trying to install another instance of webCoRE then please continue with the steps.", required: true
+						paragraph "If you have previously installed webCoRE and are trying to open it, please go back to Apps in the HE console access webCoRE.\r\n\r\nIf you are trying to install another instance of webCoRE then please continue with the steps.", (sREQ): true
 					}
 				}
 				if(location.getTimeZone()){
@@ -134,18 +163,18 @@ def pageMain(){
 				}
 				pageSectionInstructions()
 				section (){
-					paragraph "Once you have finished the steps above, tap Next", required: true
+					paragraph "Once you have finished the steps above, tap Next", (sREQ): true
 				}
 			}
 		}
 	}
 	//webCoRE main page
-	dynamicPage(name: "pageMain", title: sBLK, install: true, uninstall: false){
+	dynamicPage((sNM): "pageMain", (sTIT): sBLK, install: true, uninstall: false){
 		if(!(Boolean)settings.agreement){
 			pageSectionDisclaimer()
 		} else {
 			section("Engine block"){
-				href "pageEngineBlock", title: imgTitle("app-CoRE.png", inputTitleStr("Cast iron")), description: app.version()+" HE: "+ app.HEversion(), required: false, state: "complete"
+				href "pageEngineBlock", (sTIT): imgTitle("app-CoRE.png", inputTitleStr("Cast iron")), (sDESC): app.version()+" HE: "+ app.HEversion(), (sREQ): false, state: "complete"
 			}
 
 		}
@@ -153,16 +182,16 @@ def pageMain(){
 		section("Dashboard"){
 			String mPng="dashboard.png"
 			if(!(String)state.endpoint){
-				href "pageInitializeDashboard", title: imgTitle(mPng, inputTitleStr("Dashboard")), description: "Tap to initialize", required: false, state: "complete"
+				href "pageInitializeDashboard", (sTIT): imgTitle(mPng, inputTitleStr("Dashboard")), (sDESC): "Tap to initialize", (sREQ): false, state: "complete"
 			}else{
 				//trace "*** DO NOT SHARE THIS LINK WITH ANYONE *** Dashboard URL: ${getDashboardInitUrl()}"
-				href sBLK, title: imgTitle(mPng, inputTitleStr("Dashboard")), style: "external", url: getDashboardInitUrl(), description: "Tap to open", required: false
-				href sBLK, title: imgTitle("browser-reg.png", inputTitleStr("Register a browser")), style: "external", url: getDashboardInitUrl(true), description: "Tap to open", required: false
+				href sBLK, (sTIT): imgTitle(mPng, inputTitleStr("Dashboard")), style: "external", url: getDashboardInitUrl(), (sDESC): "Tap to open", (sREQ): false
+				href sBLK, (sTIT): imgTitle("browser-reg.png", inputTitleStr("Register a browser")), style: "external", url: getDashboardInitUrl(true), (sDESC): "Tap to open", (sREQ): false
 			}
 		}
 
-		section(title:"Settings"){
-			href "pageSettings", title: imgTitle("settings.png", inputTitleStr("Settings")), required: false, state: "complete"
+		section((sTIT):"Settings"){
+			href "pageSettings", (sTIT): imgTitle("settings.png", inputTitleStr("Settings")), (sREQ): false, state: "complete"
 		}
 	}
 }
@@ -183,7 +212,7 @@ private static String imgTitle(String imgSrc,String titleStr,String color=sNULL,
 
 private pageSectionDisclaimer(){
 	section('Disclaimer'){
-		paragraph "Please read the following information carefully", required: true
+		paragraph "Please read the following information carefully", (sREQ): true
 		paragraph "webCoRE is a web-enabled product, which means data travels across the internet. webCoRE is using TLS for encryption of data and NEVER provides real object IDs to any system outside the WebCoRE server. The IDs are hashed into a string of letters and numbers that cannot be 'decoded' back to their original value. These hashed IDs are stored by your browser and can be cleaned up by using the Logout action in the dashboard."
 		paragraph "Access to a webCoRE App is done through the browser using a security password provided during the installation of webCoRE. The browser never stores this password and it is only used during the initial registration and authentication of your browser. A security token is generated for each browser and is used for any subsequent communication. This token expires at a preset life length, or when the password is changed, or when the tokens are manually revoked from the webCoRE App's Settings menu."
 	}
@@ -205,12 +234,12 @@ private pageSectionDisclaimer(){
 	}
 	section('Agreement'){
 		paragraph "Certain advanced features may not work if you do not agree to the webcore.co servers collecting the anonymized information described above."
-		input "agreement", sBOOL1, title: "Allow webcore.co to collect basic, anonymized, non-personally identifiable information", defaultValue: true
+		input "agreement", sBOOL, (sTIT): "Allow webcore.co to collect basic, anonymized, non-personally identifiable information", defaultValue: true
 	}
 }
 
 private pageDisclaimer(){
-	dynamicPage(name: "pageDisclaimer"){
+	dynamicPage((sNM): "pageDisclaimer"){
 		pageSectionDisclaimer()
 	}
 }
@@ -218,25 +247,25 @@ private pageDisclaimer(){
 private pageSectionInstructions(){
 	state.oAuthRequired=true
 	section (){
-		paragraph "Please follow these steps:", required: true
-		paragraph "1. Go to your HE console and log in", required: true
-		paragraph "2. Click on 'Apps Code' and locate the 'webCoRE' App in the list", required: true
-		paragraph "3. Click the App name", required: true
-		paragraph "4. Click on 'OAuth'", required: true
-		paragraph "5. Click the 'Enable OAuth in App' button", required: true
-		paragraph "6. Click the 'Update' button", required: true
+		paragraph "Please follow these steps:", (sREQ): true
+		paragraph "1. Go to your HE console and log in", (sREQ): true
+		paragraph "2. Click on 'Apps Code' and locate the 'webCoRE' App in the list", (sREQ): true
+		paragraph "3. Click the App name", (sREQ): true
+		paragraph "4. Click on 'OAuth'", (sREQ): true
+		paragraph "5. Click the 'Enable OAuth in App' button", (sREQ): true
+		paragraph "6. Click the 'Update' button", (sREQ): true
 	}
 }
 
 private pageSectionTimeZoneInstructions(){
 	section (){
-		paragraph "Please follow these steps to setup your location timezone:", required: true
-		paragraph "1. Using the HE console, abort this installation and go to 'Settings' section", required: true
-		paragraph "2. Click on 'Location and Modes'", required: true
-		paragraph "3. Edit your postal code, and time zone, then Click on the map to edit your location", required: true
-		paragraph "4. Find your location on the map and place the pin there, adjusting the desired radius", required: true
-		paragraph "5. Tap the Update button", required: true
-		paragraph "6. Try installing webCoRE again", required: true
+		paragraph "Please follow these steps to setup your location timezone:", (sREQ): true
+		paragraph "1. Using the HE console, abort this installation and go to 'Settings' section", (sREQ): true
+		paragraph "2. Click on 'Location and Modes'", (sREQ): true
+		paragraph "3. Edit your postal code, and time zone, then Click on the map to edit your location", (sREQ): true
+		paragraph "4. Find your location on the map and place the pin there, adjusting the desired radius", (sREQ): true
+		paragraph "5. Tap the Update button", (sREQ): true
+		paragraph "6. Try installing webCoRE again", (sREQ): true
 	}
 }
 
@@ -244,7 +273,7 @@ private pageInitializeDashboard(){
 	//webCoRE Dashboard initialization
 	Boolean success=initializeWebCoREEndpoint()
 	Boolean hasTZ=location.getTimeZone() != null
-	dynamicPage(name: "pageInitializeDashboard", nextPage: success && hasTZ ? "pageSelectDevices" : sNULL){
+	dynamicPage((sNM): "pageInitializeDashboard", nextPage: success && hasTZ ? "pageSelectDevices" : sNULL){
 		if(!(Boolean)state.installed){
 			if(success){
 				if(hasTZ){
@@ -253,13 +282,13 @@ private pageInitializeDashboard(){
 					}
 					section(){
 						paragraph "Now, please choose a name for this webCoRE instance"
-							label name: "name", title: "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, required: false
+							label( (sNM): "name", (sTIT): "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, (sREQ): false)
 					}
 
 					pageSectionDisclaimer()
 
 					section(){
-						paragraph "${(Boolean)state.installed ? "Tap Done to continue." : "Next, choose a security password for your webCoRE dashboard. You will need to enter this password when accessing your dashboard for the first time, and possibly from time to time, depending on your settings."}", required: false
+						paragraph "${(Boolean)state.installed ? "Tap Done to continue." : "Next, choose a security password for your webCoRE dashboard. You will need to enter this password when accessing your dashboard for the first time, and possibly from time to time, depending on your settings."}", (sREQ): false
 					}
 				}else{
 					section(){
@@ -267,7 +296,7 @@ private pageInitializeDashboard(){
 					}
 					pageSectionTimeZoneInstructions()
 					section (){
-						paragraph "Once you have finished the steps above, go back and try again", required: true
+						paragraph "Once you have finished the steps above, go back and try again", (sREQ): true
 					}
 					return
 				}
@@ -277,7 +306,7 @@ private pageInitializeDashboard(){
 				}
 				pageSectionInstructions()
 				section (){
-					paragraph "Once you have finished the steps above, go back and try again", required: true
+					paragraph "Once you have finished the steps above, go back and try again", (sREQ): true
 				}
 				return
 			}
@@ -287,7 +316,7 @@ private pageInitializeDashboard(){
 }
 
 private pageEngineBlock(){
-	dynamicPage(name: "pageEngineBlock", title: sBLK){
+	dynamicPage((sNM): "pageEngineBlock", (sTIT): sBLK){
 		section(){
 			paragraph "Under construction. This will help you upgrade your engine block to get access to extra features such as email triggers, fuel streams, and more."
 		}
@@ -295,15 +324,15 @@ private pageEngineBlock(){
 }
 
 private pageSelectDevices(){
-	dynamicPage(name: "pageSelectDevices", nextPage: "pageFinishInstall"){
+	dynamicPage((sNM): "pageSelectDevices", nextPage: "pageFinishInstall"){
 		section(){
 			paragraph "${(Boolean)state.installed ? "Select the devices you want webCoRE to have access to." : "Great, now let's select some devices."}"
 			paragraph "A DEVICE ONLY NEEDS TO BE SELECTED ONCE, THE CATEGORIES BELOW ARE TO MAKE THEM EASIER TO FIND."
 			paragraph "It is a good idea to only select the devices you plan on using with webCoRE pistons. Pistons will only have access to the devices you selected."
 		}
 		if(!(Boolean)state.installed){
-			section (Note){
-				paragraph "Remember, you can always come back to webCoRE and add or remove devices as needed.", required: true
+			section ('Note'){
+				paragraph "Remember, you can always come back to webCoRE and add or remove devices as needed.", (sREQ): true
 			}
 			section(){
 				paragraph "So go ahead, select a few devices, then tap Next"
@@ -312,16 +341,16 @@ private pageSelectDevices(){
 
 		section (sectionTitleStr('Select devices by type')){
 			paragraph "Most devices should fall into one of these categories"
-			input "dev:actuator", "capability.actuator", multiple: true, title: "Actuators", required: false
-			input "dev:sensor", "capability.sensor", multiple: true, title: "Sensors", required: false
-			input "dev:all", "capability.*", multiple: true, title: "Devices", required: false
+			input "dev:actuator", "capability.actuator", multiple: true, (sTIT): "Actuators", (sREQ): false
+			input "dev:sensor", "capability.sensor", multiple: true, (sTIT): "Sensors", (sREQ): false
+			input "dev:all", "capability.*", multiple: true, (sTIT): "Devices", (sREQ): false
 		}
 
 		section (sectionTitleStr('Select devices by capability')){
 			paragraph "If you cannot find a device by type, you may try looking for it by category below"
 			def d=null
 			for (capability in capabilities().findAll{ (!((String)it.value.d in [null, 'actuators', 'sensors'])) }.sort{ (String)it.value.d }){
-				if(capability.value.d != d) input "dev:${capability.key}", "capability.${capability.key}", multiple: true, title: "Which ${capability.value.d}", required: false
+				if(capability.value.d != d) input "dev:${capability.key}", "capability.${capability.key}", multiple: true, (sTIT): "Which ${capability.value.d}", (sREQ): false
 				d=capability.value.d
 			}
 		}
@@ -332,15 +361,15 @@ private pageFinishInstall(){
 	Boolean inst=(Boolean)state.installed
 	if(!inst) initTokens()
 	refreshDevices()
-	dynamicPage(name: "pageFinishInstall", /* nextPage: (inst ? "pageSettings" : sBLK),*/ install: true){
+	dynamicPage((sNM): "pageFinishInstall", /* nextPage: (inst ? "pageSettings" : sBLK),*/ install: true){
 		if(!inst){
 			section(){
 				paragraph "Excellent! You are now ready to use webCoRE"
 			}
 			section("Note"){
 				String myN= (String)app.label ?: (String)app.name
-				paragraph "After you tap Done, go to 'Apps', and open the '"+myN+"' App to access the dashboard.", required: true
-				paragraph "You can also access the dashboard on any another device by entering ${domain()} in the address bar of your browser.", required: true
+				paragraph "After you tap Done, go to 'Apps', and open the '"+myN+"' App to access the dashboard.", (sREQ): true
+				paragraph "You can also access the dashboard on any another device by entering ${domain()} in the address bar of your browser.", (sREQ): true
 			}
 			section(){
 				paragraph "Now tap Done and enjoy webCoRE!"
@@ -355,46 +384,49 @@ private pageFinishInstall(){
 
 def pageSettings(){
 	//clear devices cache
-	dynamicPage(name: "pageSettings", install: false, uninstall: false){
+	dynamicPage((sNM): "pageSettings", install: false, uninstall: false){
 		section("General"){
-			label name: "name", title: "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, required: false
+			label ((sNM): "name", (sTIT): "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, (sREQ): false)
 		}
 
 /*
 		def storageApp=getStorageApp()
 		if(storageApp!=null){
 			section("Storage Application"){
-				app([title: isHubitat() ? 'Do not click - App Launchs automatically' : 'Available Devices', multiple: false, install: true, uninstall: false], 'storage', 'ady624', "${handle()} Storage")
+				app([(sTIT): isHubitat() ? 'Do not click - App Launchs automatically' : 'Available Devices', multiple: false, install: true, uninstall: false], 'storage', 'ady624', "${handle()} Storage")
 			}
 		}else{*/
 			section("Available devices"){
-				href "pageSelectDevices", title: "Available devices", description: "Tap to select which devices are available to pistons", state: "complete"
+				href "pageSelectDevices", (sTIT): "Available devices", (sDESC): "Tap to select which devices are available to pistons", state: "complete"
 			}
 		//}
 
 		section(sectionTitleStr("pushMessage Device")){
-			input "pushDevice", "capability.notification", title: "Notification device for pushMessage (HE PhoneApp or pushOver)", multiple: true, required: false, submitOnChange: true
+			input "pushDevice", "capability.notification", (sTIT): "Notification device for pushMessage (HE PhoneApp or pushOver)", multiple: true, (sREQ): false, submitOnChange: true
 		}
 
 		section(sectionTitleStr('enable \$weather via external provider')){
-			input "weatherType", sENUM, title: "Weather Type to enable?", defaultValue: sBLK, submitOnChange: true, required: false, options:['apiXU', 'DarkSky','OpenWeatherMap', sBLK]
+			String apiXU='apiXU'
+			String DarkSky='DarkSky'
+			String OpnW='OpenWeatherMap'
+			input "weatherType", sENUM, (sTIT): "Weather Type to enable?", defaultValue: sBLK, submitOnChange: true, (sREQ): false, options:[apiXU, DarkSky, OpnW, sBLK]
 			String defaultLoc=sNULL
 			String defaultLoc1=sNULL
 			String mreq=settings.weatherType ? (String)settings.weatherType : sNULL
 			String zipDesc=sNULL
 			String zipDesc1=sNULL
 			if(mreq){
-				input "apixuKey", sTXT, title: mreq+" key?", required: true
+				input "apixuKey", sTXT, (sTIT): mreq+" key?", (sREQ): true
 				switch(mreq){
-				case 'apiXU':
+				case apiXU:
 					defaultLoc="${location.zipCode}".toString()
 					zipDesc="Override zip code (${location.zipCode}), or set city name or latitude,longitude?".toString()
 					break
-				case 'DarkSky':
+				case DarkSky:
 					defaultLoc="${location.latitude},${location.longitude}".toString()
 					zipDesc="Override latitude,longitude (Default: ${location.latitude},${location.longitude})?".toString()
 					break
-				case 'OpenWeatherMap':
+				case OpnW:
 					defaultLoc="${location.latitude}".toString()
 					defaultLoc1="${location.longitude}".toString()
 					zipDesc="Override latitude (Default: ${location.latitude})?".toString()
@@ -403,35 +435,35 @@ def pageSettings(){
 				default:
 					break
 				}
-				input "zipCode", sTXT, title: zipDesc, defaultValue: defaultLoc, required: false
-				if(mreq=='OpenWeatherMap') input "zipCode1", sTXT, title: zipDesc1, defaultValue: defaultLoc1, required: false
+				input "zipCode", sTXT, (sTIT): zipDesc, defaultValue: defaultLoc, (sREQ): false
+				if(mreq==OpnW) input "zipCode1", sTXT, (sTIT): zipDesc1, defaultValue: defaultLoc1, (sREQ): false
 			}
 		}
 
 		section(sectionTitleStr("Fuel Streams")){
-			input "localFuelStreams", sBOOL1, title: "Use local fuel streams?", defaultValue: (settings.localFuelStreams != null) ? (Boolean)settings.localFuelStreams : true , submitOnChange: true
+			input "localFuelStreams", sBOOL, (sTIT): "Use local fuel streams?", defaultValue: (settings.localFuelStreams != null) ? (Boolean)settings.localFuelStreams : true , submitOnChange: true
 			if((Boolean)settings.localFuelStreams){
-				href "pageFuelStreams", title: "Fuel Streams", description: "Tap to manage fuel streams", state: "complete"
+				href "pageFuelStreams", (sTIT): "Fuel Streams", (sDESC): "Tap to manage fuel streams", state: "complete"
 			}
 		}
 
 /*		section("Integrations"){
-			href "pageIntegrations", title: "Integrations with other services", description: "Tap to configure your integrations"
+			href "pageIntegrations", (sTIT): "Integrations with other services", (sDESC): "Tap to configure your integrations"
 		}*/
 
 		section(sectionTitleStr("Security")){
-			href "pageChangePassword", title: "Security", description: "Tap to change your dashboard security settings", state: "complete"
+			href "pageChangePassword", (sTIT): "Security", (sDESC): "Tap to change your dashboard security settings", state: "complete"
 		}
 
 		section(sectionTitleStr("Custom Endpoints - Advanced")){
 			paragraph "Custom Endpoints allows use of a local webserver for webCoRE IDE pages and local hub API endpoint address.  webCoRE servers are still used for instance registration, non-local backup / restore / import, send email, NFL, store media, and optionally fuel streams"
-			input "customEndpoints", sBOOL1, submitOnChange: true, title: "Use custom endpoints?", default: false, required: true
+			input "customEndpoints", sBOOL, submitOnChange: true, (sTIT): "Use custom endpoints?", default: false, (sREQ): true
 			if((Boolean)customEndpoints){
 				Boolean req=false
 				if((Boolean)customEndPoints && (Boolean)localHubUrl) req=true
-				input "customWebcoreInstanceUrl", sSTR, title: "Custom webcore webserver (local webserver url different from dashboard.webcore.co)", default: null, required: req
+				input "customWebcoreInstanceUrl", sSTR, (sTIT): "Custom webcore webserver (local webserver url different from dashboard.webcore.co)", default: null, (sREQ): req
 				if((Boolean)localHubUrl && !customWebcoreInstanceUrl) paragraph "If you use a local hub API url you MUST use a custom webcore server url, as dashboard.webcore.co site is restricted to Hubitat and Smartthing's cloud API access only"
-				input "localHubUrl", sBOOL1, title: "Use local hub URL for API access?", submitOnChange: true, default: false, required: false
+				input "localHubUrl", sBOOL, (sTIT): "Use local hub URL for API access?", submitOnChange: true, default: false, (sREQ): false
 			} else {
 				app.clearSetting('localHubUrl')
 				app.clearSetting('customWebcoreInstanceUrl')
@@ -443,66 +475,66 @@ def pageSettings(){
 		}
 
 		section(sectionTitleStr("Logging")){
-			input "logging", sENUM, title: "Logging level", options: ["None", "Minimal", "Medium", "Full"], description: "Enable Logs in platform logs", defaultValue: "None", required: false
+			input "logging", sENUM, (sTIT): "Logging level", options: ["None", "Minimal", "Medium", "Full"], (sDESC): "Enable Logs in platform logs", defaultValue: "None", (sREQ): false
 		}
 
-		section(title:"Privacy"){
-			href "pageDisclaimer", title: imgTitle("settings.png", inputTitleStr("Data Collection Notice")), required: false, state: "complete"
+		section((sTIT):"Privacy"){
+			href "pageDisclaimer", (sTIT): imgTitle("settings.png", inputTitleStr("Data Collection Notice")), (sREQ): false, state: "complete"
 		}
 
-		section(title: "Maintenance"){
-			paragraph "Memory usage is at ${mem()}", required: false
-			input "disabled", sBOOL1, title: "Disable all pistons", description: "Disable all pistons belonging to this instance", defaultValue: false, required: false
-			input "logPistonExecutions", sBOOL1, title: "Log piston executions?", description: "Tap to change logging pistons as hub location events", defaultValue: false, required: false
-			input "enableDashNotifications", sBOOL1, title: "Enable Dashboard Notifications for device state changes?", description: "Tap to change enable dashboard notifications of device state changes (more overhead)", defaultValue: false, required: false
-			href "pageRebuildCache", title: "Clean up and rebuild data cache", description: "Tap to change your clean up and rebuild your data cache", state: "complete"
+		section((sTIT): "Maintenance"){
+			paragraph "Memory usage is at ${mem()}", (sREQ): false
+			input "disabled", sBOOL, (sTIT): "Disable all pistons", (sDESC): "Disable all pistons belonging to this instance", defaultValue: false, (sREQ): false
+			input "logPistonExecutions", sBOOL, (sTIT): "Log piston executions?", (sDESC): "Tap to change logging pistons as hub location events", defaultValue: false, (sREQ): false
+			input "enableDashNotifications", sBOOL, (sTIT): "Enable Dashboard Notifications for device state changes?", (sDESC): "Tap to change enable dashboard notifications of device state changes (more overhead)", defaultValue: false, (sREQ): false
+			href "pageRebuildCache", (sTIT): "Clean up and rebuild data cache", (sDESC): "Tap to change your clean up and rebuild your data cache", state: "complete"
 		}
 
-		section(title: "Recovery"){
+		section((sTIT): "Recovery"){
 			paragraph "webCoRE can run a recovery procedure every so often. This augments the built-in automatic recovery procedures that allows webCoRE to rely on all healthy pistons to keep the failed ones running."
-			input "recovery", sENUM, title: "Run recovery", options: ["Never", "Every 5 minutes", "Every 10 minutes", "Every 15 minutes", "Every 30 minutes", "Every 1 hour", "Every 3 hours"], description: "Allows recovery procedures to run every so often", defaultValue: "Every 30 minutes", required: true
+			input "recovery", sENUM, (sTIT): "Run recovery", options: ["Never", "Every 5 minutes", "Every 10 minutes", "Every 15 minutes", "Every 30 minutes", "Every 1 hour", "Every 3 hours"], (sDESC): "Allows recovery procedures to run every so often", defaultValue: "Every 30 minutes", (sREQ): true
 		}
 
 		if((Boolean)getLogging().debug || eric()){
 			section("Child Log Cleanups"){
-				href "pageLogCleanups", title: "Clear Logs, trace, stats & caches", description: "Tap to clear", state: "complete"
+				href "pageLogCleanups", (sTIT): "Clear Logs, trace, stats & caches", (sDESC): "Tap to clear", state: "complete"
 			}
 			section("Child Cleanups"){
-				href "pageCleanups", title: "Clear piston caches", description: "Tap to clear", state: "complete"
+				href "pageCleanups", (sTIT): "Clear piston caches", (sDESC): "Tap to clear", state: "complete"
 			}
 		}
 
 		section("Uninstall"){
-			href "pageRemove", title: "Uninstall webCoRE", description: "Tap to uninstall ${handle()}"
+			href "pageRemove", (sTIT): "Uninstall webCoRE", (sDESC): "Tap to uninstall ${handle()}"
 		}
 	}
 }
 
 private pageFuelStreams(){
-	dynamicPage(name: "pageFuelStreams", uninstall: false, install: false){
+	dynamicPage((sNM): "pageFuelStreams", uninstall: false, install: false){
 		section(){
-			app([title: isHubitat() ? 'Do not click - List of streams below that launches automatically' : 'Fuel Streams', multiple: true, install: true, uninstall: false], 'fuelStreams', 'ady624', "${handle()} Fuel Stream")
+			app([(sTIT): isHubitat() ? 'Do not click - List of streams below that launches automatically' : 'Fuel Streams', multiple: true, install: true, uninstall: false], 'fuelStreams', 'ady624', "${handle()} Fuel Stream")
 		}
 	}
 }
 
 private pageChangePassword(){
-	dynamicPage(name: "pageChangePassword", uninstall: false, install: false){
-		section(title: "Location SID"){
-			input "properSID", sBOOL1, title: "Use New SID for location?", description: "Tap to change", defaultValue: true, required: false
+	dynamicPage((sNM): "pageChangePassword", uninstall: false, install: false){
+		section((sTIT): "Location SID"){
+			input "properSID", sBOOL, (sTIT): "Use New SID for location?", (sDESC): "Tap to change", defaultValue: true, (sREQ): false
 		}
 		section(){
-			paragraph "Choose a security password for your dashboard. You will need to enter this password when accessing your dashboard for the first time and possibly from time to time.", required: false
+			paragraph "Choose a security password for your dashboard. You will need to enter this password when accessing your dashboard for the first time and possibly from time to time.", (sREQ): false
 		}
 		pageSectionPIN()
 		section(){
-			href "pageSavePassword", title: "Clear all Security Tokens", description: "Tap to clear all security tokens in use by browsers", state: "complete"
+			href "pageSavePassword", (sTIT): "Clear all Security Tokens", (sDESC): "Tap to clear all security tokens in use by browsers", state: "complete"
 		}
 		if(settings.PIN){
 			section(){
-				paragraph "The webCoRE dashboard uses an access token to communicate with the webCoRE app on your Hubitat Hub. In some cases you may choose to invalidate it periodically for increased security.", required: false
-				paragraph "If your dashboard fails to load and no log messages appear in Hubitat console 'Logs' when you refresh the dashboard, resetting the access token may restore access to webCoRE.", required: false
-				href "pageResetEndpoint", title: "Reset access token", description: "WARNING: URLs for triggering pistons or accessing piston URLs will need to be updated", state: "complete"
+				paragraph "The webCoRE dashboard uses an access token to communicate with the webCoRE app on your Hubitat Hub. In some cases you may choose to invalidate it periodically for increased security.", (sREQ): false
+				paragraph "If your dashboard fails to load and no log messages appear in Hubitat console 'Logs' when you refresh the dashboard, resetting the access token may restore access to webCoRE.", (sREQ): false
+				href "pageResetEndpoint", (sTIT): "Reset access token", (sDESC): "WARNING: URLs for triggering pistons or accessing piston URLs will need to be updated", state: "complete"
 			}
 		}
 	}
@@ -510,14 +542,14 @@ private pageChangePassword(){
 
 private pageSectionPIN(){
 	section(){
-		input "PIN", "password", title: "Choose a security password for your dashboard", required: true
-		input "expiry", sENUM, options: ["Every hour", "Every day", "Every week", "Every month (recommended)", "Every three months", "Never (not recommended)"], defaultValue: "Every month (recommended)", title: "Choose how often the dashboard login expires", required: true
+		input "PIN", "password", (sTIT): "Choose a security password for your dashboard", (sREQ): true
+		input "expiry", sENUM, options: ["Every hour", "Every day", "Every week", "Every month (recommended)", "Every three months", "Never (not recommended)"], defaultValue: "Every month (recommended)", (sTIT): "Choose how often the dashboard login expires", (sREQ): true
 	}
 }
 
 private pageSavePassword(){
 	initTokens()
-	dynamicPage(name: "pageSavePassword", install: false, uninstall: false ){
+	dynamicPage((sNM): "pageSavePassword", install: false, uninstall: false ){
 		section(){
 			paragraph "Tokens have been Cleared. You will have to re-login to the webCoRE dashboards."
 		}
@@ -526,7 +558,7 @@ private pageSavePassword(){
 
 def pageRebuildCache(){
 	cleanUp()
-	dynamicPage(name: "pageRebuildCache", install: false, uninstall: false){
+	dynamicPage((sNM): "pageRebuildCache", install: false, uninstall: false){
 		section(){
 			paragraph "Success! Data cache has been cleaned up and rebuilt."
 		}
@@ -542,7 +574,7 @@ def pageResetEndpoint(){
 	Boolean success=initializeWebCoREEndpoint()
 	clearParentPistonCache("reset endpoint")
 	updated()
-	dynamicPage(name: "pageResetEndpoint", install: false, uninstall: false){
+	dynamicPage((sNM): "pageResetEndpoint", install: false, uninstall: false){
 		section(){
 			paragraph "Success: $success Please sign out and back in to the webCoRE dashboard."
 			paragraph "If you use external URLs to trigger pistons, these URLs must be updated. See the piston detail page for an updated external URL; all pistons will use the same new token."
@@ -552,7 +584,7 @@ def pageResetEndpoint(){
 
 def pageCleanups(){
 	clearChldCaches(true)
-	return dynamicPage(name:'pageCleanups', install: false, uninstall:false){
+	return dynamicPage((sNM):'pageCleanups', install: false, uninstall:false){
 		section('Clear'){
 			paragraph 'Optimization caches have been cleared.'
 		}
@@ -561,7 +593,7 @@ def pageCleanups(){
 
 def pageLogCleanups(){
 	clearChldCaches(false,true)
-	return dynamicPage(name:'pageLogCleanups', install: false, uninstall:false){
+	return dynamicPage((sNM):'pageLogCleanups', install: false, uninstall:false){
 		section('Clear'){
 			paragraph 'Logs been cleared.'
 		}
@@ -569,11 +601,11 @@ def pageLogCleanups(){
 }
 
 def pageRemove(){
-	dynamicPage(name: "pageRemove", title: sBLK, install: false, uninstall: true){
+	dynamicPage((sNM): "pageRemove", (sTIT): sBLK, install: false, uninstall: true){
 		section('CAUTION'){
-			paragraph "You are about to completely remove webCoRE and all of its pistons.", required: true
-			paragraph "This action is irreversible.", required: true
-			paragraph "If you are sure you want to do this, please tap on the Remove button below.", required: true
+			paragraph "You are about to completely remove webCoRE and all of its pistons.", (sREQ): true
+			paragraph "This action is irreversible.", (sREQ): true
+			paragraph "If you are sure you want to do this, please tap on the Remove button below.", (sREQ): true
 		}
 	}
 }
@@ -747,7 +779,7 @@ private void initialize(){
 		Boolean t0=settings.properSID!=null ? (Boolean)settings.properSID : true
 		atomicState.properSID=t0
 		state.properSID=t0
-		if(settings.properSID==null) app.updateSetting("properSID", [type: sBOOL1, value: true])
+		if(settings.properSID==null) app.updateSetting("properSID", [type: sBOOL, (sVAL): true])
 		initTokens()
 	}
 	subscribeAll()
@@ -784,7 +816,7 @@ private void checkWeather(){
 			storageApp.settingsToState("weatherType", weatherTyp)
 			storageApp.settingsToState("apixuKey", settings.apixuKey)
 			storageApp.settingsToState("zipCode", settings.zipCode)
-			if(weatherType=='OpenWeatherMap') storageApp.settingsToState("zipCode1", (String)settings.zipCode1)
+			if(weatherTyp=='OpenWeatherMap') storageApp.settingsToState("zipCode1", (String)settings.zipCode1)
 			if(t0){
 				storageApp.startWeather()
 			}else{
@@ -860,7 +892,7 @@ private void enableOauth(){
 	]
 	try{
 		httpPost(params){ resp ->
-			//LogTrace("response data: ${resp.data}")
+			//LogTrace("response (sDATA): ${resp.data}")
 		}
 	} catch (e){
 		error "enableOauth something went wrong: ", null, e
@@ -868,12 +900,12 @@ private void enableOauth(){
 }
 
 private getHub(){
-	return location.getHubs().find{ (String)it.getType() == 'PHYSICAL' }
+	return ((List)location.getHubs()).find{ (String)it.getType() == 'PHYSICAL' }
 }
 
 private void subscribeAll(){
 	subscribe(location, handle()+".poll", webCoREHandler)
-	subscribe(location, '@@'+handle(), webCoREHandler)
+//	subscribe(location, '@@'+handle(), webCoREHandler)
 	subscribe(location, "systemStart", startHandler)
 	subscribe(location, "mode", modeHandler)
 //below unused
@@ -932,18 +964,18 @@ mappings{
 
 private Map api_get_error_result(String error){
 	return [
-		name: location.name + ' \\ ' + (app.label ?: app.name),
-		error: error,
+		(sNM): location.name + ' \\ ' + (app.label ?: app.name),
+		(sERR): error,
 		now: now()
 	]
 }
 
 private Map getHubitatVersion(){
 	try{
-		return location.getHubs().collectEntries {[it.id, it.getFirmwareVersionString()]}
+		return ((List)location.getHubs()).collectEntries {[it.id, it.getFirmwareVersionString()]}
 	}
 	catch(ignored){
-		return location.getHubs().collectEntries {[it.id, "< 1.1.2.112"]}
+		return ((List)location.getHubs()).collectEntries {[it.id, "< 1.1.2.112"]}
 	}
 }
 
@@ -1028,12 +1060,12 @@ private Map api_get_base_result(Boolean updateCache=false){
 	String locationId=getLocationSid()
 //log.info "alerts=${location.hsmAlert}"
 
-//	def t0=location.getHubs().collect{ [id: hashId(it.id, updateCache), name: it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}
+//	def t0=location.getHubs().collect{ [id: hashId(it.id, updateCache), (sNM): it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}
 //	error "api_get_base_result: hubs ${location.getHubs()} t0: ${t0}"
 //	error "api_get_base_result: locstatus ${location.hsmStatus} statehsm: ${state.hsmStatus} shm ${transformHsmStatus(location.hsmStatus ?: state.hsmStatus)}"
 	String myN= (String)app.label ?: (String)app.name
 	Map result=[
-		name: (String)location.name + ' \\ ' + myN,
+		(sNM): (String)location.name + ' \\ ' + myN,
 		instance: [
 			account: [id: getAccountSid()],
 			pistons: getChildApps().findAll{ (String)it.name == name }.sort{ (String)it.label }.collect{
@@ -1047,13 +1079,13 @@ private Map api_get_base_result(Boolean updateCache=false){
 				}
 				[
 					id: myId,
-					name: normalizeLabel(it),
+					(sNM): normalizeLabel(it),
 					meta: meta
 				]
 			},
 			id: instanceId,
 			locationId: locationId,
-			name: myN,
+			(sNM): myN,
 			uri: (String)state.endpoint,
 			deviceVersion: currentDeviceVersion,
 			coreVersion: version(),
@@ -1066,19 +1098,19 @@ private Map api_get_base_result(Boolean updateCache=false){
 			fuelStreamUrls: getFuelStreamUrls(instanceId),
 		],
 		location: [
-			//hubs: location.getHubs().findAll{ !((String)it.name).contains(':') }.collect{ [id: it.id /*hashId(it.id, updateCache)*/, name: (String)it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
-			hubs: location.getHubs().collect{ [id: it.id /*hashId(it.id, updateCache)*/, name: (String)location.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
+			//hubs: location.getHubs().findAll{ !((String)it.name).contains(':') }.collect{ [id: it.id /*hashId(it.id, updateCache)*/, (sNM): (String)it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
+			hubs: ((List)location.getHubs()).collect{ [id: it.id /*hashId(it.id, updateCache)*/, (sNM): (String)location.name, firmware: isHubitat() ? (String)getHubitatVersion()[it.id] : (String)it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
 			incidents: alerts.collect{it}.findAll{ (Long)it.date >= incidentThreshold },
-			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, title: it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
+			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, (sTIT): it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
 			id: locationId,
 			mode: hashId(location.getCurrentMode().id, updateCache),
-			modes: location.getModes().collect{ [id: hashId(it.id, updateCache), name: (String)it.name ]},
+			modes: location.getModes().collect{ [id: hashId(it.id, updateCache), (sNM): (String)it.name ]},
 			shm: transformHsmStatus((String)location.hsmStatus),
-			name: location.name,
+			(sNM): location.name,
 			temperatureScale: location.getTemperatureScale(),
 			timeZone: tz ? [
 				id: tz.ID,
-				name: tz.displayName,
+				(sNM): tz.displayName,
 				offset: tz.rawOffset
 			] : null,
 			zipCode: location.getZipCode(),
@@ -1104,8 +1136,8 @@ private Map<String,Map> getFuelStreamUrls(String iid){
 		Map headers=[ 'Auth-Token' : iid ]
 
 		return [
-			list : [l: false, m: 'POST', h: headers, u: baseUrl + '/list', d: [i : iid]],
-			get  : [l: false, m: 'POST', h: headers, u: baseUrl + '/get',  d: [i : iid ], p: 'f']
+			list : [(sL): false, (sM): 'POST', (sH): headers, u: baseUrl + '/list', (sD): [(sI): iid]],
+			get  : [(sL): false, (sM): 'POST', (sH): headers, u: baseUrl + '/get',  (sD): [(sI): iid ], (sP): 'f']
 		]
 	}
 
@@ -1115,8 +1147,8 @@ private Map<String,Map> getFuelStreamUrls(String iid){
 	String params=baseUrl.contains((String)state.accessToken) ? sBLK : "access_token=${state.accessToken}".toString()
 
 	return [
-		list : [l: true, u: baseUrl + "intf/fuelstreams/list?${params}".toString() ],
-		get  : [l: true, u: baseUrl + "intf/fuelstreams/get?id={fuelStreamId}${params ? "&" + params : ""}".toString(), p: 'fuelStreamId' ]
+		list : [(sL): true, u: baseUrl + "intf/fuelstreams/list?${params}".toString() ],
+		get  : [(sL): true, u: baseUrl + "intf/fuelstreams/get?id={fuelStreamId}${params ? "&" + params : sBLK}".toString(), (sP): 'fuelStreamId' ]
 	]
 }
 
@@ -1208,7 +1240,7 @@ private Map getDashboardData(){
 	if(storageApp!=null){
 		result=storageApp.getDashboardData()
 	}else{
-		result=settings.findAll{ ((String)it.key).startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
+		result=((Map)settings).findAll{ ((String)it.key).startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
 			[ (id): dev.getSupportedAttributes().collect{ (String)it.name }.unique().collectEntries {
 				def value
 				try { value=dev.currentValue(it) } catch (ignored){ value=null }
@@ -1223,7 +1255,7 @@ private api_intf_dashboard_piston_new(){
 	Map result
 	debug "Dashboard: Request received to generate a new piston name"
 	if(verifySecurityToken((String)params.token)){
-		result=[status: sSUCC, name: generatePistonName()]
+		result=[(sSTS): sSUCC, (sNM): generatePistonName()]
 	}else{
 		result=api_get_error_result(sERRTOK)
 	}
@@ -1255,14 +1287,14 @@ private api_intf_dashboard_piston_create(){
 					piston.config([bin: (String)params.bin, author: (String)params.author, initialVersion: version()])
 				}
 				debug "Created Piston "+pname
-				result=[status: sSUCC, id: hashId(piston.id)]
+				result=[(sSTS): sSUCC, id: hashId(piston.id)]
 			}catch(ignored){
 				error "Please install the webCoRE Piston app"
-				result=[status: sERROR, error: sERRUNK]
+				result=[(sSTS): sERROR, (sERR): sERRUNK]
 			}
 		}else{
 			error "create piston: Name in use "+pname
-			result=[status: sERROR, error: sERRUNK]
+			result=[(sSTS): sERROR, (sERR): sERRUNK]
 		}
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -1377,7 +1409,7 @@ private api_intf_dashboard_piston_backup(){
 					Map pd=(Map)piston.get(true)
 					if(pd){
 						String myN= (String)app.label ?: (String)app.name
-						pd.instance=[id: getInstanceSid(), name: myN]
+						pd.instance=[id: getInstanceSid(), (sNM): myN]
 						Boolean a=result.pistons.push(pd)
 						if(!isCustomEndpoint() || !(Boolean)localHubUrl){
 							String jsonData= JsonOutput.toJson(result)
@@ -1439,9 +1471,9 @@ private api_intf_dashboard_piston_set(){
 				updateRunTimeData((Map)saved.rtData)
 				saved.rtData=null
 			}
-			result=[status: sSUCC] + saved
+			result=[(sSTS): sSUCC] + saved
 		}else{
-			result=[status: sERROR, error: sERRUNK]
+			result=[(sSTS): sERROR, (sERR): sERRUNK]
 		}
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -1465,9 +1497,9 @@ private api_intf_dashboard_piston_set_start(){
 			pPistonChunksFLD[wName]=[id: params?.id, count: chunks]
 			pPistonChunksFLD=pPistonChunksFLD
 			mb()
-			result=[status: "ST_READY"]
+			result=[(sSTS): "ST_READY"]
 		}else{
-			result=[status: sERROR, error: "ERR_INVALID_CHUNK_COUNT"]
+			result=[(sSTS): sERROR, (sERR): "ERR_INVALID_CHUNK_COUNT"]
 		}
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -1492,9 +1524,9 @@ private api_intf_dashboard_piston_set_chunk(){
 			//atomicState.chunks=chunks
 			pPistonChunksFLD[wName]=chunks
 			mb()
-			result=[status: "ST_READY"]
+			result=[(sSTS): "ST_READY"]
 		}else{
-			result=[status: sERROR, error: sERRCHUNK]
+			result=[(sSTS): sERROR, (sERR): sERRCHUNK]
 		}
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -1538,15 +1570,15 @@ private api_intf_dashboard_piston_set_end(){
 						updateRunTimeData((Map)saved.rtData)
 						saved.rtData=null
 					}
-					result=[status: sSUCC] + saved
+					result=[(sSTS): sSUCC] + saved
 				}else{
-					result=[status: sERROR, error: sERRUNK]
+					result=[(sSTS): sERROR, (sERR): sERRUNK]
 				}
 			}else{
-				result=[status: sERROR, error: sERRCHUNK]
+				result=[(sSTS): sERROR, (sERR): sERRCHUNK]
 			}
 		}else{
-			result=[status: sERROR, error: sERRCHUNK]
+			result=[(sSTS): sERROR, (sERR): sERRCHUNK]
 		}
 	}else{
 		result=api_get_error_result(sERRTOK)
@@ -1562,7 +1594,7 @@ private api_intf_dashboard_piston_pause(){
 		if(piston){
 			Map rtData=(Map)piston.pausePiston()
 			updateRunTimeData(rtData)
-			result=[status: sSUCC, active: false]
+			result=[(sSTS): sSUCC, active: false]
 		}else{
 			result=api_get_error_result(sERRID)
 		}
@@ -1616,7 +1648,7 @@ private api_intf_dashboard_presence_create(){
 		if(sensor){
 			sensor.label=(String)params.name
 			result=[
-				status: sSUCC,
+					(sSTS): sSUCC,
 				deviceId: hashId(sensor.id)
 			]
 			refreshDevices()
@@ -1747,7 +1779,7 @@ private api_intf_dashboard_piston_delete(){
 			theHashMapFLD=theHashMapFLD
 			mb()
 			clearBaseResult('delete Piston')
-			result=[status: sSUCC]
+			result=[(sSTS): sSUCC]
 			//cleanUp()
 			//clearParentPistonCache("piston deleted")
 			runIn(10, broadcastPistonList)
@@ -1764,66 +1796,166 @@ private api_intf_location_entered(){
 	String deviceId=(String)params.device
 	String dni=(String)params.dni
 	def device=getChildDevices().find{ ((String)it.getDeviceNetworkId() == dni) || (hashId(it.id) == deviceId) }
-	if(device && params.place) device.processEvent([name: 'entered', place: params.place, places: state.settings.places])
+	if(device && params.place) device.processEvent([(sNM): 'entered', place: params.place, places: state.settings.places])
 }
 
 private api_intf_location_exited(){
 	String deviceId=(String)params.device
 	String dni=(String)params.dni
 	def device=getChildDevices().find{ ((String)it.getDeviceNetworkId() == dni) || (hashId(it.id) == deviceId) }
-	if(device && params.place) device.processEvent([name: 'exited', place: params.place, places: state.settings.places])
+	if(device && params.place) device.processEvent([(sNM): 'exited', place: params.place, places: state.settings.places])
 }
 
 private api_intf_location_updated(){
 	String deviceId=(String)params.device
 	String dni=(String)params.dni
 	def device=getChildDevices().find{ ((String)it.getDeviceNetworkId() == dni) || (hashId(it.id) == deviceId) }
-	Map location=params.location ? (LinkedHashMap) new JsonSlurper().parseText((String)params.location) : [error: "Invalid data"]
-	if(device) device.processEvent([name: 'updated', location: location, places: state.settings.places])
+	Map location=params.location ? (LinkedHashMap) new JsonSlurper().parseText((String)params.location) : [(sERR): "Invalid data"]
+	if(device) device.processEvent([(sNM): 'updated', location: location, places: state.settings.places])
 }
 
 private api_intf_variable_set(){
 	Map result
-	debug "Dashboard: Request received to set a variable"
+	String meth="dashboard variable_set "
+	debug meth+"Request received to set a variable"
+	String meth1=sNULL
 	if(verifySecurityToken((String)params.token)){
 		String pid=(String)params.id
 		String name=(String)params.name
-		def value=params.value ? (LinkedHashMap) new JsonSlurper().parseText(new String(params.value.decodeBase64(), "UTF-8")) : null
+		def value=params.value ? (LinkedHashMap) new JsonSlurper().parseText(new String(((String)params.value).decodeBase64(), "UTF-8")) : null
+		trace meth+"pid: $pid  name: $name value: $value"
 		Map globalVars
 		Map localVars
 		if(!pid){
 			Boolean chgd=false
-			globalVars=(Map)atomicState.vars
-			globalVars=globalVars ?: [:]
-			if(name && !value){
-				//deleting a variable
-				globalVars.remove(name)
-				chgd=true
-			} else if(value && value.n){
-				if(!name || (name != (String)value.n)){
-					//add a new variable
-					if(name) globalVars.remove(name)
-					globalVars[(String)value.n]=[t: (String)value.t, v: value.v]
+			String vln=value ? (String)value.n : sNULL
+			if( (name && (Boolean)name.startsWith('@@')) || (vln && vln.startsWith('@@')) ) {
+				String vn=sNULL
+				if(name && !value) {
+					// delete a global
+					vn=name.substring(2)
+					chgd=deleteGlobalVar(vn)
+					meth1=meth+"DELETE HE global $vn "
+					if(!chgd) warn meth1+"FAILED"
+					else trace meth1
 					chgd=true
-				}else{
-					//update a variable
-					globalVars[name]=[t: (String)value.t, v: value.v]
-					chgd=true
+					//result=[(sNM): name, (sVAL): null, type: null]
+				} else if(value && value.n){
+					vln=((String)value.n).substring(2)
+					if(name =='null') name=sNULL
+					if(!name || name!=(String)value.n ) {
+						if (name) {
+							vn = name.substring(2)
+							chgd = deleteGlobalVar(vn)
+							meth1=meth+"DELETE before update of HE global $vn "
+							if (!chgd) warn meth1+"FAILED"
+							else trace meth1
+						}
+						// add a variable
+						def vl=value.v
+						if((String)value.t==sTIME){
+							// the browers is in local zone but internally HE is utc
+							/*Date nTime=new Date()
+							String format="XX"
+							SimpleDateFormat formatter=new SimpleDateFormat(format)
+							formatter.setTimeZone((TimeZone)location.timeZone)
+							String tt= (String)formatter.format(nTime)
+							Integer mtvl=(tt.toInteger() * 3600 *10)
+							//TimeZone
+							log.warn "att is $tt and adjustment is $mtvl or $mmtvl"
+							vl=vl - mtvl*/
+							Integer mmtvl=((TimeZone)location.timeZone).getOffset(now())
+							if(eric()) log.warn "att is adjustment is $mmtvl"
+							vl=vl - mmtvl
+						}
+						Map ta = fixHeGType(true, (String)value.t, vl, sNULL)
+						ta.each {
+							String typ=(String)it.key
+							vl=it.value
+							chgd = createGlobalVar(vln, vl, typ)
+							meth1=meth+"CREATE HE global $vln ${value.t} ${typ} "
+							if(!chgd) warn meth1+"FAILED"
+							else trace meth1
+						}
+					}else{
+						//update a variable
+						def hg=getGlobalVar(vln)
+						if(!hg) warn meth+"GET HE global failed $vln"
+						else {
+							def vl=value.v
+							if((String)value.t==sTIME){
+								// the browers is in local zone but internally HE is utc
+								/*Date nTime=new Date()
+								String format="XX"
+								SimpleDateFormat formatter=new SimpleDateFormat(format)
+								formatter.setTimeZone((TimeZone)location.timeZone)
+								String tt= (String)formatter.format(nTime)
+								Integer mtvl=(tt.toInteger() * 3600 *10)*/
+								Integer mmtvl=((TimeZone)location.timeZone).getOffset(now())
+								//TimeZone
+								//log.warn "btt is $tt and adjustment is $mtvl or $mmtvl"
+								if(eric()) log.warn "btt is adjustment is $mmtvl"
+								vl=vl - mmtvl
+							}
+							Map ta = fixHeGType(true, (String)value.t, vl, (String)hg.type)
+							ta.each {
+								String typ=(String)it.key
+								vl = it.value
+								chgd = setGlobalVar(vln, vl)
+								meth1=meth+"SET HE global $vln ${vl} "
+								if (!chgd) {
+									warn meth1+"FAILED mismatch $vln ${hg.type} ${typ}   ${value.t} ${vl}"
+								} else trace meth1
+							}
+						}
+					}
+					//chgd=true
+					//result=[(sNM): vln, (sVAL): value.v, type: (String)value.t]
 				}
+
+			}else{
+				globalVars=(Map)atomicState.vars
+				globalVars=globalVars ?: [:]
+				if(name && !value){
+					//deleting a variable
+					globalVars.remove(name)
+					chgd=true
+					result=[(sNM): name, (sVAL): null, type: null]
+				} else if(value && value.n){
+					if(!name || name!=vln ){
+						//add a new variable
+						if(name) globalVars.remove(name)
+						name=vln
+					}
+					//update a variable
+					if(name){
+						globalVars[name]=[(sT): (String)value.t, (sV): value.v]
+						result=[(sNM): name, (sVAL): value.v, type: (String)value.t]
+						chgd=true
+					}
+				}
+				if(chgd){
+					atomicState.vars=globalVars
+					clearGlobalPistonCache("dashboard set")
+					clearBaseResult('api_intf_variable_set')
+					//noinspection GroovyVariableNotAssigned
+					sendVariableEvent(result)
+				} else trace meth+"SET webcore global FAILED $name"
 			}
 			if(chgd){
-				atomicState.vars=globalVars
-				clearGlobalPistonCache("dashboard set")
-				clearBaseResult('api_intf_variable_set')
-				sendVariableEvent([name: (String)value.n, value: value.v, type: (String)value.t])
-			}
-			result=[status: sSUCC] + [globalVars: globalVars]
+				// NEED TO RETURN ALL GLOBALS
+				globalVars=(Map)atomicState.vars
+				globalVars=globalVars ?: [:]
+				Map heV=AddHeGlobals(globalVars, meth)
+				globalVars = globalVars+heV
+				result=[(sSTS): sSUCC] + [globalVars: globalVars]
+			} else result=[(sSTS): sERROR, (sERR): sERRUNK]
 		}else{
 			def piston=getChildApps().find{ hashId(it.id) == pid }
 			if(piston){
 				localVars=(Map)piston.setLocalVariable(name, value.v)
 				//clearBaseResult('api_intf_variable_set')
-				result=[status: sSUCC] + [id: pid, localVars: localVars]
+				result=[(sSTS): sSUCC] + [id: pid, localVars: localVars]
 			}else{
 				result=api_get_error_result(sERRID)
 			}
@@ -1832,6 +1964,132 @@ private api_intf_variable_set(){
 		result=api_get_error_result(sERRTOK)
 	}
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
+}
+
+//@Field static final String sDTIME='datetime'
+@Field static final String sTIME='time'
+@Field static final String sDATE='date'
+//@Field static final String sSTR='string'
+//@Field static final String sINT='integer'
+//@Field static final String sDEC='decimal'
+//@Field static final String sDYN='dynamic'
+//@Field static final String sBOOLN='boolean'
+@Field static final String sDEV='device'
+
+Map fixHeGType(Boolean toHubV, String typ, v, String dtyp){
+	Map ret=[:]
+	if(toHubV){ // from webcore(9) -> global(5)
+		switch(typ) {
+			case sINT:
+				ret = [(sINT): v]
+				break
+			case sSTR:
+				ret = [(sSTR): v]
+				break
+			case sBOOLN:
+				ret = [(sBOOLN): v]
+				break
+			case sDEC:
+				ret = ['bigdecimal': v]
+				break
+			case sDYN:
+				ret = [(sSTR): v]
+				break
+			case sTIME:
+				// have to fix offsets?
+			case sDATE:
+			case sDTIME:
+				Date nTime = new Date((Long)v)
+				String format = "yyyy-MM-dd'T'HH:mm:ss.sssXX"
+				SimpleDateFormat formatter = new SimpleDateFormat(format)
+				formatter.setTimeZone((TimeZone)location.timeZone)
+				String tt = (String) formatter.format(nTime)
+				String[] t1 = tt.split('T')
+
+				if (typ == sDATE) {
+					// comes in long format should be string -> 2021-10-13T99:99:99:999-9999
+					String t2 = t1[0] + 'T99:99:99:999-9999'
+					ret = [(sDTIME): t2]
+					break
+				}
+				if (typ == sTIME) {
+					//comes in long format should be string -> 9999-99-99T14:25:09.009-0700
+					String t2 = '9999-99-99T' + t1[1]
+					ret = [(sDTIME): t2]
+					break
+				}
+			//	if (typ == sDTIME) {
+					// this comes in as a long, needs to be string -> 2021-10-13T14:25:09.009-0700
+					ret = [(sDTIME): tt]
+					break
+			//	}
+			case sDEV:
+				// HE this is a List<String> -> String of words separated by a space (can split())
+				List<String> dL= v instanceof List ? (List)v : (v ? [v]:[])
+				String res=sNULL
+				Boolean ok=true
+				dL.each{ String it->
+					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+						res= res ? res+sSPC+it : it
+					} else ok=false
+				}
+				if(ok){ ret=[(sSTR):res]}
+				else ret=[(sSTR):v]
+				break
+		}
+	} else { // from global(5) -> to webcore(9)
+		switch(typ) {
+			case sINT:
+				ret=[(sINT):v]
+				break
+			case sBOOLN:
+				ret=[(sBOOLN):v]
+				break
+				// these match
+			case sSTR:
+				// if (dtyp == sDEV)
+				List<String> dvL=[]
+				Boolean ok=true
+				String[] t1 = ((String)v).split(sSPC)
+				t1.each{
+					// sDEV is a string in global, need to detect if it is really devices :xxxxx:
+					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+						dvL.push(it)
+					} else ok=false
+				}
+				if(ok){ ret=[(sDEV):dvL]}
+				else ret=[(sSTR):v]
+				break
+				// cannot really return a string to dynamic type here res=sDYN
+			case 'bigdecimal':
+				ret=[(sDEC):v]
+				break
+			case sDTIME: // global everything is datetime -> these come in as a string and needs to be a long of appropriate type
+				Date nTime=new Date()
+				String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
+				SimpleDateFormat formatter=new SimpleDateFormat(format)
+				formatter.setTimeZone((TimeZone)location.timeZone)
+				String tt= (String)formatter.format(nTime)
+				String[] start=tt.split('T')
+
+				String iD=v
+				String[] t1= iD.split('T')
+
+				String mtyp=sDTIME
+				String t2=v
+				if(iD.endsWith("9999")) {
+					mtyp=sDATE
+					t2= t1[0]+'T'+start[1] // 00:15:00:000'+end //'-9999'
+				} else if(iD.startsWith("9999")) {
+					mtyp=sTIME
+					t2= start[0]+'T'+t1[1]
+				}
+				Date tt1=(Date)toDateTime(t2)
+				Long r2=tt1.getTime()
+				ret=[(mtyp):r2]
+		}
+	}
+	return ret
 }
 
 private void resetFuelStreamList(){
@@ -1846,7 +2104,7 @@ private void resetFuelStreamList(){
 
 void writeToFuelStream(Map req){
 	String name=handle()+" Fuel Stream"
-	String streamName="${(req.c ?: "")}||${req.n}"
+	String streamName="${(req.c ?: sBLK)}||${req.n}"
 
 	def result=getChildApps().find{ (String)it.name == name && ((String)it.label).contains(streamName)}
 //	def fuelStreams=isHubitat() ? [] : atomicState.fuelStreams ?: []
@@ -1869,7 +2127,7 @@ void writeToFuelStream(Map req){
 				atomicState.fuelStreams=fuelStreams
 			}
 */
-			result.createStream([id: id, name: req.n, canister: req.c ?: sBLK])
+			result.createStream([id: id, (sNM): req.n, canister: req.c ?: sBLK])
 		}
 		catch(ignored){
 			error "Please install the webCoRE Fuel Streams app for local Fuel Streams"
@@ -1914,7 +2172,7 @@ private api_intf_settings_set(){
 		clearBaseResult('settings change')
 
 		testLifx()
-		result=[status: sSUCC]
+		result=[(sSTS): sSUCC]
 	}else{
 		result=api_get_error_result(sERRTOK)
 	}
@@ -1927,9 +2185,9 @@ private api_intf_dashboard_piston_evaluate(){
 	if(verifySecurityToken((String)params.token)){
 		def piston=getChildApps().find{ hashId(it.id) == (String)params.id }
 		if(piston){
-			LinkedHashMap expression=(LinkedHashMap) new JsonSlurper().parseText(new String(params.expression.decodeBase64(), "UTF-8"))
+			LinkedHashMap expression=(LinkedHashMap) new JsonSlurper().parseText(new String(((String)params.expression).decodeBase64(), "UTF-8"))
 			Map msg=timer "Evaluating expression"
-			result=[status: sSUCC, value: piston.proxyEvaluateExpression(null /* getRunTimeData()*/, expression, (String)params.dataType)]
+			result=[(sSTS): sSUCC, (sVAL): piston.proxyEvaluateExpression(null /* getRunTimeData()*/, expression, (String)params.dataType)]
 			trace msg
 		}else{
 			result=api_get_error_result(sERRID)
@@ -1948,7 +2206,7 @@ private api_intf_dashboard_piston_activity(){
 		def piston=getChildApps().find{ hashId((String)it.id) == pistonId }
 		if(piston!=null){
 			Map t0=(Map)piston.activity(params.log)
-			result=[status: sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id, updateCache), name: it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
+			result=[(sSTS): sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id, updateCache), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
 		}else{
 			result=api_get_error_result(sERRID)
 		}
@@ -1977,7 +2235,7 @@ def api_ifttt(){
 	data.remoteAddr=remoteAddr
 	String eventName=(String)params?.eventName
 	if(eventName){
-		sendLocationEvent([name: "ifttt.${eventName}", value: eventName, isStateChange: true, linkText: "IFTTT event", descriptionText: "${handle()} has received an IFTTT event: $eventName", data: data])
+		sendLocationEvent([(sNM): "ifttt.${eventName}", (sVAL): eventName, isStateChange: true, linkText: "IFTTT event", descriptionText: "${handle()} has received an IFTTT event: $eventName", (sDATA): data])
 	}
 	render contentType: "text/html", data: "<!DOCTYPE html><html lang=\"en\">Received event $eventName.<body></body></html>"
 }
@@ -1987,9 +2245,9 @@ def api_email(){
 	def from=data.from ?: sBLK
 	def pistonId=params?.pistonId
 	if(pistonId){
-		sendLocationEvent([name: "email.${pistonId}", value: pistonId, isStateChange: true, linkText: "Email event", descriptionText: "${handle()} has received an email from $from", data: data])
+		sendLocationEvent([(sNM): "email.${pistonId}", (sVAL): pistonId, isStateChange: true, linkText: "Email event", descriptionText: "${handle()} has received an email from $from", (sDATA): data])
 	}
-	render contentType: "text/plain", data: "OK"
+	render contentType: "text/plain", data: 'OK'
 }
 
 private api_execute(){
@@ -2014,7 +2272,7 @@ private api_execute(){
 	String pistonIdOrName=(String)params?.pistonIdOrName
 	def piston=getChildApps().find{ ((String)it.label == pistonIdOrName) || (hashId(it.id) == pistonIdOrName) }
 	if(piston!=null){
-		sendLocationEvent(name: hashId(piston.id), value: remoteAddr, isStateChange: true, displayed: false, linkText: "Execute event", descriptionText: "External piston execute ${(String)piston.label} request from IP $remoteAddr", data: data)
+		sendLocationEvent((sNM): hashId(piston.id), (sVAL): remoteAddr, isStateChange: true, displayed: false, linkText: "Execute event", descriptionText: "External piston execute ${(String)piston.label} request from IP $remoteAddr", (sDATA): data)
 		result.result='OK'
 	}else{
 		result.result='ERROR'
@@ -2024,6 +2282,7 @@ private api_execute(){
 	render contentType: sAPPJSON, data: JsonOutput.toJson(result)
 }
 
+// get webcore global variables
 private api_global(){
 	def remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
 	if(remoteAddr==null)remoteAddr=request.'X-forwarded-for' ?: request.Host
@@ -2032,14 +2291,29 @@ private api_global(){
 	Map result=[:]
 	Boolean err=true
 	String varName=(String)params?.varName
-	if(varName && varName.startsWith('@')){
-		Map vars=(Map)atomicState.vars
-		vars=vars ?: [:]
-		if(vars[varName]){
-			result.val = vars[varName].v
-			result.result='OK'
-			err=false
+	if(varName && (Boolean)varName.startsWith('@') ){
+		if((Boolean)varName.startsWith('@@')) {
+			String vn=varName.substring(2)
+			def hg=getGlobalVar(vn)
+			if(hg){ // could return these as webcore types....this uses what is in HE
+				result.val = hg.value
+				result.type = hg.type
+				result.name = vn
+				result.desc = 'HE Hub variable'
+				err=false
+			}
+		} else{
+			Map vars=(Map)atomicState.vars
+			vars=vars ?: [:]
+			if(vars[varName]){
+				result.val = vars[varName].v
+				result.type = vars[varName].t
+				result.name = varName
+				result.desc = 'webCoRE global variable'
+				err=false
+			}
 		}
+		if(!err) result.result='OK'
 	}
 	if(err){
 		result.result='ERROR'
@@ -2106,6 +2380,7 @@ void finishRecovery(){
 	String wName=app.id.toString()
 	if(pStateFLD[wName] == null) { pStateFLD[wName] = (Map)[:]; pStateFLD=pStateFLD }
 
+	String sMETA='meta'
 	def failedPistons=getChildApps().findAll{ (String)it.name == name }.collect {
 		String myId=hashId(it.id, updateCache)
 		Map meta=(Map)pStateFLD[wName][myId]
@@ -2115,10 +2390,10 @@ void finishRecovery(){
 			pStateFLD[wName][myId]=meta
 			pStateFLD=pStateFLD
 		}
-		[ id: myId, 'name': (String)it.label, 'meta': meta ] }.findAll{ it.meta!=null && (Boolean)it.meta.a && it.meta.n && (Long)it.meta.n < threshold }
+		[ id: myId, (sNM): (String)it.label, (sMETA): meta ] }.findAll{ it.meta!=null && (Boolean)it.meta.a && it.meta.n && (Long)it.meta.n < threshold }
 	if(failedPistons.size()){
 		for (piston in failedPistons){
-			sendLocationEvent(name: (String)piston.id, value: 'recovery', isStateChange: true, displayed: false, linkText: "Recovery event", descriptionText: "Recovery event for piston $piston.name")
+			sendLocationEvent((sNM): (String)piston.id, (sVAL): 'recovery', isStateChange: true, displayed: false, linkText: "Recovery event", descriptionText: "Recovery event for piston $piston.name")
 			warn "Piston $piston.name was sent a recovery signal because it was ${now() - piston.meta.n}ms late"
 			Long delay=Math.round(2000.0D * Math.random()) // 2 sec
 			pauseExecution(delay)
@@ -2166,7 +2441,7 @@ private getStorageApp(Boolean install=false){
 // Hubitat does not use storage app for settings for performance reasons;  Someone could have created it elsewhere in UI
 		if(storageApp.getStorageSettings() != null){ //migrate settings off of storage app
 			storageApp.getStorageSettings().findAll { it.key.startsWith('dev:') }.each {
-				app.updateSetting(it.key, [type: 'capability', value: it.value.collect { it.id }])
+				app.updateSetting(it.key, [type: 'capability', (sVAL): it.value.collect { it.id }])
 			}
 		}
 		app.deleteChildApp(storageApp.id)
@@ -2207,11 +2482,11 @@ private getStorageApp(Boolean install=false){
 		storageApp.initData(settings.collect{ it.key.startsWith('dev:') ? it : null }, settings.contacts)
 		for (item in settings.collect{ it.key.startsWith('dev:') ? it : null }){
 			if(item && item.key){
-				//app.updateSetting(item.key, [type: 'text', value: null])
+				//app.updateSetting(item.key, [type: sTXT, (sVAL): null])
 				app.clearSetting("${item.key}".toString())
 			}
 		}
-		//app.updateSetting('contacts', [type: 'text', value: null])
+		//app.updateSetting('contacts', [type: sTXT, (sVAL): null])
 		app.clearSetting('contacts')
 	} catch (all){
 	}
@@ -2291,17 +2566,17 @@ private String getDashboardInitUrl(Boolean reg=false){
 		regkey=customApiServerUrl('/?access_token=' + (String)state.accessToken).bytes.encodeBase64()
 		if(eric())log.debug "getDashboardInitUrl: t0 $t0"
 		if(eric())log.debug "getDashboardInitUrl: regkey $regkey"
-	 	t0 = t0+regkey
+		t0 = t0+regkey
 	}else{
 		//if((Boolean)state.installed && (Boolean)settings.agreement){
 		if(eric())log.debug "getDashboardInitUrl: NOT isCustomEndpoint"
 		regkey= apiServerUrl(sBLK)
 
-// 	   	log.debug "t0 $t0"
+//		log.debug "t0 $t0"
 /*		String a =(
 			regkey.replace('http://',sBLK).replace('https://', sBLK).replace('.api.smartthings.com', sBLK).replace(':443', sBLK).replace('/', sBLK) +
 			(hubUID.toString() + app.id.toString()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ) */
-//   		log.debug "regkey $a"
+//		log.debug "regkey $a"
 		t0=t0+( regkey.replace('http://',sBLK).replace('https://', sBLK).replace('.api.smartthings.com', sBLK).replace(':443', sBLK).replace('/', sBLK) +
 			(hubUID.toString() + app.id.toString()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
 	}
@@ -2323,7 +2598,7 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 	if(storageApp){
 		result=storageApp.listAvailableDevices(raw, offset)
 	}else{
-		List myDevices=(List)settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
+		List myDevices=(List)((Map)settings).findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
 		List devices=(List)myDevices.unique{ it.id }
 		if(raw){
 			result=devices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}
@@ -2338,16 +2613,16 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 //				log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${result.toString().size()}"
 					result.devices[hashId(dev.id)]=getDevDetails(dev, true)
 /*					result.devices[hashId(dev.id)]=[
-							n: dev.getDisplayName(),
+							(sN): dev.getDisplayName(),
 							cn: dev.getCapabilities()*.name,
-							a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
-									n: (String)it.name,
-									t: it.getDataType(),
-									o: it.getValues()
+							(sA): dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
+									(sN): (String)it.name,
+									(sT): it.getDataType(),
+									(sO): it.getValues()
 							]},
-							c: dev.getSupportedCommands().unique{ transformCommand(it, overrides) }.collect{[
-									n: transformCommand(it, overrides),
-									p: it.getArguments()
+							(sC): dev.getSupportedCommands().unique{ transformCommand(it, overrides) }.collect{[
+									(sN): transformCommand(it, overrides),
+									(sP): it.getArguments()
 							]}
 					] */
 					Boolean stop=false
@@ -2377,19 +2652,19 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 					[
 							(id): getDevDetails(dev)
 /*							(id): [
-									n: dev.getDisplayName(),
+									(sN): dev.getDisplayName(),
 									cn: dev.getCapabilities()*.name,
-									a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{
+									(sA): dev.getSupportedAttributes().unique{ (String)it.name }.collect{
 										def x=[
-												n: (String)it.name,
-												t: it.getDataType(),
-												o: it.getValues()
+												(sN): (String)it.name,
+												(sT): it.getDataType(),
+												(sO): it.getValues()
 										]
 										x
 									},
-									c: dev.getSupportedCommands().unique{ it.getName() }.collect{[
-											n: it.getName(),
-											p: it.getArguments()
+									(sC): dev.getSupportedCommands().unique{ it.getName() }.collect{[
+											(sN): it.getName(),
+											(sP): it.getArguments()
 									]}
 							] */
 					]}
@@ -2399,30 +2674,48 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 	return result
 }
 
-Map getDevDetails(dev, Boolean transform=false){
+Map getDevDetails(dev, Boolean addtransform=false){
 	Map<String,Map> overrides=commandOverrides()
+	String nm=dev.getDisplayName()
+	List cmdL=dev.getSupportedCommands()
+	cmdL=cmdL.unique{ (String)it.getName() }
+	List newCL=[]
+	cmdL.each{ cmd->
+		Map mycmd=[:]
+		mycmd.n=cmd.getName()
+		mycmd.p=cmd.getArguments()
+		newCL.push(mycmd)
+		if(addtransform){
+			String an=transformCommand(cmd,overrides,nm)
+			if(an) {
+				mycmd.n=an
+				newCL.push(mycmd)
+			}
+		}
+	}
 	return [
-			n: dev.getDisplayName(),
+			(sN): nm,
 			cn: dev.getCapabilities()*.name,
-			a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
-					n: (String)it.name,
-					t: it.getDataType(),
-					o: it.getValues()
+			(sA): ((List)dev.getSupportedAttributes()).unique{ (String)it.name }.collect{[
+					(sN): (String)it.name,
+					(sT): it.getDataType(),
+					(sO): it.getValues()
 			]},
-			c: dev.getSupportedCommands().unique{ transform ? transformCommand(it, overrides) : it.getName() }.collect{[
-					n: transform ? transformCommand(it, overrides) : it.getName(),
-					p: it.getArguments()
-			]}
+			/*(sC): dev.getSupportedCommands().unique{ transform ? transformCommand(it, overrides) : it.getName() }.collect{[
+					(sN): transform ? transformCommand(it, overrides) : it.getName(),
+					(sP): it.getArguments()
+			]} */
+			(sC): newCL.unique { (String)it.n }
 	]
 }
 
 /*
  Not implemented zwave poller control:
  To add devices to the poll list:
- sendLocationEvent(name: "startZwavePoll", value: devList)
+ sendLocationEvent((sNM): "startZwavePoll", (sVAL): devList)
 
  To remove devices from the poll list:
- sendLocationEvent(name: "stopZwavePoll", value: devList)
+ sendLocationEvent((sNM): "stopZwavePoll", (sVAL): devList)
 
  Z-Wave Poller only supports Generic Z-Wave Dimmer and Generic Z-Wave Switch. It won't work with other drivers, as there is a handshake with the driver.
 
@@ -2430,27 +2723,66 @@ Map getDevDetails(dev, Boolean transform=false){
  isAppInstalled("hubitat", "Z-Wave Poller", "SYSTEM")
 */
 
-private static String transformCommand(command, Map<String,Map> overrides){
-	Map override=overrides[(String)command.getName()]
-	if(override && (String)override.s == command.getArguments()?.toString()){
-		return (String)override.r
+private String transformCommand(command, Map<String,Map> overrides, String dvn){
+	String nm=(String)command.getName()
+	def override=overrides.find{ (String)it.value.c==nm }
+//	Map override=overrides[(String)command.getName()]
+	if(override){
+		String mcommand=(String)override.value.r
+		def args = command.getArguments()?.toString()
+		if(override.value.s.toString() == args){
+			if(eric())log.debug "transformCommand device $dvn  cmd: $nm  -> $mcommand override: $override commandargs: $args"
+			return mcommand
+		}
 	}
-	return (String)command.getName()
+	return sNULL
 }
 
 private void setPowerSource(String powerSource, Boolean atomic=true){
 	if(state.powerSource == powerSource) return
 	atomicState.powerSource=powerSource
-	sendLocationEvent([name: 'powerSource', value: powerSource, isStateChange: true, linkText: "webCoRE power source event", descriptionText: handle()+" has detected a new power source: "+powerSource])
+	sendLocationEvent([(sNM): 'powerSource', (sVAL): powerSource, isStateChange: true, linkText: "webCoRE power source event", descriptionText: handle()+" has detected a new power source: "+powerSource])
+}
+
+private Map AddHeGlobals(Map<String,Map> globalVars, String meth) {
+	Map<String,Map> res=[:]
+	def heV=getAllGlobalVars()
+	trace meth+" ALL HE globals $heV"
+	heV?.each {
+		String nm='@@'+(String)it.key
+		//if(globalVars.containsKey(nm)){
+		//	trace meth+" FOUND HE global same as webCoRE global $nm"
+		//}else{
+			Map ta = fixHeGType(false, (String)it.value.type, it.value.value, sNULL)
+			String typ=sNULL
+			def vl=null
+			ta.each {
+				typ = (String)it.key
+				vl = it.value
+			}
+			res[nm]=[(sT):typ,(sV): vl]
+		//}
+	}
+	return res
 }
 
 Map listAvailableVariables(){
 	Map myV=(Map)atomicState.vars
-	return (myV ?: [:]).sort{ (String)it.key }
+	//'@@'
+	return listAV(myV, 'list variables')
 }
 
 private Map listAvailableVariables1(){
 	Map myV=(Map)state.vars
+	//'@@'
+	return listAV(myV, 'list variables1')
+}
+
+private Map listAV(Map my, String meth) {
+	Map<String,Map> myV=my ?: [:]
+	//'@@'
+	Map heV=AddHeGlobals(myV, meth)
+	myV = myV+heV
 	return (myV ?: [:]).sort{ (String)it.key }
 }
 
@@ -2511,7 +2843,7 @@ private String createSecurityToken(){
 
 private void ping(){
 	String myN= (String)app.label ?: (String)app.name
-	sendLocationEvent( [name: handle(), value: 'ping', isStateChange: true, displayed: false, linkText: "${handle()} ping reply", descriptionText: "${handle()} has received a ping reply and is replying with a pong", data: [id: getInstanceSid(), name: myN]] )
+	sendLocationEvent( [(sNM): handle(), (sVAL): 'ping', isStateChange: true, displayed: false, linkText: "${handle()} ping reply", descriptionText: "${handle()} has received a ping reply and is replying with a pong", (sDATA): [id: getInstanceSid(), (sNM): myN]] )
 }
 
 private void startDashboard(){
@@ -2613,7 +2945,7 @@ private void registerInstance(Boolean force=true){
 				pStateFLD[wName][myId]=meta
 				pStateFLD=pStateFLD
 			}
-			[ id: myId, a: meta?.a ]
+			[ id: myId, (sA): meta?.a ]
 		}
 		List lpa=pistons.findAll{ it.a }.collect{ it.id }
 		Integer pa=lpa.size()
@@ -2625,13 +2957,13 @@ private void registerInstance(Boolean force=true){
 			path: '/instance/register',
 			headers: ['ST' : instanceId],
 			body: [
-				a: accountId,
-				l: locationId,
-				i: instanceId,
+				(sA): accountId,
+				(sL): locationId,
+				(sI): instanceId,
 				e: endpoint,
-				v: version(),
+				(sV): version(),
 				hv: HEversion(),
-				r: region,
+				(sR): region,
 				pa: pa,
 				lpa: lpa.join(','),
 				pd: pd,
@@ -2701,7 +3033,7 @@ static String getWikiUrl(){
 
 private String mem(Boolean showBytes=true){
 	Integer bytes=state.toString().length()
-	return Math.round(100.0D * (bytes/ 100000.0D)) + "%${showBytes ? " ($bytes bytes)" : ""}"
+	return Math.round(100.0D * (bytes/ 100000.0D)) + "%${showBytes ? " ($bytes bytes)" : sBLK}"
 }
 
 @Field volatile static Map<String,Map<String,Long>> p_executionFLD=[:]
@@ -2734,7 +3066,7 @@ void updateRunTimeData(Map data){
 		for(var in (Map)data.gvCache){
 			String varName=(String)var.key
 			if(varName!=sNULL && varName.startsWith('@') && vars[varName] && var.value.v != vars[varName].v ){
-				Boolean a=variableEvents.push([name: varName, oldValue: vars[varName].v, value: var.value.v, type: var.value.t])
+				Boolean a=variableEvents.push([(sNM): varName, oldValue: vars[varName].v, (sVAL): var.value.v, type: var.value.t])
 				vars[varName].v=var.value.v
 				modified=true
 			}
@@ -2768,12 +3100,12 @@ void updateRunTimeData(Map data){
 	Map st=[:] + (Map)data.state
 	st.remove('old') //remove the old state as we don't need it
 	Map piston=[
-		a: (Boolean)data.active,
-		c: data.category,
-		t: data.t ?:now(), //last run
-		n: (Long)data.stats.nextSchedule,
+		(sA): (Boolean)data.active,
+		(sC): data.category,
+		(sT): data.t ?:now(), //last run
+		(sN): (Long)data.stats.nextSchedule,
 		z: (String)data.piston.z, //description
-		s: st,
+		(sS): st,
 		heCached:(Boolean)data.Cached
 	]
 	if(pStateFLD[wName] == null){ pStateFLD[wName] = (Map)[:]; pStateFLD=pStateFLD }
@@ -2835,22 +3167,23 @@ private void sendVariableEvent(Map variable, Boolean onlyChildren=false){
 	String myN= (String)app.label ?: (String)app.name
 	String myLabel=myN
 	String varN=(String)variable.name
+	if(varN.startsWith('@@')) return // TODO ERS
 	Map theEvent=[
-		value: varN, isStateChange: true, displayed: false,
-		data: [id: myId, name: myLabel, event: 'variable', variable: variable]
+		(sVAL): varN, isStateChange: true, displayed: false,
+		(sDATA): [id: myId, (sNM): myLabel, event: sVARIABLE, (sVARIABLE): variable]
 	]
 // This notifies other webCoRE master instances of super change
-	if( !onlyChildren && varN.startsWith('@@') ){
+/*	if( !onlyChildren && varN.startsWith('@@') ){
 		String str=handle()+" Super global variable ${varN} changed".toString()
 		sendLocationEvent(theEvent + [
-			name: ('@@' + handle()),
+			(sNM): ('@@' + handle()),
 			linkText: str, descriptionText: str,
 		])
-	}
+	}*/
 // this notifies my children
 	String str=handle()+" global variable ${varN} changed".toString()
 	sendLocationEvent(theEvent + [
-		name: (getInstanceSid()) + ".${varN}",
+		(sNM): (getInstanceSid()) + ".${varN}",
 		linkText: str, descriptionText: str,
 		])
 }
@@ -2859,17 +3192,17 @@ void broadcastPistonList(){
 	String myN= (String)app.label ?: (String)app.name
 	sendLocationEvent(
 		[
-			name: handle(),
-			value: 'pistonList',
+			(sNM): handle(),
+			(sVAL): 'pistonList',
 			isStateChange: true,
 			displayed: false,
-			data: [
+			(sDATA): [
 				id: getInstanceSid(),
-				name: myN,
+				(sNM): myN,
 				pistons: getChildApps().findAll{ (String)it.name == (handle()+' Piston') }.collect{
 					[
 						id: hashId(it.id),
-						name: normalizeLabel(it),
+						(sNM): normalizeLabel(it),
 						aname: (it?.label)
 					]}
 			]
@@ -2884,7 +3217,8 @@ def webCoREHandler(event){
 	if(!event || (!eN.startsWith(handle()) && !eN.endsWith(handle()) )) return
 	def data=event.jsonData ?: null
 //log.error "GOT EVENT WITH DATA $data"
-	if(data && data.variable && ((String)data.event == 'variable') && eV && eV.startsWith('@@')){
+/*	if(data && data.variable && ((String)data.event == sVARIABLE) && eV && eV.startsWith('@@')){
+		if(eV.startsWith('@@')) return // TODO ERS
 		Map variable=data.variable
 		String vType=(String)variable.type ?: sDYN
 		String vN=(String)variable.name
@@ -2895,18 +3229,22 @@ def webCoREHandler(event){
 
 			Map<String,Map> vars=(Map<String,Map>)atomicState.vars
 			vars=vars ?: [:]
-			Map oldVar= vars[vN] ?: [t:sBLK, v:sBLK]
+			Map oldVar= vars[vN] ?: [(sT):sBLK, (sV):sBLK]
 			if(((String)oldVar.t != vType) || (oldVar.v != vV)){ // only notify if it is a change for us.
-				vars[vN]=[t: vType, v: vV]
+				if (vV==null) {
+					vars.remove(vN)
+				} else {
+					vars[vN]=[(sT): vType, (sV): vV]
+				}
 				atomicState.vars=vars
 				releaseTheLock(t)
 				clearGlobalPistonCache("variable event")
 // notify my child instances
-				sendVariableEvent([name: vN, value: vV, type: vType], true)
-			} else releaseTheLock(t)
+				if (vV!=null) sendVariableEvent([(sNM): vN, (sVAL): vV, type: vType], true)
+			} else releaseTheLock(t) // no change
 		} else warn "no variable name $data"
 		return
-	}
+	} */
 	switch (eV){
 		case 'poll':
 			Long delay=Math.round(2000.0D * Math.random())
@@ -2915,7 +3253,7 @@ def webCoREHandler(event){
 			break
 /*		case 'ping':
 		if(data && data.id && data.name && (data.id != getInstanceSid())){
-			sendLocationEvent( [name: handle(), value: 'pong', isStateChange: true, displayed: false, linkText: "${handle()} ping reply", descriptionText: "${handle()} has received a ping reply and is replying with a pong", data: [id: getInstanceSid(), name: app.label]] )
+			sendLocationEvent( [(sNM): handle(), (sVAL): 'pong', isStateChange: true, displayed: false, linkText: "${handle()} ping reply", descriptionText: "${handle()} has received a ping reply and is replying with a pong", (sDATA): [id: getInstanceSid(), (sNM): app.label]] )
 		}else{
 			break
 		}
@@ -2956,21 +3294,21 @@ def hsmHandler(evt){
 def hsmAlertHandler(evt){
 //push incidents
 	String evV=evt.value.toString()
-	String title='HSM Alert: '+ evV + (evV == 'rule' ? ',  '+(String)evt.descriptionText : "")
+	String title='HSM Alert: '+ evV + (evV == 'rule' ? ',  '+(String)evt.descriptionText : sBLK)
 	String src='HSM Alert:'+ evV
 	String msg='HSM '+evV+' Alert'
 
 	Map alert=[
 		date:evt.date.getTime(),
-		title: title,
+		(sTIT): title,
 		message: msg,
 		args: evt.data,
 		sourceType: src,
-		v:evt.value,
+		(sV):evt.value,
 		des:evt.descriptionText,
 		//d: evt.data
 	]
-			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, title: it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
+			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, (sTIT): it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
 
 // this should search the db from hsmAlert events?
 /*
@@ -3106,7 +3444,7 @@ private String hashId(id, Boolean updateCache=true){
 private Map<String,Boolean> getLogging(){
 	String logging=settings?.logging ? (String)settings.logging : sNULL
 	return [
-		error: true,
+		(sERR): true,
 		warn: true,
 		info: (logging != 'None' && logging != sNULL),
 		trace: (logging == 'Medium') || (logging == 'Full'),
@@ -3116,20 +3454,21 @@ private Map<String,Boolean> getLogging(){
 
 private Map log(message, Integer shift=-2, err=null, String cmd=sNULL){
 	if(cmd == "timer"){
-		return [m: message, t: now(), s: shift, e: err]
+		return [(sM): message, (sT): now(), (sS): shift, e: err]
 	}
+	String myMsg=sNULL
+	def merr=err
 	if(message instanceof Map){
 		//shift=(Integer)message.s
-		err=message.e
-		message=(String)message.m + " (${now() - (Long)message.t}ms)"
-	}
-	String myMsg=(String)message
-	cmd=cmd ? cmd : 'debug'
+		merr=message.e
+		myMsg=(String)message.m + " (${now() - (Long)message.t}ms)"
+	}else myMsg=message
+	String mcmd=cmd ? cmd : 'debug'
 	Map<String,Boolean> myLog=getLogging()
-	if(cmd != 'error' && cmd != 'warn'){
-		if(!((Boolean)myLog.info) && cmd=='info') return [:]
-		if(!((Boolean)myLog.trace) && cmd=='trace') return [:]
-		if(!((Boolean)myLog.debug) && cmd=='debug') return [:]
+	if(mcmd != 'error' && mcmd != 'warn'){
+		if(!((Boolean)myLog.info) && mcmd=='info') return [:]
+		if(!((Boolean)myLog.trace) && mcmd=='trace') return [:]
+		if(!((Boolean)myLog.debug) && mcmd=='debug') return [:]
 	}
 	String prefix=sBLK
 /*	Boolean debugging=false
@@ -3171,10 +3510,10 @@ private Map log(message, Integer shift=-2, err=null, String cmd=sNULL){
 		prefix += " "
 	}*/
 
-	if(err){
-		myMsg += sSPC+err.toString()
+	if(merr){
+		myMsg += sSPC+merr.toString()
 	}
-	log."$cmd" prefix+myMsg
+	log."$mcmd" prefix+myMsg
 	return [:]
 }
 
@@ -3196,13 +3535,13 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 @Field static final String sDYN='dynamic'
 @Field static final String sDUR='duration'
 @Field static final String sDURATION='Duration'
-@Field static final String sBOOL='boolean'
+@Field static final String sBOOLN='boolean'
 @Field static final String sLVL='level'
 @Field static final String sON='on'
 @Field static final String sOFF='off'
 @Field static final String sOPEN='open'
 @Field static final String sCLOSE='close'
-@Field static final String sDATIM='datetime'
+@Field static final String sDTIME='datetime'
 @Field static final String sVOLUME='Volume'
 @Field static final String sSWITCH='switch'
 @Field static final String sCOLOR='color'
@@ -3213,6 +3552,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 @Field static final String sCLOCK='clock'
 @Field static final String sONLYIFSWIS='Only if switch is...'
 @Field static final String sIFALREADY=' if already {v}'
+@Field static final String sATVOL=' at volume {v}'
 @Field static final String sNUMFLASH='Number of flashes'
 @Field static final String sACT='active'
 @Field static final String sINACT='inactive'
@@ -3224,105 +3564,105 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	//m=momentary
 	//s=number of subdevices
 	//i=subdevice index in event data
-@Field final Map capabilitiesFLD=[
-	accelerationSensor	: [ n: "Acceleration Sensor",	d: "acceleration sensors",		a: "acceleration",								],
-	actuator			: [ n: "Actuator",				d: "actuators",																	],
-	airQuality			: [ n: "Air Quality Sensor",	d: "air quality sensors",		a: "airQualityIndex",							],
-	alarm				: [ n: "Alarm",					d: "alarms and sirens",			a: "alarm",		c: [sOFF, "strobe", "siren", "both"],			],
-	audioNotification	: [ n: "Audio Notification",	d: "audio notification devices",				c: ["playText", "playTextAndResume", "playTextAndRestore", "playTrack", "playTrackAndResume", "playTrackAndRestore"],			],
-	audioVolume			: [ n: "Audio Volume",			d: "audio volume devices",		a: "volume",		c: ["mute", "setVolume", "unmute", "volumeDown", "volumeUp"],			],
-	battery				: [ n: "Battery",				d: "battery powered devices",	a: "battery",									],
-	beacon				: [ n: "Beacon",				d: "beacons",					a: "presence",									],
-	bulb				: [ n: "Bulb",					d: "bulbs",						a: sSWITCH,		c: [sOFF, sON],					],
-	carbonDioxideMeasurement	: [ n: "Carbon Dioxide Measurement",	d: "carbon dioxide sensors",		a: "carbonDioxide",								],
-	carbonMonoxideDetector		: [ n: "Carbon Monoxide Detector",	d: "carbon monoxide detectors",		a: "carbonMonoxide",								],
-	changeLevel			: [ n: "Change Level",			d: "level adjustment devices",					c: ["startLevelChange", "stopLevelChange"],		],
-	chime				: [ n: "Chime",					d: "chime devices",				a: "status",		c: ["playSound", "stop"],				],
-	colorControl		: [ n: "Color Control",			d: "adjustable color lights",	a: sCOLOR,		c: ["setColor", "setHue", "setSaturation"],		],
-	colorMode			: [ n: "Color Mode",			d: "color mode devices",		a: "colorMode",									],
-	colorTemperature	: [ n: "Color Temperature",		d: "adjustable white lights",	a: "colorTemperature",	c: ["setColorTemperature"],				],
-	configuration		: [ n: "Configuration",			d: "configurable devices",					c: ["configure"],					],
-	consumable			: [ n: "Consumable",			d: "consumables",				a: "consumableStatus",	c: ["setConsumableStatus"],				],
-	contactSensor		: [ n: "Contact Sensor",		d: "contact sensors",			a: "contact",									],
-	currentMeter		: [ n: "Current Meter",			d: "current meter sensors",		a: "amperage",								],
-	doorControl			: [ n: "Door Control",			d: "automatic doors",			a: "door",		c: [sCLOSE, sOPEN],					],
-	doubleTapableButton	: [ n: "Double Tapable Button",	d: "double tapable buttons",		a: "doubleTapped",	m: true,	c: ["doubleTap"], /* s: "numberOfButtons,numButtons", i: "buttonNumber",*/	],
-	energyMeter			: [ n: "Energy Meter",			d: "energy meters",				a: "energy",									],
-	estimatedTimeOfArrival		: [ n: "Estimated Time of Arrival",	d: "moving devices (ETA)",		a: "eta",									],
-	fanControl			: [ n: "Fan Control",			d: "fan devices",				a: "speed",		c: ["setSpeed", "cycleSpeed"],					],
-	filterStatus		: [ n: "Filter Status",			d: "filters",					a: "filterStatus",								],
-	garageDoorControl	: [ n: "Garage Door Control",	d: "automatic garage doors",	a: "door",		c: [sCLOSE, sOPEN],					],
-	gasDetector			: [ n: "Gas Detector",			d: "gas detectors",				a: "naturalGas",							],
-//	holdableButton		: [ n: "Holdable Button",		d: "holdable buttons",			a: "button",		m: true,	s: "numberOfButtons,numButtons", i: "buttonNumber",			],
-	holdableButton		: [ n: "Holdable Button",		d: "holdable buttons",			a: "held",		m: true,	c: ["hold"], /* s: "numberOfButtons,numButtons", i: "buttonNumber",*/		],
-	illuminanceMeasurement		: [ n: "Illuminance Measurement",	d: "illuminance sensors",		a: "illuminance",										],
-	imageCapture		: [ n: "Image Capture",			d: "cameras, imaging devices",	a: "image",		c: ["take"],						],
-	indicator			: [ n: "Indicator",				d: "indicator devices",			a: "indicatorStatus",	c: ["indicatorNever", "indicatorWhenOn", "indicatorWhenOff"],		],
-//	infraredLevel		: [ n: "Infrared Level",		d: "adjustable infrared lights",	a: "infraredLevel",	c: ["setInfraredLevel"],						],
-	levelPreset			: [ n: "Level Preset",			d: "adjustable levels",			a: "levelPreset",	c: ["presetLevel"],							],
-	light				: [ n: "Light",					d: "lights",					a: sSWITCH,		c: [sOFF, sON],							],
-	lightEffects		: [ n: "Light Effects",			d: "light effects",				a: "effectName",	c: ["setEffect", "setNextEffect", "setPreviousEffect"],			],
-	liquidFlowRate		: [ n: "Liquid Flow Rate",		d: "liquid flow rates",			a: "rate",											],
-//	lock				: [ n: "Lock",					d: "electronic locks",			a: "lock",		c: ["lock", "unlock"],	s:"numberOfCodes,numCodes", i: "usedCode",	],
-	lock				: [ n: "Lock",					d: "electronic locks",			a: "lock",		c: ["lock", "unlock"],	/*s:"numberOfCodes,numCodes", i: "usedCode",*/	],
-	lockCodes			: [ n: "Lock Codes",			d: "locks with lock codes",			a: "codeChanged",	c: ["deleteCode", "getCodes", "setCode", "setCodeLength"],		],
-//	lockOnly			: [ n: "Lock Only",				d: "electronic locks (lock only)",	a: "lock",		c: ["lock"],								],
-	mediaController		: [ n: "Media Controller",		d: "media controllers",			a: "currentActivity",	c: ["startActivity", "getAllActivities", "getCurrentActivity"],		],
-	mediaInputSource		: [ n: "Media Input Source",		d: "media input sources",			a: "mediaInputSource",	c: ["setInputSource"],		],
-	mediaTransport		: [ n: "Media Transport",		d: "media transport",			a: "transportStatus",	c: ["play", "pause", "stop"],		],
-//	momentary			: [ n: "Momentary",				d: "momentary switches",					c: ["push"],								],
-	momentary			: [ n: "Momentary",				d: "momentary switches",		a: "momentary",		m: true,	c: ["pushMomentary"],					],
-	motionSensor		: [ n: "Motion Sensor",			d: "motion sensors",			a: "motion",											],
-	musicPlayer			: [ n: "Music Player",			d: "music players",				a: "status",	c: ["mute", "nextTrack", "pause", "play", "playTrack", "previousTrack", "restoreTrack", "resumeTrack", "setLevel", "setTrack", "stop", "unmute"],		],
-	notification		: [ n: "Notification",			d: "notification devices",					c: ["deviceNotification"],						],
-	outlet				: [ n: "Outlet",				d: "lights",					a: sSWITCH,		c: [sOFF, sON],							],
-	pHMeasurement		: [ n: "pH Measurement",		d: "pH sensors",				a: "pH",											],
-	polling				: [ n: "Polling",				d: "pollable devices",						c: ["poll"],								],
-	powerMeter			: [ n: "Power Meter",			d: "power meters",				a: "power",											],
-	powerSource			: [ n: "Power Source",			d: "multisource powered devices",	a: "powerSource",										],
-	presenceSensor		: [ n: "Presence Sensor",		d: "presence sensors",			a: "presence",											],
-	pushableButton		: [ n: "Pushable Button",		d: "pushable buttons",			a: "pushed",		m: true,	c: ["push"], /* s: "numberOfButtons,numButtons", i: "buttonNumber",*/		],
-	refresh				: [ n: "Refresh",				d: "refreshable devices",					c: ["refresh"],								],
-	relativeHumidityMeasurement	: [ n: "Relative Humidity Measurement",	d: "humidity sensors",			a: "humidity",											],
-	relaySwitch			: [ n: "Relay Switch",			d: "relay switches",			a: sSWITCH,		c: [sOFF, sON],							],
-	releasableButton	: [ n: "Releasable Button",		d: "releasable buttons",		a: "released",		m: true,	c: ["release"], /* s: "numberOfButtons,numButtons", i: "buttonNumber",*/			],
-	//samsungTV		: [ n: "Samsung TV",		d: "Samsung TVs",			a: "switch",	c: ["mute", sOFF, sON, "setPictureMode", "setSoundMode", "setVoulume", "showMessage", "unmute", "volumeDown", "volumeUp"],										],
-	securityKeypad		: [ n: "Security Keypad",		d: "security keypads",			a: "securityKeypad",	c: ["armAway", "armHome", "deleteCode", "disarm", "getCodes", "setCode", "setCodeLength", "setEntryDelay", "setExitDelay"],										],
-	sensor				: [ n: "Sensor",				d: "sensors",					a: "sensor",											],
-	shockSensor			: [ n: "Shock Sensor",			d: "shock sensors",				a: "shock",											],
-	signalStrength		: [ n: "Signal Strength",		d: "wireless devices",			a: "rssi",											],
-	sleepSensor			: [ n: "Sleep Sensor",			d: "sleep sensors",				a: "sleeping",											],
-	smokeDetector		: [ n: "Smoke Detector",		d: "smoke detectors",			a: "smoke",											],
-	soundPressureLevel	: [ n: "Sound Pressure Level",	d: "sound pressure sensors",	a: "soundPressureLevel",									],
-	soundSensor			: [ n: "Sound Sensor",			d: "sound sensors",				a: "sound",											],
-	speechRecognition	: [ n: "Speech Recognition",	d: "speech recognition devices",	a: "phraseSpoken",				m: true,					],
-	speechSynthesis		: [ n: "Speech Synthesis",		d: "speech synthesizers",					c: ["speak"],								],
-	stepSensor			: [ n: "Step Sensor",			d: "step counters",				a: "steps",											],
-	(sSWITCH)			: [ n: "Switch",				d: "switches",					a: sSWITCH,		c: [sOFF, sON],							],
-	switchLevel			: [ n: "Switch Level",			d: "dimmers and dimmable lights",	a: sLVL,		c: ["setLevel"],							],
-	//tv		: [ n: "TV",		d: "TVs",			a: "power",	c: ["channelDown", "channelUp", "volumeDown", "volumeUp"],										],
-	tamperAlert			: [ n: "Tamper Alert",			d: "tamper sensors",			a: "tamper",											],
-	temperatureMeasurement		: [ n: "Temperature Measurement",	d: "temperature sensors",		a: "temperature",										],
-	thermostat			: [ n: "Thermostat",			d: "thermostats",			a: sTHERM,	c: ["auto", "cool", "eco", "emergencyHeat", "fanAuto", "fanCirculate", "fanOn", "heat", sOFF, "setCoolingSetpoint", "setHeatingSetpoint", /* "setSchedule",*/ "setThermostatFanMode", "setThermostatMode"],	],
-	thermostatCoolingSetpoint	: [ n: "Thermostat Cooling Setpoint",	d: "thermostats (cooling)",		a: "coolingSetpoint",	c: ["setCoolingSetpoint"],						],
-	thermostatFanMode	: [ n: "Thermostat Fan Mode",	d: "fans",					a: sTHERFM,	c: ["fanAuto", "fanCirculate", "fanOn", "setThermostatFanMode"],	],
-	thermostatHeatingSetpoint	: [ n: "Thermostat Heating Setpoint",	d: "thermostats (heating)",		a: "heatingSetpoint",	c: ["setHeatingSetpoint"],						],
-	thermostatMode		: [ n: "Thermostat Mode",									a: sTHERM,	c: ["auto", "cool", "eco", "emergencyHeat", "heat", sOFF, "setThermostatMode"],	],
-	thermostatOperatingState	: [ n: "Thermostat Operating State",				a: "thermostatOperatingState",									],
-//	thermostatSchedule	: [ n: "Thermostat Schedule",							a: "schedule",									],
-	thermostatSetpoint	: [ n: "Thermostat Setpoint",							a: "thermostatSetpoint",									],
-	threeAxis			: [ n: "Three Axis Sensor",		d: "three axis sensors",		a: "orientation",										],
-	timedSession		: [ n: "Timed Session",			d: "timers",				a: "sessionStatus",	c: ["cancel", "pause", "setTimeRemaining", "start", "stop", ],		],
-	tone				: [ n: "Tone",					d: "tone generators",						c: ["beep"],								],
-	touchSensor			: [ n: "Touch Sensor",			d: "touch sensors",			a: "touch",  /* m: true */									],
-	ultravioletIndex	: [ n: "Ultraviolet Index",		d: "ultraviolet sensors",		a: "ultravioletIndex",										],
-	valve				: [ n: "Valve",					d: "valves",				a: "valve",		c: [sCLOSE, sOPEN],							],
-//	variable			: [ n: "Variable",				d: "variables",				a: "variable",		c: ["setVariable"],							],
-	videoCamera			: [ n: "Video Camera",			d: "cameras",				a: "camera",		c: ["flip", "mute", sOFF, sON, "unmute"],				],
-	voltageMeasurement	: [ n: "Voltage Measurement",	d: "voltmeters",			a: "voltage",											],
-	waterSensor			: [ n: "Water Sensor",			d: "water and leak sensors",		a: "water",											],
-	windowBlind			: [ n: "Window Blind",			d: "automatic window blinds",		a: "windowShade",	c: [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange", "setTiltLevel"],					],
-	windowShade			: [ n: "Window Shade",			d: "automatic window shades",		a: "windowShade",	c: [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange"],					],
+@Field final Map<String,Map> capabilitiesFLD=[
+	accelerationSensor	: [ (sN): "Acceleration Sensor",	(sD): "acceleration sensors",		(sA): "acceleration",								],
+	actuator			: [ (sN): "Actuator",				(sD): "actuators",																	],
+	airQuality			: [ (sN): "Air Quality Sensor",		(sD): "air quality sensors",		(sA): "airQualityIndex",							],
+	alarm				: [ (sN): "Alarm",					(sD): "alarms and sirens",			(sA): "alarm",		(sC): [sOFF, "strobe", "siren", "both"],			],
+	audioNotification	: [ (sN): "Audio Notification",		(sD): "audio notification devices",				(sC): ["playText", "playTextAndResume", "playTextAndRestore", "playTrack", "playTrackAndResume", "playTrackAndRestore"],			],
+	audioVolume			: [ (sN): "Audio Volume",			(sD): "audio volume devices",		(sA): "volume",		(sC): ["mute", "setVolume", "unmute", "volumeDown", "volumeUp"],			],
+	battery				: [ (sN): "Battery",				(sD): "battery powered devices",	(sA): "battery",									],
+	beacon				: [ (sN): "Beacon",					(sD): "beacons",					(sA): "presence",									],
+	bulb				: [ (sN): "Bulb",					(sD): "bulbs",						(sA): sSWITCH,		(sC): [sOFF, sON],					],
+	carbonDioxideMeasurement	: [ (sN): "Carbon Dioxide Measurement",	(sD): "carbon dioxide sensors",		(sA): "carbonDioxide",								],
+	carbonMonoxideDetector		: [ (sN): "Carbon Monoxide Detector",	(sD): "carbon monoxide detectors",		(sA): "carbonMonoxide",								],
+	changeLevel			: [ (sN): "Change Level",			(sD): "level adjustment devices",					(sC): ["startLevelChange", "stopLevelChange"],		],
+	chime				: [ (sN): "Chime",					(sD): "chime devices",				(sA): "status",		(sC): ["playSound", "stop"],				],
+	colorControl		: [ (sN): "Color Control",			(sD): "adjustable color lights",	(sA): sCOLOR,		(sC): ["setColor", "setHue", "setSaturation"],		],
+	colorMode			: [ (sN): "Color Mode",				(sD): "color mode devices",		(sA): "colorMode",									],
+	colorTemperature	: [ (sN): "Color Temperature",		(sD): "adjustable white lights",	(sA): "colorTemperature",	(sC): ["setColorTemperature"],				],
+	configuration		: [ (sN): "Configuration",			(sD): "configurable devices",					(sC): ["configure"],					],
+	consumable			: [ (sN): "Consumable",				(sD): "consumables",				(sA): "consumableStatus",	(sC): ["setConsumableStatus"],				],
+	contactSensor		: [ (sN): "Contact Sensor",			(sD): "contact sensors",			(sA): "contact",									],
+	currentMeter		: [ (sN): "Current Meter",			(sD): "current meter sensors",		(sA): "amperage",								],
+	doorControl			: [ (sN): "Door Control",			(sD): "automatic doors",			(sA): "door",		(sC): [sCLOSE, sOPEN],					],
+	doubleTapableButton	: [ (sN): "Double Tapable Button",	(sD): "double tapable buttons",		(sA): "doubleTapped",	(sM): true,	(sC): ["doubleTap"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/	],
+	energyMeter			: [ (sN): "Energy Meter",			(sD): "energy meters",				(sA): "energy",									],
+	estimatedTimeOfArrival		: [ (sN): "Estimated Time of Arrival",	(sD): "moving devices (ETA)",		(sA): "eta",									],
+	fanControl			: [ (sN): "Fan Control",			(sD): "fan devices",				(sA): "speed",		(sC): ["setSpeed", "cycleSpeed"],					],
+	filterStatus		: [ (sN): "Filter Status",			(sD): "filters",					(sA): "filterStatus",								],
+	garageDoorControl	: [ (sN): "Garage Door Control",	(sD): "automatic garage doors",	(sA): "door",		(sC): [sCLOSE, sOPEN],					],
+	gasDetector			: [ (sN): "Gas Detector",			(sD): "gas detectors",				(sA): "naturalGas",							],
+//	holdableButton		: [ (sN): "Holdable Button",		(sD): "holdable buttons",			(sA): "button",		(sM): true,	(sS): "numberOfButtons,numButtons", i: "buttonNumber",			],
+	holdableButton		: [ (sN): "Holdable Button",		(sD): "holdable buttons",			(sA): "held",		(sM): true,	(sC): ["hold"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/		],
+	illuminanceMeasurement		: [ (sN): "Illuminance Measurement",	(sD): "illuminance sensors",		(sA): "illuminance",										],
+	imageCapture		: [ (sN): "Image Capture",			(sD): "cameras, imaging devices",	(sA): "image",		(sC): ["take"],						],
+	indicator			: [ (sN): "Indicator",				(sD): "indicator devices",			(sA): "indicatorStatus",	(sC): ["indicatorNever", "indicatorWhenOn", "indicatorWhenOff"],		],
+//	infraredLevel		: [ (sN): "Infrared Level",			(sD): "adjustable infrared lights",	(sA): "infraredLevel",	(sC): ["setInfraredLevel"],						],
+	levelPreset			: [ (sN): "Level Preset",			(sD): "adjustable levels",			(sA): "levelPreset",	(sC): ["presetLevel"],							],
+	light				: [ (sN): "Light",					(sD): "lights",					(sA): sSWITCH,		(sC): [sOFF, sON],							],
+	lightEffects		: [ (sN): "Light Effects",			(sD): "light effects",				(sA): "effectName",	(sC): ["setEffect", "setNextEffect", "setPreviousEffect"],			],
+	liquidFlowRate		: [ (sN): "Liquid Flow Rate",		(sD): "liquid flow rates",			(sA): "rate",											],
+//	lock				: [ (sN): "Lock",					(sD): "electronic locks",			(sA): "lock",		(sC): ["lock", "unlock"],	(sS):"numberOfCodes,numCodes", i: "usedCode",	],
+	lock				: [ (sN): "Lock",					(sD): "electronic locks",			(sA): "lock",		(sC): ["lock", "unlock"],	/*s:"numberOfCodes,numCodes", i: "usedCode",*/	],
+	lockCodes			: [ (sN): "Lock Codes",				(sD): "locks with lock codes",			(sA): "codeChanged",	(sC): ["deleteCode", "getCodes", "setCode", "setCodeLength"],		],
+//	lockOnly			: [ (sN): "Lock Only",				(sD): "electronic locks (lock only)",	(sA): "lock",		(sC): ["lock"],								],
+	mediaController		: [ (sN): "Media Controller",		(sD): "media controllers",			(sA): "currentActivity",	(sC): ["startActivity", "getAllActivities", "getCurrentActivity"],		],
+	mediaInputSource	: [ (sN): "Media Input Source",		(sD): "media input sources",			(sA): "mediaInputSource",	(sC): ["setInputSource"],		],
+	mediaTransport		: [ (sN): "Media Transport",		(sD): "media transport",			(sA): "transportStatus",	(sC): ["play", "pause", "stop"],		],
+//	momentary			: [ (sN): "Momentary",				(sD): "momentary switches",					(sC): ["push"],								],
+	momentary			: [ (sN): "Momentary",				(sD): "momentary switches",			(sM): true,	(sC): ["pushMomentary"],					],
+	motionSensor		: [ (sN): "Motion Sensor",			(sD): "motion sensors",			(sA): "motion",											],
+	musicPlayer			: [ (sN): "Music Player",			(sD): "music players",				(sA): "status",	(sC): ["mute", "nextTrack", "pause", "play", "playTrack", "previousTrack", "restoreTrack", "resumeTrack", "setLevel", "setTrack", "stop", "unmute"],		],
+	notification		: [ (sN): "Notification",			(sD): "notification devices",					(sC): ["deviceNotification"],						],
+	outlet				: [ (sN): "Outlet",					(sD): "lights",					(sA): sSWITCH,		(sC): [sOFF, sON],							],
+	pHMeasurement		: [ (sN): "pH Measurement",			(sD): "pH sensors",				(sA): "pH",											],
+	polling				: [ (sN): "Polling",				(sD): "pollable devices",						(sC): ["poll"],								],
+	powerMeter			: [ (sN): "Power Meter",			(sD): "power meters",				(sA): "power",											],
+	powerSource			: [ (sN): "Power Source",			(sD): "multisource powered devices",	(sA): "powerSource",										],
+	presenceSensor		: [ (sN): "Presence Sensor",		(sD): "presence sensors",			(sA): "presence",											],
+	pushableButton		: [ (sN): "Pushable Button",		(sD): "pushable buttons",			(sA): "pushed",		(sM): true,	(sC): ["push"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/		],
+	refresh				: [ (sN): "Refresh",				(sD): "refreshable devices",					(sC): ["refresh"],								],
+	relativeHumidityMeasurement	: [ (sN): "Relative Humidity Measurement",	(sD): "humidity sensors",			(sA): "humidity",											],
+	relaySwitch			: [ (sN): "Relay Switch",			(sD): "relay switches",			(sA): sSWITCH,		(sC): [sOFF, sON],							],
+	releasableButton	: [ (sN): "Releasable Button",		(sD): "releasable buttons",		(sA): "released",		(sM): true,	(sC): ["release"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/			],
+	//samsungTV		: [ (sN): "Samsung TV",		(sD): "Samsung TVs",			(sA): "switch",	(sC): ["mute", sOFF, sON, "setPictureMode", "setSoundMode", "setVoulume", "showMessage", "unmute", "volumeDown", "volumeUp"],										],
+	securityKeypad		: [ (sN): "Security Keypad",		(sD): "security keypads",			(sA): "securityKeypad",	(sC): ["armAway", "armHome", "deleteCode", "disarm", "getCodes", "setCode", "setCodeLength", "setEntryDelay", "setExitDelay"],										],
+	sensor				: [ (sN): "Sensor",					(sD): "sensors",					(sA): "sensor",											],
+	shockSensor			: [ (sN): "Shock Sensor",			(sD): "shock sensors",				(sA): "shock",											],
+	signalStrength		: [ (sN): "Signal Strength",		(sD): "wireless devices",			(sA): "rssi",											],
+	sleepSensor			: [ (sN): "Sleep Sensor",			(sD): "sleep sensors",				(sA): "sleeping",											],
+	smokeDetector		: [ (sN): "Smoke Detector",			(sD): "smoke detectors",			(sA): "smoke",											],
+	soundPressureLevel	: [ (sN): "Sound Pressure Level",	(sD): "sound pressure sensors",	(sA): "soundPressureLevel",									],
+	soundSensor			: [ (sN): "Sound Sensor",			(sD): "sound sensors",				(sA): "sound",											],
+	speechRecognition	: [ (sN): "Speech Recognition",		(sD): "speech recognition devices",	(sA): "phraseSpoken",				(sM): true,					],
+	speechSynthesis		: [ (sN): "Speech Synthesis",		(sD): "speech synthesizers",					(sC): ["speak"],								],
+	stepSensor			: [ (sN): "Step Sensor",			(sD): "step counters",				(sA): "steps",											],
+	(sSWITCH)			: [ (sN): "Switch",					(sD): "switches",					(sA): sSWITCH,		(sC): [sOFF, sON],							],
+	switchLevel			: [ (sN): "Switch Level",			(sD): "dimmers and dimmable lights",	(sA): sLVL,		(sC): ["setLevel"],							],
+	//tv		: [ (sN): "TV",		(sD): "TVs",			(sA): "power",	(sC): ["channelDown", "channelUp", "volumeDown", "volumeUp"],										],
+	tamperAlert			: [ (sN): "Tamper Alert",			(sD): "tamper sensors",			(sA): "tamper",											],
+	temperatureMeasurement		: [ (sN): "Temperature Measurement",	(sD): "temperature sensors",		(sA): "temperature",										],
+	thermostat			: [ (sN): "Thermostat",				(sD): "thermostats",			(sA): sTHERM,	(sC): ["auto", "cool", "eco", "emergencyHeat", "fanAuto", "fanCirculate", "fanOn", "heat", sOFF, "setCoolingSetpoint", "setHeatingSetpoint", /* "setSchedule",*/ "setThermostatFanMode", "setThermostatMode"],	],
+	thermostatCoolingSetpoint	: [ (sN): "Thermostat Cooling Setpoint",	(sD): "thermostats (cooling)",		(sA): "coolingSetpoint",	(sC): ["setCoolingSetpoint"],						],
+	thermostatFanMode	: [ (sN): "Thermostat Fan Mode",	(sD): "fans",					(sA): sTHERFM,	(sC): ["fanAuto", "fanCirculate", "fanOn", "setThermostatFanMode"],	],
+	thermostatHeatingSetpoint	: [ (sN): "Thermostat Heating Setpoint",	(sD): "thermostats (heating)",		(sA): "heatingSetpoint",	(sC): ["setHeatingSetpoint"],						],
+	thermostatMode		: [ (sN): "Thermostat Mode",		(sD): "thermostat modes",						(sA): sTHERM,	(sC): ["auto", "cool", "eco", "emergencyHeat", "heat", sOFF, "setThermostatMode"],	],
+	thermostatOperatingState	: [ (sN): "Thermostat Operating State",		(sD): "thermostat operating states",		(sA): "thermostatOperatingState",									],
+//	thermostatSchedule	: [ (sN): "Thermostat Schedule",							(sA): "schedule",									],
+	thermostatSetpoint	: [ (sN): "Thermostat Setpoint",	(sD): "thermostat setpoints",					(sA): "thermostatSetpoint",									],
+	threeAxis			: [ (sN): "Three Axis Sensor",		(sD): "three axis sensors",		(sA): "orientation",										],
+	timedSession		: [ (sN): "Timed Session",			(sD): "timers",				(sA): "sessionStatus",	(sC): ["cancel", "pause", "setTimeRemaining", "start", "stop", ],		],
+	tone				: [ (sN): "Tone",					(sD): "tone generators",						(sC): ["beep"],								],
+	touchSensor			: [ (sN): "Touch Sensor",			(sD): "touch sensors",			(sA): "touch",  /* (sM): true */									],
+	ultravioletIndex	: [ (sN): "Ultraviolet Index",		(sD): "ultraviolet sensors",		(sA): "ultravioletIndex",										],
+	valve				: [ (sN): "Valve",					(sD): "valves",				(sA): "valve",		(sC): [sCLOSE, sOPEN],							],
+//	variable			: [ (sN): "Variable",				(sD): "variables",				(sA): sVARIABLE,		(sC): ["setVariable"],							],
+	videoCamera			: [ (sN): "Video Camera",			(sD): "cameras",				(sA): "camera",		(sC): ["flip", "mute", sOFF, sON, "unmute"],				],
+	voltageMeasurement	: [ (sN): "Voltage Measurement",	(sD): "voltmeters",			(sA): "voltage",											],
+	waterSensor			: [ (sN): "Water Sensor",			(sD): "water and leak sensors",		(sA): "water",											],
+	windowBlind			: [ (sN): "Window Blind",			(sD): "automatic window blinds",		(sA): "windowShade",	(sC): [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange", "setTiltLevel"],					],
+	windowShade			: [ (sN): "Window Shade",			(sD): "automatic window shades",		(sA): "windowShade",	(sC): [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange"],					],
 ]
 
 private Map capabilities(){
@@ -3330,153 +3670,153 @@ private Map capabilities(){
 }
 
 Map getChildAttributes(){
-	Map result=attributesFLD
-	Map cleanResult=[:]
-	Map defv=[n:"a"]
+	Map<String,Map> result=attributesFLD
+	Map<String,Map> cleanResult=[:]
+	Map defv=[(sN):sA]
 	result.each{
 		Map t0=[:]
 		String hasI=it.value.i
 		def hasP=it.value.p
 		String hasT=it.value.t
 		def hasM=it.value.m
-		if(hasI) t0=t0 + [i:hasI]
-		if(hasP != null) t0=t0 + [p:hasP.toBoolean()]
-		if(hasT) t0=t0 + [t:hasT]
-		if(hasM != null) t0=t0 + [m:hasM.toBoolean()]
+		if(hasI) t0=t0 + [(sI):hasI]
+		if(hasP != null) t0=t0 + [(sP):hasP.toBoolean()]
+		if(hasT) t0=t0 + [(sT):hasT]
+		if(hasM != null) t0=t0 + [(sM):hasM.toBoolean()]
 		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
 	return cleanResult
 }
 
-@Field final Map attributesFLD=[
-	acceleration		: [ n: "acceleration",		t: sENUM,		o: [sACT, sINACT],						],
-	activities			: [ n: "activities",		t: "object",											],
-	airQualityIndex		: [ n: "air quality index",	t: sINT,	r: [0, 500],		u: "AQI",				],
-	alarm				: [ n: "alarm",				t: sENUM,		o: ["both", sOFF, "siren", "strobe"],	],
-	amperage			: [ n: "amperage",			t: sDEC,	r: [0, null],		u: "A",					],
-//	axisX				: [ n: "X axis",			t: sINT,	r: [-1024, 1024],	s: "threeAxis",			],
-//	axisY				: [ n: "Y axis",			t: sINT,	r: [-1024, 1024],	s: "threeAxis",			],
-//	axisZ				: [ n: "Z axis",			t: sINT,	r: [-1024, 1024],	s: "threeAxis",			],
-	axisX				: [ n: "axis X",			t: sDEC,	s: "threeAxis" ],
-	axisY				: [ n: "axis Y",			t: sDEC,	s: "threeAxis" ],
-	axisZ				: [ n: "axis Z",			t: sDEC,	s: "threeAxis" ],
-	battery				: [ n: "battery",			t: sINT,	r: [0, 100],		u: "%",							],
-	camera				: [ n: "camera",			t: sENUM,		o: [sON, sOFF, "restarting", "unavailable"],				],
-	carbonDioxide		: [ n: "carbon dioxide",	t: sDEC,	r: [0, null],									],
-	carbonMonoxide		: [ n: "carbon monoxide",	t: sENUM,		o: ["clear", "detected", "tested"],					],
-	codeChanged			: [ n: "lock code",			t: sENUM,		o: ["added", "changed", "deleted", "failed"],				],
-//	codeLength			: [ n: "Lock code length",	t: sINT,											],
-	(sCOLOR)			: [ n: sCOLOR,				t: sCOLOR,											],
-//	colorName			: [ n: "color name",		t: sSTR,											],
-	colorMode			: [ n: "color mode",		t: sENUM,		o: ["CT", "RGB"],							],
-	colorTemperature	: [ n: "color temperature",	t: sINT,	r: [1000, 30000],	u: "°K",						],
-	consumableStatus	: [ n: "consumable status",	t: sENUM,		o: ["good", "maintenance_required", "missing", "order", "replace"],	],
-	contact				: [ n: "contact",			t: sENUM,		o: ["closed", sOPEN],							],
-	coolingSetpoint		: [ n: "cooling setpoint",	t: sDEC,	r: [-127, 127],		u: '°?',						],
-	currentActivity		: [ n: "current activity",	t: sSTR,											],
-// p: is interaction type
-	door				: [ n: "door",				t: sENUM,		o: ["closed", "closing", sOPEN, "opening", "unknown"],		p: true,	],
-	energy				: [ n: "energy",			t: sDEC,	r: [0, null],		u: "kWh",						],
-	eta					: [ n: "ETA",				t: sDATIM,											],
-	effectName			: [ n: "effect name",		t: sSTR,											],
-	filterStatus		: [ n: "filter status",		t: sENUM,		o:["normal", "replace"],						],
-	frequency			: [ n: "frequency",			t: sDEC,		u: "Hz",							],
-	goal				: [ n: "goal",				t: sINT,	r: [0, null],									],
-	heatingSetpoint		: [ n: "heating setpoint",	t: sDEC,	r: [-127, 127],		u: '°?',						],
-	hex					: [ n: "hexadecimal code",	t: "hexcolor",											],
-	hue					: [ n: "hue",				t: sINT,	r: [0, 360],		u: "°",							],
-	humidity			: [ n: "relative humidity",	t: sINT,	r: [0, 100],		u: "%",							],
-	illuminance			: [ n: "illuminance",		t: sINT,	r: [0, null],		u: "lux",						],
-	image				: [ n: "image",				t: "image",											],
-	indicatorStatus		: [ n: "indicator status",	t: sENUM,		o: ["never", "when off", "when on"],					],
-//	infraredLevel		: [ n: "infrared level",	t: sINT,	r: [0, 100],		u: "%",							],
-//	lastCodeName		: [ n: "last lock code",	t: sSTR,											],
-	level				: [ n: sLVL,				t: sINT,	r: [0, 100],		u: "%",							],
-	levelPreset			: [ n: "preset level",		t: sINT,	r: [1, 100],		u: "%",							],
-	lightEffects		: [ n: "light effects",		t: "object",											],
-// s: is subdevices
-	lock				: [ n: "lock",				t: sENUM,		o: ["locked", "unknown", "unlocked", "unlocked with timeout"],	c: "lock",		p:true,		s:"numberOfCodes,numCodes", i:"usedCode", sd: "user code"		],
-	lockCodes			: [ n: "lock codes",		t: "object",											],
-	lqi					: [ n: "link quality",		t: sINT,	r: [0, 255],									],
-//	maxCodes			: [ n: "Max Lock codes",	t: sINT,											],
-	momentary			: [ n: "momentary",			t: sENUM,		o: ["pushed"],								],
-	motion				: [ n: "motion",			t: sENUM,		o: [sACT, sINACT],						],
-	mute				: [ n: "mute",				t: sENUM,		o: ["muted", "unmuted"],						],
-	naturalGas			: [ n: "natural gas",		t: sENUM,		o: ["clear", "detected", "tested"],					],
-	orientation			: [ n: "orientation",		t: sENUM,		o: ["rear side up", "down side up", "left side up", "front side up", "up side up", "right side up"],	],
-	pH					: [ n: "pH level",			t: sDEC,	r: [0, 14],									],
-	phraseSpoken		: [ n: "phrase",			t: sSTR,											],
-	position			: [ n: "position",			t: sINT,	r: [0, 100],		u: "%",							],
-	power				: [ n: "power",				t: sDEC,		u: "W",									],
-	powerSource			: [ n: "power source",		t: sENUM,		o: ["battery", "dc", "mains", "unknown"],				],
-	presence			: [ n: "presence",			t: sENUM,		o: ["not present", "present"],						],
-	rate				: [ n: "liquid flow rate",	t: sDEC,											],
-//	RGB					: [ n: "rgb",				t: sSTR,											],
-	rssi				: [ n: "signal strength",	t: sINT,	r: [0, 100],		u: "%",							],
-	saturation			: [ n: "saturation",		t: sINT,	r: [0, 100],		u: "%",							],
-//	schedule			: [ n: "schedule",			t: "object",											],
-	securityKeypad		: [ n: "security keypad",	t: sENUM,		o: ["disarmed", "armed home", "armed away", "unknown"],			],
-	sessionStatus		: [ n: "session status",	t: sENUM,		o: ["canceled", "paused", "running", "stopped"],			],
-	shock				: [ n: "shock",				t: sENUM,		o: ["clear", "detected"],						],
-	sleeping			: [ n: "sleeping",			t: sENUM,		o: ["not sleeping", "sleeping"],					],
-	smoke				: [ n: "smoke",				t: sENUM,		o: ["clear", "detected", "tested"],					],
-	sound				: [ n: "sound",				t: sENUM,		o: ["detected", "not detected"],					],
-	soundEffects		: [ n: "sound effects",		t: "object",											],
-	soundName			: [ n: "sound name",		t: sSTR,											],
-	soundPressureLevel	: [ n: "sound pressure level",		t: sINT,	r: [0, null],		u: "dB",						],
-	speed				: [ n: "speed",				t: sENUM,		o: ["low", "medium-low", "medium", "medium-high", "high", sON, sOFF, "auto"],						],
-	status				: [ n: "status",			t: sENUM,		o: ["playing", "stopped"],						],
-//	status				: [ n: "status",			t: sSTR,											],
-	steps				: [ n: "steps",				t: sINT,		r: [0, null],									],
-	(sSWITCH)			: [ n: sSWITCH,				t: sENUM,		o: [sOFF, sON],		p: true,					],
-	tamper				: [ n: "tamper",			t: sENUM,		o: ["clear", "detected"],						],
-	temperature			: [ n: "temperature",		t: sDEC,		r: [-460, 10000],	u: '°?',						],
-	thermostatFanMode	: [ n: "fan mode",			t: sENUM,		o: ["auto", "circulate", sON],						],
-	thermostatMode		: [ n: "thermostat mode",	t: sENUM,		o: ["auto", "cool", "eco", "emergency heat", "heat", sOFF],		],
-	thermostatOperatingState	: [ n: "operating state",		t: sENUM,		o: ["cooling", "fan only", "heating", "idle", "pending cool", "pending heat", "vent economizer"],	],
-	thermostatSetpoint	: [ n: "setpoint",			t: sDEC,		r: [-127, 127],		u: '°?',						],
-	threeAxis			: [ n: "vector",			t: "vector3",											],
-	tilt				: [ n: "tilt",				t: sINT,		r: [0, 100],		u: "%",							],
-	timeRemaining		: [ n: "time remaining",	t: sINT,		r: [0, null],		u: "s",							],
-	touch				: [ n: "touch",				t: sENUM,		o: ["touched"],								],
-	trackData			: [ n: "track data",		t: "object",											],
-	trackDescription	: [ n: "track description",		t: sSTR,											],
-	ultravioletIndex	: [ n: "UV index",			t: sINT,		r: [0, null],									],
-	valve				: [ n: "valve",				t: sENUM,		o: ["closed", sOPEN],							],
-//	variable			: [ n: "variable value",	t: sSTR,											],
-	voltage				: [ n: "voltage",			t: sDEC,		r: [null, null],	u: "V",							],
-	volume				: [ n: "volume",			t: sINT,		r: [0, 100],		u: "%",							],
-	water				: [ n: "water",				t: sENUM,		o: ["dry", "wet"],							],
-	windowShade			: [ n: "window shade",		t: sENUM,		o: ["closed", "closing", sOPEN, "opening", "partially open", "unknown"],	],
+@Field final Map<String,Map> attributesFLD=[
+	acceleration		: [ (sN): "acceleration",		(sT): sENUM,		(sO): [sACT, sINACT],						],
+	activities			: [ (sN): "activities",			(sT): "object",											],
+	airQualityIndex		: [ (sN): "air quality index",	(sT): sINT,	(sR): [0, 500],		u: "AQI",				],
+	alarm				: [ (sN): "alarm",				(sT): sENUM,		(sO): ["both", sOFF, "siren", "strobe"],	],
+	amperage			: [ (sN): "amperage",			(sT): sDEC,	(sR): [0, null],		u: "A",					],
+//	axisX				: [ (sN): "X axis",				(sT): sINT,	(sR): [-1024, 1024],	(sS): "threeAxis",			],
+//	axisY				: [ (sN): "Y axis",				(sT): sINT,	(sR): [-1024, 1024],	(sS): "threeAxis",			],
+//	axisZ				: [ (sN): "Z axis",				(sT): sINT,	(sR): [-1024, 1024],	(sS): "threeAxis",			],
+	axisX				: [ (sN): "axis X",				(sT): sDEC,	(sS): "threeAxis" ],
+	axisY				: [ (sN): "axis Y",				(sT): sDEC,	(sS): "threeAxis" ],
+	axisZ				: [ (sN): "axis Z",				(sT): sDEC,	(sS): "threeAxis" ],
+	battery				: [ (sN): "battery",			(sT): sINT,	(sR): [0, 100],		u: "%",							],
+	camera				: [ (sN): "camera",				(sT): sENUM,		(sO): [sON, sOFF, "restarting", "unavailable"],				],
+	carbonDioxide		: [ (sN): "carbon dioxide",		(sT): sDEC,	(sR): [0, null],									],
+	carbonMonoxide		: [ (sN): "carbon monoxide",	(sT): sENUM,		(sO): ["clear", "detected", "tested"],					],
+	codeChanged			: [ (sN): "lock code",			(sT): sENUM,		(sO): ["added", "changed", "deleted", "failed"],				],
+//	codeLength			: [ (sN): "Lock code length",	(sT): sINT,											],
+	(sCOLOR)			: [ (sN): sCOLOR,				(sT): sCOLOR,											],
+//	colorName			: [ (sN): "color name",			(sT): sSTR,											],
+	colorMode			: [ (sN): "color mode",			(sT): sENUM,		(sO): ["CT", "RGB"],							],
+	colorTemperature	: [ (sN): "color temperature",	(sT): sINT,	(sR): [1000, 30000],	u: "°K",						],
+	consumableStatus	: [ (sN): "consumable status",	(sT): sENUM,		(sO): ["good", "maintenance_required", "missing", "order", "replace"],	],
+	contact				: [ (sN): "contact",			(sT): sENUM,		(sO): ["closed", sOPEN],							],
+	coolingSetpoint		: [ (sN): "cooling setpoint",	(sT): sDEC,	(sR): [-127, 127],		u: '°?',						],
+	currentActivity		: [ (sN): "current activity",	(sT): sSTR,											],
+//	p: is interaction type
+	door				: [ (sN): "door",				(sT): sENUM,		(sO): ["closed", "closing", sOPEN, "opening", "unknown"],		(sP): true,	],
+	energy				: [ (sN): "energy",				(sT): sDEC,	(sR): [0, null],		u: "kWh",						],
+	eta					: [ (sN): "ETA",				(sT): sDTIME,											],
+	effectName			: [ (sN): "effect name",		(sT): sSTR,											],
+	filterStatus		: [ (sN): "filter status",		(sT): sENUM,		(sO):["normal", "replace"],						],
+	frequency			: [ (sN): "frequency",			(sT): sDEC,		u: "Hz",							],
+	goal				: [ (sN): "goal",				(sT): sINT,	(sR): [0, null],									],
+	heatingSetpoint		: [ (sN): "heating setpoint",	(sT): sDEC,	(sR): [-127, 127],		u: '°?',						],
+	hex					: [ (sN): "hexadecimal code",	(sT): "hexcolor",											],
+	hue					: [ (sN): "hue",				(sT): sINT,	(sR): [0, 360],		u: "°",							],
+	humidity			: [ (sN): "relative humidity",	(sT): sINT,	(sR): [0, 100],		u: "%",							],
+	illuminance			: [ (sN): "illuminance",		(sT): sINT,	(sR): [0, null],		u: "lux",						],
+	image				: [ (sN): "image",				(sT): "image",											],
+	indicatorStatus		: [ (sN): "indicator status",	(sT): sENUM,		(sO): ["never", "when off", "when on"],					],
+//	infraredLevel		: [ (sN): "infrared level",		(sT): sINT,	(sR): [0, 100],		u: "%",							],
+//	lastCodeName		: [ (sN): "last lock code",		(sT): sSTR,											],
+	level				: [ (sN): sLVL,					(sT): sINT,	(sR): [0, 100],		u: "%",							],
+	levelPreset			: [ (sN): "preset level",		(sT): sINT,	(sR): [1, 100],		u: "%",							],
+	lightEffects		: [ (sN): "light effects",		(sT): "object",											],
+// (sS): is subdevices
+	lock				: [ (sN): "lock",				(sT): sENUM,		(sO): ["locked", "unknown", "unlocked", "unlocked with timeout"],	(sC): "lock",		(sP):true,		(sS):"numberOfCodes,numCodes", (sI):"usedCode", sd: "user code"		],
+	lockCodes			: [ (sN): "lock codes",			(sT): "object",											],
+	lqi					: [ (sN): "link quality",		(sT): sINT,	(sR): [0, 255],									],
+//	maxCodes			: [ (sN): "Max Lock codes",		(sT): sINT,											],
+//	momentary			: [ (sN): "momentary",			(sT): sENUM,		(sO): ["pushed"],								],
+	motion				: [ (sN): "motion",				(sT): sENUM,		(sO): [sACT, sINACT],						],
+	mute				: [ (sN): "mute",				(sT): sENUM,		(sO): ["muted", "unmuted"],						],
+	naturalGas			: [ (sN): "natural gas",		(sT): sENUM,		(sO): ["clear", "detected", "tested"],					],
+	orientation			: [ (sN): "orientation",		(sT): sENUM,		(sO): ["rear side up", "down side up", "left side up", "front side up", "up side up", "right side up"],	],
+	pH					: [ (sN): "pH level",			(sT): sDEC,	(sR): [0, 14],									],
+	phraseSpoken		: [ (sN): "phrase",				(sT): sSTR,											],
+	position			: [ (sN): "position",			(sT): sINT,	(sR): [0, 100],		u: "%",							],
+	power				: [ (sN): "power",				(sT): sDEC,		u: "W",									],
+	powerSource			: [ (sN): "power source",		(sT): sENUM,		(sO): ["battery", "dc", "mains", "unknown"],				],
+	presence			: [ (sN): "presence",			(sT): sENUM,		(sO): ["not present", "present"],						],
+	rate				: [ (sN): "liquid flow rate",	(sT): sDEC,											],
+//	RGB					: [ (sN): "rgb",				(sT): sSTR,											],
+	rssi				: [ (sN): "signal strength",	(sT): sINT,	(sR): [0, 100],		u: "%",							],
+	saturation			: [ (sN): "saturation",			(sT): sINT,	(sR): [0, 100],		u: "%",							],
+//	schedule			: [ (sN): "schedule",			(sT): "object",											],
+	securityKeypad		: [ (sN): "security keypad",	(sT): sENUM,		(sO): ["disarmed", "armed home", "armed away", "unknown"],			],
+	sessionStatus		: [ (sN): "session status",		(sT): sENUM,		(sO): ["canceled", "paused", "running", "stopped"],			],
+	shock				: [ (sN): "shock",				(sT): sENUM,		(sO): ["clear", "detected"],						],
+	sleeping			: [ (sN): "sleeping",			(sT): sENUM,		(sO): ["not sleeping", "sleeping"],					],
+	smoke				: [ (sN): "smoke",				(sT): sENUM,		(sO): ["clear", "detected", "tested"],					],
+	sound				: [ (sN): "sound",				(sT): sENUM,		(sO): ["detected", "not detected"],					],
+	soundEffects		: [ (sN): "sound effects",		(sT): "object",											],
+	soundName			: [ (sN): "sound name",			(sT): sSTR,											],
+	soundPressureLevel	: [ (sN): "sound pressure level",		(sT): sINT,	(sR): [0, null],		u: "dB",						],
+	speed				: [ (sN): "speed",				(sT): sENUM,		(sO): ["low", "medium-low", "medium", "medium-high", "high", sON, sOFF, "auto"],						],
+	status				: [ (sN): "status",				(sT): sENUM,		(sO): ["playing", "stopped"],						],
+//	status				: [ (sN): "status",				(sT): sSTR,											],
+	steps				: [ (sN): "steps",				(sT): sINT,		(sR): [0, null],									],
+	(sSWITCH)			: [ (sN): sSWITCH,				(sT): sENUM,		(sO): [sOFF, sON],		(sP): true,					],
+	tamper				: [ (sN): "tamper",				(sT): sENUM,		(sO): ["clear", "detected"],						],
+	temperature			: [ (sN): "temperature",		(sT): sDEC,		(sR): [-460, 10000],	u: '°?',						],
+	thermostatFanMode	: [ (sN): "fan mode",			(sT): sENUM,		(sO): ["auto", "circulate", sON],						],
+	thermostatMode		: [ (sN): "thermostat mode",	(sT): sENUM,		(sO): ["auto", "cool", "eco", "emergency heat", "heat", sOFF],		],
+	thermostatOperatingState	: [ (sN): "operating state",		(sT): sENUM,		(sO): ["cooling", "fan only", "heating", "idle", "pending cool", "pending heat", "vent economizer"],	],
+	thermostatSetpoint	: [ (sN): "setpoint",			(sT): sDEC,		(sR): [-127, 127],		u: '°?',						],
+	threeAxis			: [ (sN): "vector",				(sT): "vector3",											],
+	tilt				: [ (sN): "tilt",				(sT): sINT,		(sR): [0, 100],		u: "%",							],
+	timeRemaining		: [ (sN): "time remaining",		(sT): sINT,		(sR): [0, null],		u: sS,							],
+	touch				: [ (sN): "touch",				(sT): sENUM,		(sO): ["touched"],								],
+	trackData			: [ (sN): "track data",			(sT): "object",											],
+	trackDescription	: [ (sN): "track description",		(sT): sSTR,											],
+	ultravioletIndex	: [ (sN): "UV index",			(sT): sINT,		(sR): [0, null],									],
+	valve				: [ (sN): "valve",				(sT): sENUM,		(sO): ["closed", sOPEN],							],
+//	variable			: [ (sN): "variable value",	(sT): sSTR,											],
+	voltage				: [ (sN): "voltage",			(sT): sDEC,		(sR): [null, null],	u: "V",							],
+	volume				: [ (sN): "volume",				(sT): sINT,		(sR): [0, 100],		u: "%",							],
+	water				: [ (sN): "water",				(sT): sENUM,		(sO): ["dry", "wet"],							],
+	windowShade			: [ (sN): "window shade",		(sT): sENUM,		(sO): ["closed", "closing", sOPEN, "opening", "partially open", "unknown"],	],
 //webCoRE Presence Sensor
-	altitude			: [ n: "altitude (usc)",	t: sDEC,	r: [null, null],	u: "ft",						],
-	altitudeMetric		: [ n: "altitude (metric)",	t: sDEC,	r: [null, null],	u: "m",							],
-	floor				: [ n: "floor",				t: sINT,	r: [null, null],								],
-	distance			: [ n: "distance (usc)",	t: sDEC,	r: [null, null],	u: "mi",						],
-	distanceMetric		: [ n: "distance (metric)",	t: sDEC,	r: [null, null],	u: "km",						],
-	currentPlace		: [ n: "current place",		t: sSTR,											],
-	previousPlace		: [ n: "previous place",	t: sSTR,											],
-	closestPlace		: [ n: "closest place",		t: sSTR,											],
-	arrivingAtPlace		: [ n: "arriving at place",	t: sSTR,											],
-	leavingPlace		: [ n: "leaving place",		t: sSTR,											],
-	places				: [ n: "places",			t: sSTR,											],
-	horizontalAccuracyMetric	: [ n: "horizontal accuracy (metric)",	t: sDEC,	r: [null, null],	u: "m",							],
-	horizontalAccuracy	: [ n: "horizontal accuracy (usc)",	t: sDEC,	r: [null, null],	u: "ft",						],
-	verticalAccuracy	: [ n: "vertical accuracy (usc)",	t: sDEC,	r: [null, null],	u: "ft",						],
-	verticalAccuracyMetric		: [ n: "vertical accuracy (metric)",	t: sDEC,	r: [null, null],	u: "m",							],
-	latitude			: [ n: "latitude",			t: sDEC,	r: [null, null],	u: "°",							],
-	longitude			: [ n: "longitude",			t: sDEC,	r: [null, null],	u: "°",							],
-	closestPlaceDistance		: [ n: "distance to closest place (usc)",	t: sDEC,	r: [null, null],	u: "mi",					],
-	closestPlaceDistanceMetric	: [ n: "distance to closest place (metric)",	t: sDEC,	r: [null, null],	u: "km",					],
+	altitude			: [ (sN): "altitude (usc)",		(sT): sDEC,	(sR): [null, null],	u: "ft",						],
+	altitudeMetric		: [ (sN): "altitude (metric)",	(sT): sDEC,	(sR): [null, null],	u: sM,							],
+	floor				: [ (sN): "floor",				(sT): sINT,	(sR): [null, null],								],
+	distance			: [ (sN): "distance (usc)",		(sT): sDEC,	(sR): [null, null],	u: "mi",						],
+	distanceMetric		: [ (sN): "distance (metric)",	(sT): sDEC,	(sR): [null, null],	u: "km",						],
+	currentPlace		: [ (sN): "current place",		(sT): sSTR,											],
+	previousPlace		: [ (sN): "previous place",		(sT): sSTR,											],
+	closestPlace		: [ (sN): "closest place",		(sT): sSTR,											],
+	arrivingAtPlace		: [ (sN): "arriving at place",	(sT): sSTR,											],
+	leavingPlace		: [ (sN): "leaving place",		(sT): sSTR,											],
+	places				: [ (sN): "places",				(sT): sSTR,											],
+	horizontalAccuracyMetric	: [ (sN): "horizontal accuracy (metric)",	(sT): sDEC,	(sR): [null, null],	u: sM,							],
+	horizontalAccuracy	: [ (sN): "horizontal accuracy (usc)",	(sT): sDEC,	(sR): [null, null],	u: "ft",						],
+	verticalAccuracy	: [ (sN): "vertical accuracy (usc)",	(sT): sDEC,	(sR): [null, null],	u: "ft",						],
+	verticalAccuracyMetric		: [ (sN): "vertical accuracy (metric)",	(sT): sDEC,	(sR): [null, null],	u: sM,							],
+	latitude			: [ (sN): "latitude",			(sT): sDEC,	(sR): [null, null],	u: "°",							],
+	longitude			: [ (sN): "longitude",			(sT): sDEC,	(sR): [null, null],	u: "°",							],
+	closestPlaceDistance		: [ (sN): "distance to closest place (usc)",	(sT): sDEC,	(sR): [null, null],	u: "mi",					],
+	closestPlaceDistanceMetric	: [ (sN): "distance to closest place (metric)",	(sT): sDEC,	(sR): [null, null],	u: "km",					],
 //don't confuse with fanspeed
-	speedUSC			: [ n: "speed (usc)",		t: sDEC,	r: [null, null],	u: "ft/s",						],
-	speedMetric			: [ n: "speed (metric)",	t: sDEC,	r: [null, null],	u: "m/s",						],
-	bearing				: [ n: "bearing",			t: sDEC,	r: [0, 360],		u: "°",							],
-	doubleTapped		: [ n: "double tapped button",	t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
-	held				: [ n: "held button",		t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
-	released			: [ n: "released button",	t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			],
-	pushed				: [ n: "pushed button",		t: sINT,	r: [null, null],	m: true,	/*s: "numberOfButtons",	i: "buttonNumber"*/			]
+	speedUSC			: [ (sN): "speed (usc)",		(sT): sDEC,	(sR): [null, null],	u: "ft/s",						],
+	speedMetric			: [ (sN): "speed (metric)",	(sT): sDEC,	(sR): [null, null],	u: "m/s",						],
+	bearing				: [ (sN): "bearing",			(sT): sDEC,	(sR): [0, 360],		u: "°",							],
+	doubleTapped		: [ (sN): "double tapped button",	(sT): sINT,	(sR): [null, null],	(sM): true,	/*s: "numberOfButtons",	(sI): "buttonNumber"*/			],
+	held				: [ (sN): "held button",		(sT): sINT,	(sR): [null, null],	(sM): true,	/*s: "numberOfButtons",	(sI): "buttonNumber"*/			],
+	released			: [ (sN): "released button",	(sT): sINT,	(sR): [null, null],	(sM): true,	/*s: "numberOfButtons",	(sI): "buttonNumber"*/			],
+	pushed				: [ (sN): "pushed button",		(sT): sINT,	(sR): [null, null],	(sM): true,	/*s: "numberOfButtons",	(sI): "buttonNumber"*/			]
 ]
 
 /*private Map attributes(){
@@ -3486,178 +3826,178 @@ Map getChildAttributes(){
 /* Push command has multiple overloads in hubitat */
 private static Map<String,Map> commandOverrides(){
 	return ( [ //s: command signature
-		push	: [c: "push",	s: null , r: "pushMomentary"],
-		flash	: [c: "flash",	s: null , r: "flashNative"] //flash native command conflicts with flash emulated command. Also needs "o" option on command described later
+		push	: [(sC): "push",	(sS): null , (sR): "pushMomentary"], // for capability momentary
+		flash	: [(sC): "flash",	(sS): null , (sR): "flashNative"] //flash native command conflicts with flash emulated command. Also needs "o" option on command described later
 	] ) as HashMap
 }
 
 Map getChildCommands(){
-	Map result=commands()
-	Map cleanResult=[:]
-	Map defv=[n:"a"]
+	Map<String,Map> result=commands()
+	Map<String,Map> cleanResult=[:]
+	Map defv=[(sN):sA]
 	result.each{
 		Map t0=[:]
 		String hasA=it.value.a
 		String hasV=it.value.v
-		if(hasA) t0=t0 + [a:hasA]
-		if(hasV) t0=t0 + [v:hasV]
+		if(hasA) t0=t0 + [(sA):hasA]
+		if(hasV) t0=t0 + [(sV):hasV]
 		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
 	return cleanResult
 }
 
-@Field final Map commandsFLD=[
-	armAway				: [ n: "Arm Away",				a: "securityKeypad",		v: "armed away",				],
-	armHome				: [ n: "Arm Home",				a: "securityKeypad",		v: "armed home",				],
-	auto				: [ n: "Set to Auto",			a: sTHERM,					v: "auto",						],
-	beep				: [ n: "Beep",																				],
-	both				: [ n: "Strobe and Siren",		a: "alarm",					v: "both",						],
-	cancel				: [ n: "Cancel",																			],
-	close				: [ n: "Close",					a: "door",					v: sCLOSE,						],
-	configure			: [ n: "Configure",		i: 'cog',															],
-	cool				: [ n: "Set to Cool",		i: 'snowflake', is: 'l',	a: sTHERM,		v: "cool",			],
-	cycleSpeed			: [ n: "Cycle speed",																	],
-	deleteCode			: [ n: "Delete Code...",		d: "Delete code {0}",			p: [[n:"Code position",t:sINT]],					],
-	deviceNotification	: [ n: "Send device notification...",	d: "Send device notification \"{0}\"",			p: [[n:"Message",t:sSTR]],				],
-	disarm				: [ n: "Disarm",				a: "securityKeypad",				v: "disarmed",						],
-	eco					: [ n: "Set to Eco",		i: 'leaf',	a: sTHERM,				v: "eco",						],
-	emergencyHeat		: [ n: "Set to Emergency Heat",			a: sTHERM,				v: "emergency heat",					],
-	fanAuto				: [ n: "Set fan to Auto",			a: sTHERFM,				v: "auto",						],
-	fanCirculate		: [ n: "Set fan to Circulate",			a: sTHERFM,				v: "circulate",						],
-	fanOn				: [ n: "Set fan to On",				a: sTHERFM,				v: sON,							],
-	flip				: [ n: "Flip",																		],
-	getAllActivities	: [ n: "Get all activities",																],
-	getCodes			: [ n: "Get Codes",																	],
-	getCurrentActivity	: [ n: "Get current activity",																],
-	heat				: [ n: "Set to Heat",		i: 'fire',	a: sTHERM,				v: "heat",						],
-	indicatorNever		: [ n: "Disable indicator",																],
-	indicatorWhenOff	: [ n: "Enable indicator when off",															],
-	indicatorWhenOn		: [ n: "Enable indicator when on",															],
-	lock				: [ n: "Lock",			i: "lock",	a: "lock",					v: "locked",						],
-	mute				: [ n: "Mute",			i: 'volume-off',	a: "mute",				v: "muted",						],
-	nextTrack			: [ n: "Next track",																	],
-	off					: [ n: "Turn off",		i: 'circle-notch',	a: sSWITCH,				v: sOFF,						],
-	on					: [ n: "Turn on",		i: "power-off",		a: sSWITCH,				v: sON,						],
-	open				: [ n: "Open",						a: "door",				v: sOPEN,						],
-	pause				: [ n: "Pause",																		],
-	play				: [ n: "Play",																		],
-	playSound			: [ n: "Play Sound",				d: "Play Sound {0}",		p: [[n:"Sound Number", t:sINT]],					],
-	playText			: [ n: "Speak text...",				d: "Speak text \"{0}\"{1}",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]]	],
-	playTextAndRestore	: [ n: "Speak text and restore...",		d: "Speak text \"{0}\"{1} and restore",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
-	playTextAndResume	: [ n: "Speak text and resume...",		d: "Speak text \"{0}\"{1} and resume",	p: [[n:"Text",t:sSTR], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
-	playTrack			: [ n: "Play track...",					d: "Play track {0}{1}",					p: [[n:"Track URL",t:"uri"], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],			],
-	playTrackAndRestore	: [ n: "Play track and restore...",		d: "Play track {0}{1} and restore",		p: [[n:"Track URL",t:"uri"], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],	],
-	playTrackAndResume	: [ n: "Play track and resume...",		d: "Play track {0}{1} and resume",		p: [[n:"Track URL",t:"uri"], [n:sVOLUME, t:sLVL, d:" at volume {v}"]],	],
-	poll				: [ n: "Poll",						i: 'question',											],
-	presetLevel			: [ n: "Set preset level...",		i: 'signal',	d: "Set preset level to {0}",			a: "presetLevel",			p: [[n:"Preset Level",t:"levelPreset"]],	],
-//	presetPosition		: [ n: "Move to preset position",		a: "windowShade",		v: "partially open",	],
-	previousTrack		: [ n: "Previous track",										],
+@Field final Map<String,Map> commandsFLD=[
+	armAway				: [ (sN): "Arm Away",				(sA): "securityKeypad",		(sV): "armed away",				],
+	armHome				: [ (sN): "Arm Home",				(sA): "securityKeypad",		(sV): "armed home",				],
+	auto				: [ (sN): "Set to Auto",			(sA): sTHERM,					(sV): "auto",						],
+	beep				: [ (sN): "Beep",																				],
+	both				: [ (sN): "Strobe and Siren",		(sA): "alarm",					(sV): "both",						],
+	cancel				: [ (sN): "Cancel",																			],
+	close				: [ (sN): "Close",					(sA): "door",					(sV): sCLOSE,						],
+	configure			: [ (sN): "Configure",		(sI): 'cog',															],
+	cool				: [ (sN): "Set to Cool",		(sI): 'snowflake', is: 'l',	(sA): sTHERM,		(sV): "cool",			],
+	cycleSpeed			: [ (sN): "Cycle speed",																	],
+	deleteCode			: [ (sN): "Delete Code...",		(sD): "Delete code {0}",			(sP): [[(sN):"Code position", (sT):sINT]],					],
+	deviceNotification	: [ (sN): "Send device notification...",	(sD): "Send device notification \"{0}\"",			(sP): [[(sN):"Message", (sT):sSTR]],				],
+	disarm				: [ (sN): "Disarm",				(sA): "securityKeypad",				(sV): "disarmed",						],
+	eco					: [ (sN): "Set to Eco",		(sI): 'leaf',	(sA): sTHERM,				(sV): "eco",						],
+	emergencyHeat		: [ (sN): "Set to Emergency Heat",			(sA): sTHERM,				(sV): "emergency heat",					],
+	fanAuto				: [ (sN): "Set fan to Auto",			(sA): sTHERFM,				(sV): "auto",						],
+	fanCirculate		: [ (sN): "Set fan to Circulate",			(sA): sTHERFM,				(sV): "circulate",						],
+	fanOn				: [ (sN): "Set fan to On",				(sA): sTHERFM,				(sV): sON,							],
+	flip				: [ (sN): "Flip",																		],
+	getAllActivities	: [ (sN): "Get all activities",																],
+	getCodes			: [ (sN): "Get Codes",																	],
+	getCurrentActivity	: [ (sN): "Get current activity",																],
+	heat				: [ (sN): "Set to Heat",		(sI): 'fire',	(sA): sTHERM,				(sV): "heat",						],
+	indicatorNever		: [ (sN): "Disable indicator",																],
+	indicatorWhenOff	: [ (sN): "Enable indicator when off",															],
+	indicatorWhenOn		: [ (sN): "Enable indicator when on",															],
+	lock				: [ (sN): "Lock",			(sI): "lock",	(sA): "lock",					(sV): "locked",						],
+	mute				: [ (sN): "Mute",			(sI): 'volume-off',	(sA): "mute",				(sV): "muted",						],
+	nextTrack			: [ (sN): "Next track",																	],
+	off					: [ (sN): "Turn off",		(sI): 'circle-notch',	(sA): sSWITCH,				(sV): sOFF,						],
+	on					: [ (sN): "Turn on",		(sI): "power-off",		(sA): sSWITCH,				(sV): sON,						],
+	open				: [ (sN): "Open",						(sA): "door",				(sV): sOPEN,						],
+	pause				: [ (sN): "Pause",																		],
+	play				: [ (sN): "Play",																		],
+	playSound			: [ (sN): "Play Sound",				(sD): "Play Sound {0}",		(sP): [[(sN):"Sound Number", (sT):sINT]],					],
+	playText			: [ (sN): "Speak text...",				(sD): "Speak text \"{0}\"{1}",	(sP): [[(sN):"Text", (sT):sSTR], [(sN):sVOLUME, (sT):sLVL, (sD):sATVOL]]	],
+	playTextAndRestore	: [ (sN): "Speak text and restore...",		(sD): "Speak text \"{0}\"{1} and restore",	(sP): [[(sN):"Text", (sT):sSTR], [(sN):sVOLUME, (sT):sLVL, (sD):sATVOL]],			],
+	playTextAndResume	: [ (sN): "Speak text and resume...",		(sD): "Speak text \"{0}\"{1} and resume",	(sP): [[(sN):"Text", (sT):sSTR], [(sN):sVOLUME, (sT):sLVL, (sD):sATVOL]],			],
+	playTrack			: [ (sN): "Play track...",					(sD): "Play track {0}{1}",					(sP): [[(sN):"Track URL", (sT):"uri"], [(sN):sVOLUME, (sT):sLVL, (sD):sATVOL]],			],
+	playTrackAndRestore	: [ (sN): "Play track and restore...",		(sD): "Play track {0}{1} and restore",		(sP): [[(sN):"Track URL", (sT):"uri"], [(sN):sVOLUME, (sT):sLVL, (sD):sATVOL]],	],
+	playTrackAndResume	: [ (sN): "Play track and resume...",		(sD): "Play track {0}{1} and resume",		(sP): [[(sN):"Track URL", (sT):"uri"], [(sN):sVOLUME, (sT):sLVL, (sD):sATVOL]],	],
+	poll				: [ (sN): "Poll",						(sI): 'question',											],
+	presetLevel			: [ (sN): "Set preset level...",		(sI): 'signal',	(sD): "Set preset level to {0}",			(sA): "presetLevel",			(sP): [[(sN):"Preset Level", (sT):"levelPreset"]],	],
+//	presetPosition		: [ (sN): "Move to preset position",		(sA): "windowShade",		(sV): "partially open",	],
+	previousTrack		: [ (sN): "Previous track",										],
 
-	refresh				: [ n: "Refresh",					i: 'sync',											],
-	restoreTrack		: [ n: "Restore track...",				d: "Restore track <uri>{0}</uri>",							p: [[n:"Track URL",t:"url"]],			],
-	resumeTrack			: [ n: "Resume track...",				d: "Resume track <uri>{0}</uri>",							p: [[n:"Track URL",t:"url"]],			],
-	setCode				: [ n: "Set Code...",				d: "Set code {0} to {1} {2}",						p: [[n:"Code Position",t:sINT], [n:"Pin", t:sSTR], [n:"Name", t:sSTR]],							],
-	setCodeLength		: [ n: "Set Code Max Length...",		d: "Set code length to {0}",						p: [[n:"Code Length",t:sINT]],						],
-	setColor			: [ n: "Set color...",		i: 'palette', is: "l",	d: "Set color to {0}{1}",			a: sCOLOR,				p: [[n:sCCOLOR,t:sCOLOR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],							],
-	setColorTemperature	: [ n: "Set color temperature...",		d: "Set color temperature to {0}°K{1}",			a: "colorTemperature",			p: [[n:"Color Temperature", t:"colorTemperature"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY],[n:"Level",t:sLVL],[n:"Transition duration (seconds)", t:sINT,d:" over {v} seconds"]]	],
-	setConsumableStatus	: [ n: "Set consumable status...",		d: "Set consumable status to {0}",								p: [[n:"Status", t:"consumable"]],		],
-	setCoolingSetpoint	: [ n: "Set cooling point...",			d: "Set cooling point at {0}{T}",			a: "thermostatCoolingSetpoint",		p: [[n:"Desired temperature", t:"thermostatSetpoint"]],	],
-	setEffect			: [ n: "Set Light Effect...",			d: "Set light effect to {0}",									p: [[n:"Effect number",t:sINT]],				],
-	setEntryDelay		: [ n: "Set Entry Delay...",			d: "Set entry delay to {0}",									p: [[n:"Entry Delay",t:sINT]],				],
-	setExitDelay		: [ n: "Set Exit Delay...",			d: "Set exit delay to {0}",									p: [[n:"Exit Delay",t:sINT]],				],
-	setHeatingSetpoint	: [ n: "Set heating point...",			d: "Set heating point at {0}{T}",			a: "thermostatHeatingSetpoint",		p: [[n:"Desired temperature", t:"thermostatSetpoint"]],																	],
-	setHue				: [ n: "Set hue...",		i: 'palette', is: "l",	d: "Set hue to {0}°{1}",			a: "hue",				p: [[n:"Hue", t:"hue"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],								],
-	setInfraredLevel	: [ n: "Set infrared level...",	i: 'signal',	d: "Set infrared level to {0}%{1}",			a: "infraredLevel",			p: [[n:"Level",t:"infraredLevel"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],					],
-	setLevel			: [ n: "Set level...",		i: 'signal',	d: "Set level to {0}%{2}{1}",				a: sLVL,				p: [[n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY],[n:"Transition duration (seconds)", t:sINT,d:" over {v} seconds"]],							],
-	setNextEffect		: [ n: "Set next light effect",																					],
-	setPreviousEffect	: [ n: "Set previous light effect",																					],
-	setPosition			: [ n: "Move to position",			d: "Set position to {0}",				a: "position",				p: [[n:"Position", t:"position"]],		],
-	setSaturation		: [ n: "Set saturation...",			d: "Set saturation to {0}{1}",				a: "saturation",			p: [[n:"Saturation", t:"saturation"], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],					],
-//	setSchedule			: [ n: "Set thermostat schedule...",		d: "Set schedule to {0}",				a: "schedule",				p: [[n:"Schedule", t:"object"]],			],
-	setSpeed			: [ n: "Set fan speed...",			d: "Set fan speed to {0}",				a: "speed",				p: [[n:"Fan Speed", t:"speed"]],			],
-	setThermostatFanMode		: [ n: "Set fan mode...",			d: "Set fan mode to {0}",				a: sTHERFM,			p: [[n:"Fan mode", t:sTHERFM]],	],
-	setThermostatMode	: [ n: "Set thermostat mode...",		d: "Set thermostat mode to {0}",			a: sTHERM,			p: [[n:"Thermostat mode",t:sTHERM]],	],
-	setTiltLevel		: [ n: "Move to tilt",				d: "Set tilt to {0}",					a: "tilt",				p: [[n:"Tilt", t:"tilt"]],		],
-	setTimeRemaining	: [ n: "Set remaining time...",			d: "Set remaining time to {0}s",			a: "timeRemaining",			p: [[n:"Remaining time [seconds]", t:"number"]],	],
-	setTrack			: [ n: "Set track...",				d: "Set track to <uri>{0}</uri>",								p: [[n:"Track URL",t:"url"]],			],
-//	setVariable			: [ n: "Set Device Variable...",		d: "Set Device Variable to {0}",			a: "variable",				p:[[n:"device variable value",t:"variable"]],			],
-	setVolume			: [ n: "Set Volume...",				d: "Set Volume to {0}",					a: "volume",				p:[[n:"Level",t:"volume"]],			],
-	siren				: [ n: "Siren",												a: "alarm",				v: "siren",					],
-	speak				: [ n: "Speak...",				d: "Speak \"{0}\"{1}",								p: [[n:"Message", t:sSTR],[n:sVOLUME,t:sLVL,d:" at volume {v}" ]],			],
-	start				: [ n: "Start",																							],
-	startActivity		: [ n: "Start activity...",			d: "Start activity \"{0}\"",									p: [[n:"Activity", t:sSTR]],		],
-	startLevelChange	: [ n: "Start Level Change...",			d: "Start Level Change \"{0}\"",				p: [[n:"Direction", t:sSTR]],						],
-	stopLevelChange		: [ n: "Stop Level Change...",			d: "Stop Level Change",																],
-	startPositionChange	: [ n: "Start Position Change...",		d: "Start Position Change \"{0}\"",				p: [[n:"Direction", t:sENUM, o:[sOPEN, sCLOSE]]],						],
-	stopPositionChange	: [ n: "Stop Position Change...",		d: "Stop Position Change",																],
-	stop				: [ n: "Stop",																							],
-	strobe				: [ n: "Strobe",											a: "alarm",				v: "strobe",					],
-	take				: [ n: "Take a picture",																					],
-	unlock				: [ n: "Unlock",		i: 'unlock-alt',							a: "lock",				v: "unlocked",					],
-	unmute				: [ n: "Unmute",		i: 'volume-up',								a: "mute",				v: "unmuted",					],
-	volumeDown			: [ n: "Raise volume",																					],
-	volumeUp			: [ n: "Lower volume",																					],
+	refresh				: [ (sN): "Refresh",					(sI): 'sync',											],
+	restoreTrack		: [ (sN): "Restore track...",				(sD): "Restore track <uri>{0}</uri>",							(sP): [[(sN):"Track URL", (sT):"url"]],			],
+	resumeTrack			: [ (sN): "Resume track...",				(sD): "Resume track <uri>{0}</uri>",							(sP): [[(sN):"Track URL", (sT):"url"]],			],
+	setCode				: [ (sN): "Set Code...",				(sD): "Set code {0} to {1} {2}",						(sP): [[(sN):"Code Position", (sT):sINT], [(sN):"Pin", (sT):sSTR], [(sN):"Name", (sT):sSTR]],							],
+	setCodeLength		: [ (sN): "Set Code Max Length...",		(sD): "Set code length to {0}",						(sP): [[(sN):"Code Length", (sT):sINT]],						],
+	setColor			: [ (sN): "Set color...",		(sI): 'palette', is: "l",	(sD): "Set color to {0}{1}",			(sA): sCOLOR,				(sP): [[(sN):sCCOLOR, (sT):sCOLOR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],							],
+	setColorTemperature	: [ (sN): "Set color temperature...",		(sD): "Set color temperature to {0}°K{1}",			(sA): "colorTemperature",			(sP): [[(sN):"Color Temperature", (sT):"colorTemperature"], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY],[(sN):"Level", (sT):sLVL],[(sN):"Transition duration (seconds)", (sT):sINT,(sD):" over {v} seconds"]]	],
+	setConsumableStatus	: [ (sN): "Set consumable status...",		(sD): "Set consumable status to {0}",								(sP): [[(sN):"Status", (sT):"consumable"]],		],
+	setCoolingSetpoint	: [ (sN): "Set cooling point...",			(sD): "Set cooling point at {0}{T}",			(sA): "thermostatCoolingSetpoint",		(sP): [[(sN):"Desired temperature", (sT):"thermostatSetpoint"]],	],
+	setEffect			: [ (sN): "Set Light Effect...",			(sD): "Set light effect to {0}",									(sP): [[(sN):"Effect number", (sT):sINT]],				],
+	setEntryDelay		: [ (sN): "Set Entry Delay...",			(sD): "Set entry delay to {0}",									(sP): [[(sN):"Entry Delay", (sT):sINT]],				],
+	setExitDelay		: [ (sN): "Set Exit Delay...",			(sD): "Set exit delay to {0}",									(sP): [[(sN):"Exit Delay", (sT):sINT]],				],
+	setHeatingSetpoint	: [ (sN): "Set heating point...",			(sD): "Set heating point at {0}{T}",			(sA): "thermostatHeatingSetpoint",		(sP): [[(sN):"Desired temperature", (sT):"thermostatSetpoint"]],																	],
+	setHue				: [ (sN): "Set hue...",		(sI): 'palette', is: "l",	(sD): "Set hue to {0}°{1}",			(sA): "hue",				(sP): [[(sN):"Hue", (sT):"hue"], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],								],
+	setInfraredLevel	: [ (sN): "Set infrared level...",	(sI): 'signal',	(sD): "Set infrared level to {0}%{1}",			(sA): "infraredLevel",			(sP): [[(sN):"Level", (sT):"infraredLevel"], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],					],
+	setLevel			: [ (sN): "Set level...",		(sI): 'signal',	(sD): "Set level to {0}%{2}{1}",				(sA): sLVL,				(sP): [[(sN):"Level", (sT):sLVL], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY],[(sN):"Transition duration (seconds)", (sT):sINT,(sD):" over {v} seconds"]],							],
+	setNextEffect		: [ (sN): "Set next light effect",																					],
+	setPreviousEffect	: [ (sN): "Set previous light effect",																					],
+	setPosition			: [ (sN): "Move to position",			(sD): "Set position to {0}",				(sA): "position",				(sP): [[(sN):"Position", (sT):"position"]],		],
+	setSaturation		: [ (sN): "Set saturation...",			(sD): "Set saturation to {0}{1}",				(sA): "saturation",			(sP): [[(sN):"Saturation", (sT):"saturation"], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],					],
+//	setSchedule			: [ (sN): "Set thermostat schedule...",		(sD): "Set schedule to {0}",				(sA): "schedule",				(sP): [[(sN):"Schedule", (sT):"object"]],			],
+	setSpeed			: [ (sN): "Set fan speed...",			(sD): "Set fan speed to {0}",				(sA): "speed",				(sP): [[(sN):"Fan Speed", (sT):"speed"]],			],
+	setThermostatFanMode		: [ (sN): "Set fan mode...",			(sD): "Set fan mode to {0}",				(sA): sTHERFM,			(sP): [[(sN):"Fan mode", (sT):sTHERFM]],	],
+	setThermostatMode	: [ (sN): "Set thermostat mode...",		(sD): "Set thermostat mode to {0}",			(sA): sTHERM,			(sP): [[(sN):"Thermostat mode", (sT):sTHERM]],	],
+	setTiltLevel		: [ (sN): "Move to tilt",				(sD): "Set tilt to {0}",					(sA): "tilt",				(sP): [[(sN):"Tilt", (sT):"tilt"]],		],
+	setTimeRemaining	: [ (sN): "Set remaining time...",			(sD): "Set remaining time to {0}s",			(sA): "timeRemaining",			(sP): [[(sN):"Remaining time [seconds]", (sT):"number"]],	],
+	setTrack			: [ (sN): "Set track...",				(sD): "Set track to <uri>{0}</uri>",								(sP): [[(sN):"Track URL", (sT):"url"]],			],
+//	setVariable			: [ (sN): "Set Device Variable...",		(sD): "Set Device Variable to {0}",			(sA): sVARIABLE,				(sP):[[(sN):"device variable value", (sT):sVARIABLE]],			],
+	setVolume			: [ (sN): "Set Volume...",				(sD): "Set Volume to {0}",					(sA): "volume",				(sP):[[(sN):"Level", (sT):"volume"]],			],
+	siren				: [ (sN): "Siren",												(sA): "alarm",				(sV): "siren",					],
+	speak				: [ (sN): "Speak...",				(sD): "Speak \"{0}\"{1}",								(sP): [[(sN):"Message", (sT):sSTR],[(sN):sVOLUME, (sT):sLVL,(sD):sATVOL ]],			],
+	start				: [ (sN): "Start",																							],
+	startActivity		: [ (sN): "Start activity...",			(sD): "Start activity \"{0}\"",									(sP): [[(sN):"Activity", (sT):sSTR]],		],
+	startLevelChange	: [ (sN): "Start Level Change...",			(sD): "Start Level Change \"{0}\"",				(sP): [[(sN):"Direction", (sT):sSTR]],						],
+	stopLevelChange		: [ (sN): "Stop Level Change...",			(sD): "Stop Level Change",																],
+	startPositionChange	: [ (sN): "Start Position Change...",		(sD): "Start Position Change \"{0}\"",				(sP): [[(sN):"Direction", (sT):sENUM, (sO):[sOPEN, sCLOSE]]],						],
+	stopPositionChange	: [ (sN): "Stop Position Change...",		(sD): "Stop Position Change",																],
+	stop				: [ (sN): "Stop",																							],
+	strobe				: [ (sN): "Strobe",											(sA): "alarm",				(sV): "strobe",					],
+	take				: [ (sN): "Take a picture",																					],
+	unlock				: [ (sN): "Unlock",		(sI): 'unlock-alt',							(sA): "lock",				(sV): "unlocked",					],
+	unmute				: [ (sN): "Unmute",		(sI): 'volume-up',								(sA): "mute",				(sV): "unmuted",					],
+	volumeDown			: [ (sN): "Raise volume",																					],
+	volumeUp			: [ (sN): "Lower volume",																					],
 
-// these are virtual device commands
-	doubleTap			: [ n: "Double Tap",			d: "Double tap button {0}",			a: "doubleTapped",			p:[[n: "Button #", t: sINT]]	],
-	hold				: [ n: "Hold",					d: "Hold Button {0}",				a: "held",					p:[[n:"Button #", t: sINT]]	],
-	push				: [ n: "Push",					d: "Push button {0}",				a: "pushed",				p:[[n: "Button #", t: sINT]]	],
-	release				: [ n: "Release",				d: "Release button {0}",			a: "released",				p:[[n: "Button #", t: sINT]]	],
+// these are device virtual commands
+	doubleTap			: [ (sN): "Double Tap",			(sD): "Double tap button {0}",			(sA): "doubleTapped",			(sP):[[(sN): "Button #", (sT): sINT]]	],
+	hold				: [ (sN): "Hold",					(sD): "Hold Button {0}",				(sA): "held",					(sP):[[(sN):"Button #", (sT): sINT]]	],
+	push				: [ (sN): "Push",					(sD): "Push button {0}",				(sA): "pushed",				(sP):[[(sN): "Button #", (sT): sINT]]	],
+	release				: [ (sN): "Release",				(sD): "Release button {0}",			(sA): "released",				(sP):[[(sN): "Button #", (sT): sINT]]	],
 
 /* predfined commands below */
 	//general
-	quickSetCool		: [ n: "Quick set cooling point...",	d: "Set quick cooling point at {0}{T}",				p: [[n:"Desired temperature",t:"thermostatSetpoint"]],		],
-	quickSetHeat		: [ n: "Quick set heating point...",	d: "Set quick heating point at {0}{T}",				p: [[n:"Desired temperature",t:"thermostatSetpoint"]],		],
-	toggle				: [ n: "Toggle",																						],
-	reset				: [ n: "Reset",																							],
+	quickSetCool		: [ (sN): "Quick set cooling point...",	(sD): "Set quick cooling point at {0}{T}",				(sP): [[(sN):"Desired temperature", (sT):"thermostatSetpoint"]],		],
+	quickSetHeat		: [ (sN): "Quick set heating point...",	(sD): "Set quick heating point at {0}{T}",				(sP): [[(sN):"Desired temperature", (sT):"thermostatSetpoint"]],		],
+	toggle				: [ (sN): "Toggle",																						],
+	reset				: [ (sN): "Reset",																							],
 	//hue
-	startLoop			: [ n: "Start color loop",																					],
-	stopLoop			: [ n: "Stop color loop",																					],
-	setLoopTime			: [ n: "Set loop duration...",			d: "Set loop duration to {0}",				p: [[n:sDURATION, t:sDUR]]							],
-//	setDirection		: [ n: "Switch loop direction",																					],
-	alert				: [ n: "Alert with lights...",			d: "Alert \"{0}\" with lights",				p: [[n:"Alert type", t:sENUM, o:["Blink","Breathe","Okay","Stop"]]],			],
-	setAdjustedColor	: [ n: "Transition to color...",		d: "Transition to color {0} in {1}{2}",			p: [[n:sCCOLOR, t:sCOLOR], [n:sDURATION,t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],
-	setAdjustedHSLColor	: [ n: "Transition to HSL color...",		d: "Transition to color H:{0}° / S:{1}% / L:{2}% in {3}{4}",			p: [[n:"Hue", t:"hue"],[n:"Saturation", t:"saturation"],[n:"Level", t:sLVL],[n:sDURATION,t:sDUR],[n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																	],
+	startLoop			: [ (sN): "Start color loop",																					],
+	stopLoop			: [ (sN): "Stop color loop",																					],
+	setLoopTime			: [ (sN): "Set loop duration...",			(sD): "Set loop duration to {0}",				(sP): [[(sN):sDURATION, (sT):sDUR]]							],
+//	setDirection		: [ (sN): "Switch loop direction",																					],
+	alert				: [ (sN): "Alert with lights...",			(sD): "Alert \"{0}\" with lights",				(sP): [[(sN):"Alert type", (sT):sENUM, (sO):["Blink","Breathe","Okay","Stop"]]],			],
+	setAdjustedColor	: [ (sN): "Transition to color...",		(sD): "Transition to color {0} in {1}{2}",			(sP): [[(sN):sCCOLOR, (sT):sCOLOR], [(sN):sDURATION, (sT):sDUR],[(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																	],
+	setAdjustedHSLColor	: [ (sN): "Transition to HSL color...",		(sD): "Transition to color H:{0}° / S:{1}% / L:{2}% in {3}{4}",			(sP): [[(sN):"Hue", (sT):"hue"],[(sN):"Saturation", (sT):"saturation"],[(sN):"Level", (sT):sLVL],[(sN):sDURATION, (sT):sDUR],[(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																	],
 	//harmony
-	allOn				: [ n: "Turn all on",																						],
-	allOff				: [ n: "Turn all off",																						],
-	hubOn				: [ n: "Turn hub on",																						],
-	hubOff				: [ n: "Turn hub off",																						],
+	allOn				: [ (sN): "Turn all on",																						],
+	allOff				: [ (sN): "Turn all off",																						],
+	hubOn				: [ (sN): "Turn hub on",																						],
+	hubOff				: [ (sN): "Turn hub off",																						],
 	//blink camera
-	enableCamera		: [ n: "Enable camera",																						],
-	disableCamera		: [ n: "Disable camera",																					],
-	monitorOn			: [ n: "Turn monitor on",																					],
-	monitorOff			: [ n: "Turn monitor off",																					],
-	ledOn				: [ n: "Turn LED on",																						],
-	ledOff				: [ n: "Turn LED off",																						],
-	ledAuto				: [ n: "Set LED to Auto",																					],
-	setVideoLength		: [ n: "Set video length...",			d: "Set video length to {0}",				p: [[n:sDURATION, t:sDUR]],							],
+	enableCamera		: [ (sN): "Enable camera",																						],
+	disableCamera		: [ (sN): "Disable camera",																					],
+	monitorOn			: [ (sN): "Turn monitor on",																					],
+	monitorOff			: [ (sN): "Turn monitor off",																					],
+	ledOn				: [ (sN): "Turn LED on",																						],
+	ledOff				: [ (sN): "Turn LED off",																						],
+	ledAuto				: [ (sN): "Set LED to Auto",																					],
+	setVideoLength		: [ (sN): "Set video length...",			(sD): "Set video length to {0}",				(sP): [[(sN):sDURATION, (sT):sDUR]],							],
 	//dlink camera
-	pirOn				: [ n: "Enable PIR motion detection",																				],
-	pirOff				: [ n: "Disable PIR motion detection",																				],
-	nvOn				: [ n: "Set Night Vision to On",																				],
-	nvOff				: [ n: "Set Night Vision to Off",																				],
-	nvAuto				: [ n: "Set Night Vision to Auto",																				],
-	vrOn				: [ n: "Enable local video recording",																				],
-	vrOff				: [ n: "Disable local video recording",																				],
-	left				: [ n: "Pan camera left",																					],
-	right				: [ n: "Pan camera right",																					],
-	up					: [ n: "Pan camera up",																						],
-	down				: [ n: "Pan camera down",																					],
-	home				: [ n: "Pan camera to the Home",																				],
-	presetOne			: [ n: "Pan camera to preset #1",																				],
-	presetTwo			: [ n: "Pan camera to preset #2",																				],
-	presetThree			: [ n: "Pan camera to preset #3",																				],
-	presetFour			: [ n: "Pan camera to preset #4",																				],
-	presetFive			: [ n: "Pan camera to preset #5",																				],
-	presetSix			: [ n: "Pan camera to preset #6",																				],
-	presetSeven			: [ n: "Pan camera to preset #7",																				],
-	presetEight			: [ n: "Pan camera to preset #8",																				],
-	presetCommand		: [ n: "Pan camera to preset...",		d: "Pan camera to preset #{0}",				p: [[n:"Preset #", t:sINT,r:[1,99]]],						],
+	pirOn				: [ (sN): "Enable PIR motion detection",																				],
+	pirOff				: [ (sN): "Disable PIR motion detection",																				],
+	nvOn				: [ (sN): "Set Night Vision to On",																				],
+	nvOff				: [ (sN): "Set Night Vision to Off",																				],
+	nvAuto				: [ (sN): "Set Night Vision to Auto",																				],
+	vrOn				: [ (sN): "Enable local video recording",																				],
+	vrOff				: [ (sN): "Disable local video recording",																				],
+	left				: [ (sN): "Pan camera left",																					],
+	right				: [ (sN): "Pan camera right",																					],
+	up					: [ (sN): "Pan camera up",																						],
+	down				: [ (sN): "Pan camera down",																					],
+	home				: [ (sN): "Pan camera to the Home",																				],
+	presetOne			: [ (sN): "Pan camera to preset #1",																				],
+	presetTwo			: [ (sN): "Pan camera to preset #2",																				],
+	presetThree			: [ (sN): "Pan camera to preset #3",																				],
+	presetFour			: [ (sN): "Pan camera to preset #4",																				],
+	presetFive			: [ (sN): "Pan camera to preset #5",																				],
+	presetSix			: [ (sN): "Pan camera to preset #6",																				],
+	presetSeven			: [ (sN): "Pan camera to preset #7",																				],
+	presetEight			: [ (sN): "Pan camera to preset #8",																				],
+	presetCommand		: [ (sN): "Pan camera to preset...",		(sD): "Pan camera to preset #{0}",				(sP): [[(sN):"Preset #", (sT):sINT,(sR):[1,99]]],						],
 
-	flashNative			: [ n: "Flash",																						],
-	pushMomentary		: [ n: "Push"																						]
+	flashNative			: [ (sN): "Flash",																						],
+	pushMomentary		: [ (sN): "Push"																						]
 ]
 
 private Map commands(){
@@ -3665,15 +4005,15 @@ private Map commands(){
 }
 
 static Map getChildVirtCommands(){
-	Map result=virtualCommands()
-	Map cleanResult=[:]
-	Map defv=[n:"a"]
+	Map<String,Map> result=virtualCommands()
+	Map<String,Map> cleanResult=[:]
+	Map defv=[(sN):sA]
 	result.each{
 		Map t0=[:]
 		def hasA=it.value.a
 		def hasO=it.value.o
-		if(hasA != null) t0=t0 + [a:hasA.toBoolean()]
-		if(hasO != null) t0=t0 + [o:hasO.toBoolean()]
+		if(hasA != null) t0=t0 + [(sA):hasA.toBoolean()]
+		if(hasO != null) t0=t0 + [(sO):hasO.toBoolean()]
 		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
@@ -3686,89 +4026,89 @@ static Map getChildVirtCommands(){
 	//t=type
 	//i=icon
 	//p=parameters
-private static Map virtualCommands(){
+private static Map<String,Map> virtualCommands(){
 	List<String> tileIndexes=['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16']
 	return [
-		noop				: [ n: "No operation",			a: true,	i: "circle",				d: "No operation",						],
-		wait				: [ n: "Wait...",			a: true,	i: sCLOCK, is: "r",				d: "Wait {0}",						p: [[n:sDURATION, t:sDUR]],				],
-		waitRandom			: [ n: "Wait randomly...",		a: true,	i: sCLOCK, is: "r",				d: "Wait randomly between {0} and {1}",									p: [[n:"At least", t:sDUR],[n:"At most", t:sDUR]],	],
-		waitForTime			: [ n: "Wait for time...",		a: true,	i: sCLOCK, is: "r",				d: "Wait until {0}",													p: [[n:"Time", t:"time"]],	],
-		waitForDateTime			: [ n: "Wait for date & time...",	a: true,	i: sCLOCK, is: "r",				d: "Wait until {0}",													p: [[n:"Date & Time", t:sDATIM]],	],
-		executePiston			: [ n: "Execute piston...",		a: true,	i: sCLOCK, is: "r",				d: "Execute piston \"{0}\"{1}",											p: [[n:"Piston", t:"piston"], [n:"Arguments", t:"variables", d:" with arguments {v}"],[n:"Wait for execution",t:sBOOL,d:" and wait for execution to finish",w:"webCoRE can only wait on piston executions of pistons within the same instance as the caller. Please note that global variables updated in the callee piston do NOT get reflected immediately in the caller piston, the new values will be available on the next run."]],	],
-		pausePiston			: [ n: "Pause piston...",		a: true,	i: sCLOCK, is: "r",				d: "Pause piston \"{0}\"",												p: [[n:"Piston", t:"piston"]],	],
-		resumePiston			: [ n: "Resume piston...",		a: true,	i: sCLOCK, is: "r",				d: "Resume piston \"{0}\"",												p: [[n:"Piston", t:"piston"]],	],
-		executeRule			: [ n: "Execute Rule...",		a: true,	i: sCLOCK, is: "r",				d: "Execute Rule \"{0}\" with action {1}",											p: [[n:"Rule", t:"rule"], [n:"Argument", t:sENUM, o:['Run','Stop','Pause','Resume','Evaluate','Set Boolean True','Set Boolean False']] ]	],
-		toggle				: [ n: "Toggle", r: [sON, sOFF],			i: sTOGON																				],
-		toggleRandom			: [ n: "Random toggle", r: [sON, sOFF],		i: sTOGON,				d: "Random toggle{0}",													p: [[n:"Probability for on", t:sLVL, d:" with a {v}% probability for on"]],	],
-		setSwitch			: [ n: "Set switch...", r: [sON, sOFF],		i: sTOGON,			d: "Set switch to {0}",													p: [[n:"Switch value", t:sSWITCH]],																],
-		setHSLColor			: [ n: "Set color... (hsl)",				i: "palette", is: "l",				d: "Set color to H:{0}° / S:{1}% / L%:{2}{3}",				r: ["setColor"],				p: [[n:"Hue",t:"hue"], [n:"Saturation",t:"saturation"], [n:"Level",t:sLVL], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],							],
-		toggleLevel			: [ n: "Toggle level...",				i: "toggle-off",			d: "Toggle level between 0% and {0}%",	r: [sON, sOFF, "setLevel"],	p: [[n:"Level", t:sLVL]],																																	],
-		sendNotification		: [ n: "Send notification...",		a: true,	i: "comment-alt", is: "r",			d: "Send notification \"{0}\"",											p: [[n:"Message", t:sSTR]],												],
-		sendPushNotification		: [ n: "Send PUSH notification...",	a: true,	i: "comment-alt", is: "r",			d: "Send PUSH notification \"{0}\"{1}",									p: [[n:"Message", t:sSTR],[n:"Store in Messages", t:sBOOL, d:" and store in Messages", s:1]],	],
-		sendSMSNotification		: [ n: "Send SMS notification...",	a: true,	i: "comment-alt", is: "r",			d: "Send SMS notification \"{0}\" to {1}{2}",							p: [[n:"Message", t:sSTR],[n:"Phone number",t:"phone",w:"HE requires +countrycode in phone number."],[n:"Store in Messages", t:sBOOL, d:" and store in Messages", s:1]],	],
-		log				: [ n: "Log to console...",		a: true,	i: "bug",					d: "Log {0} \"{1}\"{2}",												p: [[n:"Log type", t:sENUM, o:["info","trace","debug","warn","error"]],[n:"Message",t:sSTR],[n:"Store in Messages", t:sBOOL, d:" and store in Messages", s:1]],	],
-		httpRequest			: [ n: "Make a web request",		a: true,	i: "anchor", is: "r",				d: "Make a {1} request to {0}",					p: [[n:"URL", t:"uri"],[n:"Method", t:sENUM, o:["GET","POST","PUT","DELETE","HEAD"]],[n:"Request body type", t:sENUM, o:["JSON","FORM","CUSTOM"]],[n:"Send variables", t:"variables", d:"data {v}"],[n:"Request body", t:sSTR, d:"data {v}"],[n:"Request content type", t:sENUM, o:["text/plain","text/html",sAPPJSON,"application/x-www-form-urlencoded","application/xml"]],[n:"Authorization header", t:sSTR, d:"{v}"]],	],
-		setVariable			: [ n: "Set variable...",		a: true,	i: "superscript", is:"r",			d: "Set variable {0} = {1}",											p: [[n:"Variable",t:"variable"],[n:"Value", t:sDYN]],	],
-		setState			: [ n: "Set piston state...",		a: true,	i: "align-left", is:"l",			d: "Set piston state to \"{0}\"",										p: [[n:"State",t:sSTR]],	],
-		setTileColor			: [ n: "Set piston tile colors...",	a: true,	i: "info-square", is:"l",			d: "Set piston tile #{0} colors to {1} over {2}{3}",					p: [[n:"Tile Index",t:sENUM,o:tileIndexes],[n:"Text Color",t:sCOLOR],[n:"Background Color",t:sCOLOR],[n:"Flash mode",t:sBOOL,d:" (flashing)"]],	],
-		setTileTitle			: [ n: "Set piston tile title...",	a: true,	i: "info-square", is:"l",			d: "Set piston tile #{0} title to \"{1}\"",								p: [[n:"Tile Index",t:sENUM,o:tileIndexes],[n:"Title",t:sSTR]],	],
-		setTileOTitle			: [ n: "Set piston tile mouseover title...",	a: true,	i: "info-square", is:"l",		d: "Set piston tile #{0} mouseover title to \"{1}\"",								p: [[n:"Tile Index",t:sENUM,o:tileIndexes],[n:"Title",t:sSTR]],	],
-		setTileText			: [ n: "Set piston tile text...",	a: true,	i: "info-square", is:"l",			d: "Set piston tile #{0} text to \"{1}\"",								p: [[n:"Tile Index",t:sENUM,o:tileIndexes],[n:"Text",t:sSTR]],	],
-		setTileFooter			: [ n: "Set piston tile footer...",	a: true,	i: "info-square", is:"l",			d: "Set piston tile #{0} footer to \"{1}\"",							p: [[n:"Tile Index",t:sENUM,o:tileIndexes],[n:"Footer",t:sSTR]],	],
-		setTile				: [ n: "Set piston tile...",		a: true,	i: "info-square", is:"l",			d: "Set piston tile #{0} title to \"{1}\", text to \"{2}\", footer to \"{3}\", and colors to {4} over {5}{6}",		p: [[n:"Tile Index",t:sENUM,o:tileIndexes],[n:"Title",t:sSTR],[n:"Text",t:sSTR],[n:"Footer",t:sSTR],[n:"Text Color",t:sCOLOR],[n:"Background Color",t:sCOLOR],[n:"Flash mode",t:sBOOL,d:" (flashing)"]],	],
-		clearTile			: [ n: "Clear piston tile...",		a: true,	i: "info-square", is:"l",			d: "Clear piston tile #{0}",											p: [[n:"Tile Index",t:sENUM,o:tileIndexes]],	],
-		setLocationMode			: [ n: "Set location mode...",		a: true,	i: "",						d: "Set location mode to {0}",											p: [[n:"Mode",t:"mode"]],																														],
-		sendEmail			: [ n: "Send email...",			a: true,	i: "envelope",				d: "Send email with subject \"{1}\" to {0}",							p: [[n:"Recipient",t:"email"],[n:"Subject",t:sSTR],[n:"Message body",t:sSTR]],																							],
-		wolRequest			: [ n: "Wake a LAN device",		a: true,	i: "",						d: "Wake LAN device at address {0}{1}",									p: [[n:"MAC address",t:sSTR],[n:"Secure code",t:sSTR,d:" with secure code {v}"]],	],
-		adjustLevel			: [ n: "Adjust level...",	r: ["setLevel"],	i: sTOGON,				d: "Adjust level by {0}%{1}",											p: [[n:"Adjustment",t:sINT,r:[-100,100]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		adjustInfraredLevel		: [ n: "Adjust infrared level...",	r: ["setInfraredLevel"],	i: sTOGON,	d: "Adjust infrared level by {0}%{1}",								p: [[n:"Adjustment",t:sINT,r:[-100,100]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		adjustSaturation		: [ n: "Adjust saturation...",	r: ["setSaturation"],	i: sTOGON,		d: "Adjust saturation by {0}%{1}",										p: [[n:"Adjustment",t:sINT,r:[-100,100]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		adjustHue			: [ n: "Adjust hue...",	r: ["setHue"],		i: sTOGON,					d: "Adjust hue by {0}°{1}",												p: [[n:"Adjustment",t:sINT,r:[-360,360]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		adjustColorTemperature		: [ n: "Adjust color temperature...",	r: ["setColorTemperature"],	i: sTOGON,				d: "Adjust color temperature by {0}°K%{1}",		p: [[n:"Adjustment",t:sINT,r:[-29000,29000]], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeLevel			: [ n: "Fade level...",	r: ["setLevel"],		i: sTOGON,				d: "Fade level{0} to {1}% in {2}{3}",									p: [[n:"Starting level",t:sLVL,d:" from {v}%"],[n:"Final level",t:sLVL],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeInfraredLevel		: [ n: "Fade infrared level...",	r: ["setInfraredLevel"],		i: sTOGON,				d: "Fade infrared level{0} to {1}% in {2}{3}",		p: [[n:"Starting infrared level",t:sLVL,d:" from {v}%"],[n:"Final infrared level",t:sLVL],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeSaturation			: [ n: "Fade saturation...",	r: ["setSaturation"],		i: sTOGON,				d: "Fade saturation{0} to {1}% in {2}{3}",					p: [[n:"Starting saturation",t:sLVL,d:" from {v}%"],[n:"Final saturation",t:sLVL],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeHue				: [ n: "Fade hue...",			r: ["setHue"],		i: sTOGON,				d: "Fade hue{0} to {1}° in {2}{3}",								p: [[n:"Starting hue",t:"hue",d:" from {v}°"],[n:"Final hue",t:"hue"],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		fadeColorTemperature		: [ n: "Fade color temperature...",		r: ["setColorTemperature"],		i: sTOGON,				d: "Fade color temperature{0} to {1}°K in {2}{3}",									p: [[n:"Starting color temperature",t:"colorTemperature",d:" from {v}°K"],[n:"Final color temperature",t:"colorTemperature"],[n:sDURATION,t:sDUR], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-//		flash				: [ n: "Flash...",	r: [sON, sOFF],		i: sTOGON,				d: "Flash on {0} / off {1} for {2} times{3}",							p: [[n:"On duration",t:sDUR],[n:"Off duration",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		flashLevel			: [ n: "Flash (level)...",	r: ["setLevel"],	i: sTOGON,		d: "Flash {0}% {1} / {2}% {3} for {4} times{5}",						p: [[n:"Level 1", t:sLVL],[n:"Duration 1",t:sDUR],[n:"Level 2", t:sLVL],[n:"Duration 2",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		flashColor			: [ n: "Flash (color)...",	r: ["setColor"],	i: sTOGON,		d: "Flash {0} {1} / {2} {3} for {4} times{5}",							p: [[n:"Color 1", t:sCOLOR],[n:"Duration 1",t:sDUR],[n:"Color 2", t:sCOLOR],[n:"Duration 2",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																],
-		lifxScene			: [ n: "LIFX - Activate scene...",              a: true,                        d: "Activate LIFX Scene '{0}'{1}",                                                                              p: [[n: "Scene", t:"lifxScene"],[n: sDURATION, t:sDUR, d:" for {v}"]],                                   ],
-		lifxState			: [ n: "LIFX - Set State...",                   a: true,                        d: "Set LIFX lights matching {0} to {1}{2}{3}{4}{5}",                                   p: [[n: "Selector", t:"lifxSelector"],[n: "Switch (power)",t:sENUM,o:[sON,sOFF],d:" switch '{v}'"],[n: sCCOLOR,t:sCOLOR,d:" color '{v}'"],[n: "Level (brightness)",t:sLVL,d:" level {v}%"],[n: "Infrared level",t:"infraredLevel",d:" infrared {v}%"],[n: sDURATION,t:sDUR,d:" in {v}"]], ],
-		lifxToggle			: [ n: "LIFX - Toggle...",                              a: true,                d: "Toggle LIFX lights matching {0}{1}",                                                                p: [[n: "Selector", t:"lifxSelector"],[n: sDURATION,t:sDUR,d:" in {v}"]], ],
-		lifxBreathe			: [ n: "LIFX - Breathe...",                             a: true,                d: "Breathe LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}{7}",   p: [[n: "Selector", t:"lifxSelector"],[n: sCCOLOR,t:sCOLOR],[n: "From color",t:sCOLOR,d:" from color '{v}'"],[n: "Period", t:sDUR, d:" with a period of {v}"],[n: "Cycles", t:sINT, d:" for {v} cycles"],[n:"Peak",t:sLVL,d:" with a peak at {v}% of the period"],[n:"Power on",t:sBOOL,d:" and power on at start"],[n:"Persist",t:sBOOL,d:" and persist"] ], ],
-		lifxPulse			: [ n: "LIFX - Pulse...",                               a: true,                d: "Pulse LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}",                p: [[n: "Selector", t:"lifxSelector"],[n: sCCOLOR,t:sCOLOR],[n: "From color",t:sCOLOR,d:" from color '{v}'"],[n: "Period", t:sDUR, d:" with a period of {v}"],[n: "Cycles", t:sINT, d:" for {v} cycles"],[n:"Power on",t:sBOOL,d:" and power on at start"],[n:"Persist",t:sBOOL,d:" and persist"] ], ],
+		noop				: [ (sN): "No operation",			(sA): true,	(sI): "circle",				(sD): "No operation",						],
+		wait				: [ (sN): "Wait...",			(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait {0}",						(sP): [[(sN):sDURATION, (sT):sDUR]],				],
+		waitRandom			: [ (sN): "Wait randomly...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait randomly between {0} and {1}",									(sP): [[(sN):"At least", (sT):sDUR],[(sN):"At most", (sT):sDUR]],	],
+		waitForTime			: [ (sN): "Wait for time...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait until {0}",													(sP): [[(sN):"Time", (sT):"time"]],	],
+		waitForDateTime		: [ (sN): "Wait for date & time...",	(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait until {0}",													(sP): [[(sN):"Date & Time", (sT):sDTIME]],	],
+		executePiston		: [ (sN): "Execute piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Execute piston \"{0}\"{1}",											(sP): [[(sN):"Piston", (sT):"piston"], [(sN):"Arguments", (sT):"variables", (sD):" with arguments {v}"],[(sN):"Wait for execution", (sT):sBOOLN,(sD):" and wait for execution to finish",w:"webCoRE can only wait on piston executions of pistons within the same instance as the caller. Please note that global variables updated in the callee piston do NOT get reflected immediately in the caller piston, the new values will be available on the next run."]],	],
+		pausePiston			: [ (sN): "Pause piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Pause piston \"{0}\"",												(sP): [[(sN):"Piston", (sT):"piston"]],	],
+		resumePiston		: [ (sN): "Resume piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Resume piston \"{0}\"",												(sP): [[(sN):"Piston", (sT):"piston"]],	],
+		executeRule			: [ (sN): "Execute Rule...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Execute Rule \"{0}\" with action {1}",											(sP): [[(sN):"Rule", (sT):"rule"], [(sN):"Argument", (sT):sENUM, (sO):['Run','Stop','Pause','Resume','Evaluate','Set Boolean True','Set Boolean False']] ]	],
+		toggle				: [ (sN): "Toggle", (sR): [sON, sOFF],			(sI): sTOGON																				],
+		toggleRandom		: [ (sN): "Random toggle", (sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Random toggle{0}",													(sP): [[(sN):"Probability for on", (sT):sLVL, (sD):" with a {v}% probability for on"]],	],
+		setSwitch			: [ (sN): "Set switch...", (sR): [sON, sOFF],		(sI): sTOGON,			(sD): "Set switch to {0}",													(sP): [[(sN):"Switch value", (sT):sSWITCH]],																],
+		setHSLColor			: [ (sN): "Set color... (hsl)",				(sI): "palette", is: "l",				(sD): "Set color to H:{0}° / S:{1}% / L%:{2}{3}",				(sR): ["setColor"],				(sP): [[(sN):"Hue", (sT):"hue"], [(sN):"Saturation", (sT):"saturation"], [(sN):"Level", (sT):sLVL], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],							],
+		toggleLevel			: [ (sN): "Toggle level...",				(sI): "toggle-off",			(sD): "Toggle level between 0% and {0}%",	(sR): [sON, sOFF, "setLevel"],	(sP): [[(sN):"Level", (sT):sLVL]],																																	],
+		sendNotification	: [ (sN): "Send notification...",		(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send notification \"{0}\"",											(sP): [[(sN):"Message", (sT):sSTR]],												],
+		sendPushNotification		: [ (sN): "Send PUSH notification...",	(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send PUSH notification \"{0}\"{1}",									(sP): [[(sN):"Message", (sT):sSTR],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
+		sendSMSNotification	: [ (sN): "Send SMS notification...",	(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send SMS notification \"{0}\" to {1}{2}",							(sP): [[(sN):"Message", (sT):sSTR],[(sN):"Phone number", (sT):"phone",w:"HE requires +countrycode in phone number."],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
+		log					: [ (sN): "Log to console...",		(sA): true,	(sI): "bug",					(sD): "Log {0} \"{1}\"{2}",												(sP): [[(sN):"Log type", (sT):sENUM, (sO):["info","trace","debug","warn","error"]],[(sN):"Message", (sT):sSTR],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
+		httpRequest			: [ (sN): "Make a web request",		(sA): true,	(sI): "anchor", is: sR,				(sD): "Make a {1} request to {0}",					(sP): [[(sN):"URL", (sT):"uri"],[(sN):"Method", (sT):sENUM, (sO):["GET","POST","PUT","DELETE","HEAD"]],[(sN):"Request body type", (sT):sENUM, (sO):["JSON","FORM","CUSTOM"]],[(sN):"Send variables", (sT):"variables", (sD):"data {v}"],[(sN):"Request body", (sT):sSTR, (sD):"data {v}"],[(sN):"Request content type", (sT):sENUM, (sO):["text/plain","text/html",sAPPJSON,"application/x-www-form-urlencoded","application/xml"]],[(sN):"Authorization header", (sT):sSTR, (sD):sBVB]],	],
+		setVariable			: [ (sN): "Set variable...",		(sA): true,	(sI): "superscript", is:sR,			(sD): "Set variable {0} = {1}",											(sP): [[(sN):"Variable", (sT):sVARIABLE],[(sN):"Value", (sT):sDYN]],	],
+		setState			: [ (sN): "Set piston state...",		(sA): true,	(sI): "align-left", is:"l",			(sD): "Set piston state to \"{0}\"",										(sP): [[(sN):"State", (sT):sSTR]],	],
+		setTileColor		: [ (sN): "Set piston tile colors...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} colors to {1} over {2}{3}",					(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Text Color", (sT):sCOLOR],[(sN):"Background Color", (sT):sCOLOR],[(sN):"Flash mode", (sT):sBOOLN,(sD):" (flashing)"]],	],
+		setTileTitle		: [ (sN): "Set piston tile title...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} title to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR]],	],
+		setTileOTitle		: [ (sN): "Set piston tile mouseover title...",	(sA): true,	(sI): "info-square", is:"l",		(sD): "Set piston tile #{0} mouseover title to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR]],	],
+		setTileText			: [ (sN): "Set piston tile text...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} text to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Text", (sT):sSTR]],	],
+		setTileFooter		: [ (sN): "Set piston tile footer...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} footer to \"{1}\"",							(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Footer", (sT):sSTR]],	],
+		setTile				: [ (sN): "Set piston tile...",		(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} title to \"{1}\", text to \"{2}\", footer to \"{3}\", and colors to {4} over {5}{6}",		(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR],[(sN):"Text", (sT):sSTR],[(sN):"Footer", (sT):sSTR],[(sN):"Text Color", (sT):sCOLOR],[(sN):"Background Color", (sT):sCOLOR],[(sN):"Flash mode", (sT):sBOOLN,(sD):" (flashing)"]],	],
+		clearTile			: [ (sN): "Clear piston tile...",		(sA): true,	(sI): "info-square", is:"l",			(sD): "Clear piston tile #{0}",											(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes]],	],
+		setLocationMode		: [ (sN): "Set location mode...",		(sA): true,	(sI): sBLK,						(sD): "Set location mode to {0}",											(sP): [[(sN):"Mode", (sT):"mode"]],																														],
+		sendEmail			: [ (sN): "Send email...",			(sA): true,	(sI): "envelope",				(sD): "Send email with subject \"{1}\" to {0}",							(sP): [[(sN):"Recipient", (sT):"email"],[(sN):"Subject", (sT):sSTR],[(sN):"Message body", (sT):sSTR]],																							],
+		wolRequest			: [ (sN): "Wake a LAN device",		(sA): true,	(sI): sBLK,						(sD): "Wake LAN device at address {0}{1}",									(sP): [[(sN):"MAC address", (sT):sSTR],[(sN):"Secure code", (sT):sSTR,(sD):" with secure code {v}"]],	],
+		adjustLevel			: [ (sN): "Adjust level...",	(sR): ["setLevel"],	(sI): sTOGON,				(sD): "Adjust level by {0}%{1}",											(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustInfraredLevel	: [ (sN): "Adjust infrared level...",	(sR): ["setInfraredLevel"],	(sI): sTOGON,	(sD): "Adjust infrared level by {0}%{1}",								(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustSaturation	: [ (sN): "Adjust saturation...",	(sR): ["setSaturation"],	(sI): sTOGON,		(sD): "Adjust saturation by {0}%{1}",										(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustHue			: [ (sN): "Adjust hue...",	(sR): ["setHue"],		(sI): sTOGON,					(sD): "Adjust hue by {0}°{1}",												(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-360,360]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustColorTemperature		: [ (sN): "Adjust color temperature...",	(sR): ["setColorTemperature"],	(sI): sTOGON,				(sD): "Adjust color temperature by {0}°K%{1}",		(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-29000,29000]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeLevel			: [ (sN): "Fade level...",	(sR): ["setLevel"],		(sI): sTOGON,				(sD): "Fade level{0} to {1}% in {2}{3}",									(sP): [[(sN):"Starting level", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final level", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeInfraredLevel	: [ (sN): "Fade infrared level...",	(sR): ["setInfraredLevel"],		(sI): sTOGON,				(sD): "Fade infrared level{0} to {1}% in {2}{3}",		(sP): [[(sN):"Starting infrared level", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final infrared level", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeSaturation		: [ (sN): "Fade saturation...",	(sR): ["setSaturation"],		(sI): sTOGON,				(sD): "Fade saturation{0} to {1}% in {2}{3}",					(sP): [[(sN):"Starting saturation", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final saturation", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeHue				: [ (sN): "Fade hue...",			(sR): ["setHue"],		(sI): sTOGON,				(sD): "Fade hue{0} to {1}° in {2}{3}",								(sP): [[(sN):"Starting hue", (sT):"hue",(sD):" from {v}°"],[(sN):"Final hue", (sT):"hue"],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeColorTemperature		: [ (sN): "Fade color temperature...",		(sR): ["setColorTemperature"],		(sI): sTOGON,				(sD): "Fade color temperature{0} to {1}°K in {2}{3}",									(sP): [[(sN):"Starting color temperature", (sT):"colorTemperature",(sD):" from {v}°K"],[(sN):"Final color temperature", (sT):"colorTemperature"],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+//		flash				: [ (sN): "Flash...",	(sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		flashLevel			: [ (sN): "Flash (level)...",	(sR): ["setLevel"],	(sI): sTOGON,		(sD): "Flash {0}% {1} / {2}% {3} for {4} times{5}",						(sP): [[(sN):"Level 1", (sT):sLVL],[(sN):"Duration 1", (sT):sDUR],[(sN):"Level 2", (sT):sLVL],[(sN):"Duration 2", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		flashColor			: [ (sN): "Flash (color)...",	(sR): ["setColor"],	(sI): sTOGON,		(sD): "Flash {0} {1} / {2} {3} for {4} times{5}",							(sP): [[(sN):"Color 1", (sT):sCOLOR],[(sN):"Duration 1", (sT):sDUR],[(sN):"Color 2", (sT):sCOLOR],[(sN):"Duration 2", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		lifxScene			: [ (sN): "LIFX - Activate scene...",              (sA): true,                        (sD): "Activate LIFX Scene '{0}'{1}",                                                                              (sP): [[(sN): "Scene", (sT):"lifxScene"],[(sN): sDURATION, (sT):sDUR, (sD):" for {v}"]],                                   ],
+		lifxState			: [ (sN): "LIFX - Set State...",                   (sA): true,                        (sD): "Set LIFX lights matching {0} to {1}{2}{3}{4}{5}",                                   (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): "Switch (power)", (sT):sENUM,(sO):[sON,sOFF],(sD):" switch '{v}'"],[(sN): sCCOLOR, (sT):sCOLOR,(sD):" color '{v}'"],[(sN): "Level (brightness)", (sT):sLVL,(sD):" level {v}%"],[(sN): "Infrared level", (sT):"infraredLevel",(sD):" infrared {v}%"],[(sN): sDURATION, (sT):sDUR,(sD):" in {v}"]], ],
+		lifxToggle			: [ (sN): "LIFX - Toggle...",                              (sA): true,                (sD): "Toggle LIFX lights matching {0}{1}",                                                                (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sDURATION, (sT):sDUR,(sD):" in {v}"]], ],
+		lifxBreathe			: [ (sN): "LIFX - Breathe...",                             (sA): true,                (sD): "Breathe LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}{7}",   (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sCCOLOR, (sT):sCOLOR],[(sN): "From color", (sT):sCOLOR,(sD):" from color '{v}'"],[(sN): "Period", (sT):sDUR, (sD):" with a period of {v}"],[(sN): "Cycles", (sT):sINT, (sD):" for {v} cycles"],[(sN):"Peak", (sT):sLVL,(sD):" with a peak at {v}% of the period"],[(sN):"Power on", (sT):sBOOLN,(sD):" and power on at start"],[(sN):"Persist", (sT):sBOOLN,(sD):" and persist"] ], ],
+		lifxPulse			: [ (sN): "LIFX - Pulse...",                               (sA): true,                (sD): "Pulse LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}",                (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sCCOLOR, (sT):sCOLOR],[(sN): "From color", (sT):sCOLOR,(sD):" from color '{v}'"],[(sN): "Period", (sT):sDUR, (sD):" with a period of {v}"],[(sN): "Cycles", (sT):sINT, (sD):" for {v} cycles"],[(sN):"Power on", (sT):sBOOLN,(sD):" and power on at start"],[(sN):"Persist", (sT):sBOOLN,(sD):" and persist"] ], ],
 
-		writeToFuelStream		: [ n: "Write to fuel stream...",		a: true,							d: "Write data point '{2}' to fuel stream {0}{1}{3}",					p: [[n: "Canister", t:sTXT, d:"{v} \\ "], [n:"Fuel stream name", t:sTXT], [n: "Data", t:sDYN], [n: "Data source", t:sTXT, d:" from source '{v}'"]],					],
-		iftttMaker			: [ n: "Send an IFTTT Maker event...",	a: true,							d: "Send the {0} IFTTT Maker event{1}{2}{3}",							p: [[n:"Event", t:sTXT], [n:"Value 1", t:sSTR, d:", passing value1 = '{v}'"], [n:"Value 2", t:sSTR, d:", passing value2 = '{v}'"], [n:"Value 3", t:sSTR, d:", passing value3 = '{v}'"]],				],
-		storeMedia			: [ n: "Store media...",				a: true,							d: "Store media",														p: [],					],
-		saveStateLocally		: [ n: "Capture attributes to local store...",								d: "Capture attributes {0} to local state{1}{2}",						p: [[n: "Attributes", t:"attributes"],[n:'State container name',t:sSTR,d:' "{v}"'],[n:'Prevent overwriting existing state', t:sENUM, o:['true','false'], d:' only if store is empty']], ],
-		saveStateGlobally		: [ n: "Capture attributes to global store...",								d: "Capture attributes {0} to global state{1}{2}",						p: [[n: "Attributes", t:"attributes"],[n:'State container name',t:sSTR,d:' "{v}"'],[n:'Prevent overwriting existing state', t:sENUM, o:['true','false'], d:' only if store is empty']], ],
-		loadStateLocally		: [ n: "Restore attributes from local store...",							d: "Restore attributes {0} from local state{1}{2}",						p: [[n: "Attributes", t:"attributes"],[n:'State container name',t:sSTR,d:' "{v}"'],[n:'Empty state after restore', t:sENUM, o:['true','false'], d:' and empty the store']], ],
-		loadStateGlobally		: [ n: "Restore attributes from global store...",							d: "Restore attributes {0} from global state{1}{2}",						p: [[n: "Attributes", t:"attributes"],[n:'State container name',t:sSTR,d:' "{v}"'],[n:'Empty state after restore', t:sENUM, o:['true','false'], d:' and empty the store']], ],
-		parseJson			: [ n: "Parse JSON data...",			a: true,						d: "Parse JSON data {0}",												p: [[n: "JSON string", t:sSTR]],																											],
-		cancelTasks			: [ n: "Cancel all pending tasks",		a: true,							d: "Cancel all pending tasks",											p: [],																											],
+		writeToFuelStream	: [ (sN): "Write to fuel stream...",		(sA): true,							(sD): "Write data point '{2}' to fuel stream {0}{1}{3}",					(sP): [[(sN): "Canister", (sT):sTXT, (sD):"{v} \\ "], [(sN):"Fuel stream name", (sT):sTXT], [(sN): "Data", (sT):sDYN], [(sN): "Data source", (sT):sTXT, (sD):" from source '{v}'"]],					],
+		iftttMaker			: [ (sN): "Send an IFTTT Maker event...",	(sA): true,							(sD): "Send the {0} IFTTT Maker event{1}{2}{3}",							(sP): [[(sN):"Event", (sT):sTXT], [(sN):"Value 1", (sT):sSTR, (sD):", passing value1 = '{v}'"], [(sN):"Value 2", (sT):sSTR, (sD):", passing value2 = '{v}'"], [(sN):"Value 3", (sT):sSTR, (sD):", passing value3 = '{v}'"]],				],
+		storeMedia			: [ (sN): "Store media...",				(sA): true,							(sD): "Store media",														(sP): [],					],
+		saveStateLocally	: [ (sN): "Capture attributes to local store...",								(sD): "Capture attributes {0} to local state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Prevent overwriting existing state', (sT):sENUM, (sO):['true','false'], (sD):' only if store is empty']], ],
+		saveStateGlobally	: [ (sN): "Capture attributes to global store...",								(sD): "Capture attributes {0} to global state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Prevent overwriting existing state', (sT):sENUM, (sO):['true','false'], (sD):' only if store is empty']], ],
+		loadStateLocally	: [ (sN): "Restore attributes from local store...",							(sD): "Restore attributes {0} from local state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Empty state after restore', (sT):sENUM, (sO):['true','false'], (sD):' and empty the store']], ],
+		loadStateGlobally	: [ (sN): "Restore attributes from global store...",							(sD): "Restore attributes {0} from global state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Empty state after restore', (sT):sENUM, (sO):['true','false'], (sD):' and empty the store']], ],
+		parseJson			: [ (sN): "Parse JSON data...",			(sA): true,						(sD): "Parse JSON data {0}",												(sP): [[(sN): "JSON string", (sT):sSTR]],																											],
+		cancelTasks			: [ (sN): "Cancel all pending tasks",		(sA): true,							(sD): "Cancel all pending tasks",											(sP): [],																											],
 
 
-		setAlarmSystemStatus		: [ n: "Set Hubitat Safety Monitor status...",	a: true, i: "",				d: "Set Hubitat Safety Monitor status to {0}",							p: [[n:"Status", t:sENUM, o: getAlarmSystemStatusActions().collect {[n: it.value, v: it.key]}]],																										],
+		setAlarmSystemStatus	: [ (sN): "Set Hubitat Safety Monitor status...",	(sA): true, (sI): sBLK,				(sD): "Set Hubitat Safety Monitor status to {0}",							(sP): [[(sN):"Status", (sT):sENUM, (sO): getAlarmSystemStatusActions().collect {[(sN): it.value, (sV): it.key]}]],																										],
 		//keep emulated flash to not break old pistons
-		emulatedFlash			: [ n: "(Old do not use) Emulated Flash",	r: [sON, sOFF],			i: sTOGON,				d: "(Old do not use)Flash on {0} / off {1} for {2} times{3}",							p: [[n:"On duration",t:sDUR],[n:"Off duration",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],																], //add back emulated flash with "o" option so that it overrides the native flash command
-		flash				: [ n: "Flash...",	r: [sON, sOFF],		i: sTOGON,				d: "Flash on {0} / off {1} for {2} times{3}",							p: [[n:"On duration",t:sDUR],[n:"Off duration",t:sDUR],[n:sNUMFLASH,t:sINT], [n:sONLYIFSWIS, t:sENUM,o:[sON,sOFF], d:sIFALREADY]],		o: true /*override physical command*/													]
+		emulatedFlash			: [ (sN): "(Old do not use) Emulated Flash",	(sR): [sON, sOFF],			(sI): sTOGON,				(sD): "(Old do not use)Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																], //add back emulated flash with "o" option so that it overrides the native flash command
+		flash				: [ (sN): "Flash...",	(sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],		(sO): true /*override physical command*/													]
 	]
 }
 
 
-static Map getChildComparisons(){
-	Map result=comparisonsFLD
-	Map cleanResult=[:]
+Map getChildComparisons(){
+	Map<String,Map<String,Map>> result=comparisonsFLD
+	Map<String,Map<String,Map>> cleanResult=[:]
 	cleanResult.conditions=[:]
-	Map defv=[n:"a"]
+	Map defv=[(sN):sA]
 	result.conditions.each{
 		Map t0=[:]
 		def hasP=it.value.p
 		def hasT=it.value.t
-		if(hasP != null) t0=t0 + [p:hasP.toInteger()]
-		if(hasT != null) t0=t0 + [t:hasT.toInteger()]
+		if(hasP != null) t0=t0 + [(sP):hasP.toInteger()]
+		if(hasT != null) t0=t0 + [(sT):hasT.toInteger()]
 		if(t0 == [:]) t0=defv
 		cleanResult.conditions[it.key.toString()]=t0
 	}
@@ -3777,8 +4117,8 @@ static Map getChildComparisons(){
 		Map t0=[:]
 		def hasP=it.value.p
 		def hasT=it.value.t
-		if(hasP != null) t0=t0 + [p:hasP.toInteger()]
-		if(hasT != null) t0=t0 + [t:hasT.toInteger()]
+		if(hasP != null) t0=t0 + [(sP):hasP.toInteger()]
+		if(hasT != null) t0=t0 + [(sT):hasT.toInteger()]
 		if(t0 == [:]) t0=defv
 		cleanResult.triggers[it.key.toString()]=t0
 	}
@@ -3788,92 +4128,92 @@ static Map getChildComparisons(){
 // m - multiple
 // p - parameter count
 // t - timed
-@Field static final Map comparisonsFLD=[
+@Field final Map<String,Map> comparisonsFLD=[
 	conditions: [
-		changed				: [ d: "changed",									g:"bdfis",				t: 1,	],
-		did_not_change			: [ d: "did not change",								g:"bdfis",				t: 1,	],
-		is				: [ d: "is",				dd: "are",					g:"bs",		p: 1					],
-		is_not				: [ d: "is not",			dd: "are not",					g:"bs",		p: 1					],
-		is_any_of			: [ d: "is any of",			dd: "are any of",				g:"s",		p: 1,	m: true,			],
-		is_not_any_of			: [ d: "is not any of",			dd: "are not any of",				g:"s",		p: 1,	m: true,			],
-		is_equal_to			: [ d: "is equal to",			dd: "are equal to",				g:"di",		p: 1					],
-		is_different_than		: [ d: "is different than",		dd: "are different than",			g:"di",		p: 1					],
-		is_less_than			: [ d: "is less than",			dd: "are less than",				g:"di",		p: 1					],
-		is_less_than_or_equal_to	: [ d: "is less than or equal to",	dd: "are less than or equal to",		g:"di",		p: 1					],
-		is_greater_than			: [ d: "is greater than",		dd: "are greater than",				g:"di",		p: 1					],
-		is_greater_than_or_equal_to	: [ d: "is greater than or equal to",	dd: "are greater than or equal to",		g:"di",		p: 1					],
-		is_inside_of_range		: [ d: "is inside of range",		dd: "are inside of range",			g:"di",		p: 2					],
-		is_outside_of_range		: [ d: "is outside of range",		dd: "are outside of range",			g:"di",		p: 2					],
-		is_even				: [ d: "is even",			dd: "are even",					g:"di",							],
-		is_odd				: [ d: "is odd",			dd: "are odd",					g:"di",							],
-		was				: [ d: "was",				dd: "were",					g:"bs",		p: 1,			t: 2,	],
-		was_not				: [ d: "was not",			dd: "were not",					g:"bs",		p: 1,			t: 2,	],
-		was_any_of			: [ d: "was any of",			dd: "were any of",				g:"s",		p: 1,	m: true,	t: 2,	],
-		was_not_any_of			: [ d: "was not any of",		dd: "were not any of",				g:"s",		p: 1,	m: true,	t: 2,	],
-		was_equal_to			: [ d: "was equal to",			dd: "were equal to",				g:"di",		p: 1,			t: 2,	],
-		was_different_than		: [ d: "was different than",		dd: "were different than",			g:"di",		p: 1,			t: 2,	],
-		was_less_than			: [ d: "was less than",			dd: "were less than",				g:"di",		p: 1,			t: 2,	],
-		was_less_than_or_equal_to	: [ d: "was less than or equal to",	dd: "were less than or equal to",		g:"di",		p: 1,			t: 2,	],
-		was_greater_than		: [ d: "was greater than",		dd: "were greater than",			g:"di",		p: 1,			t: 2,	],
-		was_greater_than_or_equal_to	: [ d: "was greater than or equal to",	dd: "were greater than or equal to",		g:"di",		p: 1,			t: 2,	],
-		was_inside_of_range		: [ d: "was inside of range",		dd: "were inside of range",			g:"di",		p: 2,			t: 2,	],
-		was_outside_of_range		: [ d: "was outside of range",		dd: "were outside of range",			g:"di",		p: 2,			t: 2,	],
-		was_even			: [ d: "was even",			dd: "were even",				g:"di",					t: 2,	],
-		was_odd				: [ d: "was odd",			dd: "were odd",					g:"di",					t: 2,	],
-		is_any				: [ d: "is any",									g:"t",		p: 0					],
-		is_before			: [ d: "is before",									g:"t",		p: 1					],
-		is_after			: [ d: "is after",									g:"t",		p: 1					],
-		is_between			: [ d: "is between",									g:"t",		p: 2					],
-		is_not_between			: [ d: "is not between",								g:"t",		p: 2					],
+		changed				: [ (sD): "changed",									(sG):"bdfis",				(sT): 1,	],
+		did_not_change		: [ (sD): "did not change",								(sG):"bdfis",				(sT): 1,	],
+		is					: [ (sD): "is",				(sDD): "are",					(sG):"bs",		(sP): 1					],
+		is_not				: [ (sD): "is not",			(sDD): "are not",					(sG):"bs",		(sP): 1					],
+		is_any_of			: [ (sD): "is any of",			(sDD): "are any of",				(sG):sS,		(sP): 1,	(sM): true,			],
+		is_not_any_of		: [ (sD): "is not any of",			(sDD): "are not any of",				(sG):sS,		(sP): 1,	(sM): true,			],
+		is_equal_to			: [ (sD): "is equal to",			(sDD): "are equal to",				(sG):sDI,		(sP): 1					],
+		is_different_than	: [ (sD): "is different than",		(sDD): "are different than",			(sG):sDI,		(sP): 1					],
+		is_less_than		: [ (sD): "is less than",			(sDD): "are less than",				(sG):sDI,		(sP): 1					],
+		is_less_than_or_equal_to	: [ (sD): "is less than or equal to",	(sDD): "are less than or equal to",		(sG):sDI,		(sP): 1					],
+		is_greater_than		: [ (sD): "is greater than",		(sDD): "are greater than",				(sG):sDI,		(sP): 1					],
+		is_greater_than_or_equal_to	: [ (sD): "is greater than or equal to",	(sDD): "are greater than or equal to",		(sG):sDI,		(sP): 1					],
+		is_inside_of_range	: [ (sD): "is inside of range",		(sDD): "are inside of range",			(sG):sDI,		(sP): 2					],
+		is_outside_of_range	: [ (sD): "is outside of range",		(sDD): "are outside of range",			(sG):sDI,		(sP): 2					],
+		is_even				: [ (sD): "is even",			(sDD): "are even",					(sG):sDI,							],
+		is_odd				: [ (sD): "is odd",			(sDD): "are odd",					(sG):sDI,							],
+		was					: [ (sD): "was",				(sDD): "were",					(sG):"bs",		(sP): 1,			(sT): 2,	],
+		was_not				: [ (sD): "was not",			(sDD): "were not",					(sG):"bs",		(sP): 1,			(sT): 2,	],
+		was_any_of			: [ (sD): "was any of",			(sDD): "were any of",				(sG):sS,		(sP): 1,	(sM): true,	(sT): 2,	],
+		was_not_any_of		: [ (sD): "was not any of",		(sDD): "were not any of",				(sG):sS,		(sP): 1,	(sM): true,	(sT): 2,	],
+		was_equal_to		: [ (sD): "was equal to",			(sDD): "were equal to",				(sG):sDI,		(sP): 1,			(sT): 2,	],
+		was_different_than	: [ (sD): "was different than",		(sDD): "were different than",			(sG):sDI,		(sP): 1,			(sT): 2,	],
+		was_less_than		: [ (sD): "was less than",			(sDD): "were less than",				(sG):sDI,		(sP): 1,			(sT): 2,	],
+		was_less_than_or_equal_to	: [ (sD): "was less than or equal to",	(sDD): "were less than or equal to",		(sG):sDI,		(sP): 1,			(sT): 2,	],
+		was_greater_than	: [ (sD): "was greater than",		(sDD): "were greater than",			(sG):sDI,		(sP): 1,			(sT): 2,	],
+		was_greater_than_or_equal_to	: [ (sD): "was greater than or equal to",	(sDD): "were greater than or equal to",		(sG):sDI,		(sP): 1,			(sT): 2,	],
+		was_inside_of_range	: [ (sD): "was inside of range",		(sDD): "were inside of range",			(sG):sDI,		(sP): 2,			(sT): 2,	],
+		was_outside_of_range	: [ (sD): "was outside of range",		(sDD): "were outside of range",			(sG):sDI,		(sP): 2,			(sT): 2,	],
+		was_even			: [ (sD): "was even",			(sDD): "were even",				(sG):sDI,					(sT): 2,	],
+		was_odd				: [ (sD): "was odd",			(sDD): "were odd",					(sG):sDI,					(sT): 2,	],
+		is_any				: [ (sD): "is any",									(sG):sT,		(sP): 0					],
+		is_before			: [ (sD): "is before",									(sG):sT,		(sP): 1					],
+		is_after			: [ (sD): "is after",									(sG):sT,		(sP): 1					],
+		is_between			: [ (sD): "is between",									(sG):sT,		(sP): 2					],
+		is_not_between		: [ (sD): "is not between",								(sG):sT,		(sP): 2					],
 	],
 	triggers: [
-		gets				: [ d: "gets",										g:"m",		p: 1					],
-		happens_daily_at		: [ d: "happens daily at",								g:"t",		p: 1					],
-		arrives				: [ d: "arrives",									g:"e",		p: 2					],
-		event_occurs			: [ d: "event occurs",									g:"s",						],
-		executes			: [ d: "executes",									g:"v",		p: 1					],
-		changes				: [ d: "changes",			dd: "change",					g:"bdfis",						],
-		changes_to			: [ d: "changes to",			dd: "change to",				g:"bdis",	p: 1,					],
-		changes_away_from		: [ d: "changes away from",		dd: "change away from",				g:"bdis",	p: 1,					],
-		changes_to_any_of		: [ d: "changes to any of",		dd: "change to any of",				g:"dis",	p: 1,	m: true,			],
-		changes_away_from_any_of	: [ d: "changes away from any of",	dd: "change away from any of",			g:"dis",	p: 1,	m: true,			],
-		drops				: [ d: "drops",				dd: "drop",					g:"di",							],
-		does_not_drop			: [ d: "does not drop",			dd: "do not drop",				g:"di",							],
-		drops_below			: [ d: "drops below",			dd: "drop below",				g:"di",		p: 1,					],
-		drops_to_or_below		: [ d: "drops to or below",		dd: "drop to or below",				g:"di",		p: 1,					],
-		remains_below			: [ d: "remains below",			dd: "remains below",				g:"di",		p: 1,					],
-		remains_below_or_equal_to	: [ d: "remains below or equal to",	dd: "remains below or equal to",		g:"di",		p: 1,					],
-		rises				: [ d: "rises",				dd: "rise",					g:"di",							],
-		does_not_rise			: [ d: "does not rise",			dd: "do not rise",				g:"di",							],
-		receives			: [ d: "receives",			dd: "receive",					g:"bdis",	p: 1,					],
-		rises_above			: [ d: "rises above",			dd: "rise above",				g:"di",		p: 1,					],
-		rises_to_or_above		: [ d: "rises to or above",		dd: "rise to or above",				g:"di",		p: 1,					],
-		remains_above			: [ d: "remains above",			dd: "remains above",				g:"di",		p: 1,					],
-		remains_above_or_equal_to	: [ d: "remains above or equal to",	dd: "remains above or equal to",		g:"di",		p: 1,					],
-		enters_range			: [ d: "enters range",			dd: "enter range",				g:"di",		p: 2,					],
-		remains_outside_of_range	: [ d: "remains outside of range",	dd: "remain outside of range",			g:"di",		p: 2,					],
-		exits_range			: [ d: "exits range",			dd: "exit range",				g:"di",		p: 2,					],
-		remains_inside_of_range		: [ d: "remains inside of range",	dd: "remain inside of range",			g:"di",		p: 2,					],
-		becomes_even			: [ d: "becomes even",			dd: "become even",				g:"di",							],
-		remains_even			: [ d: "remains even",			dd: "remain even",				g:"di",							],
-		becomes_odd			: [ d: "becomes odd",			dd: "become odd",				g:"di",							],
-		remains_odd			: [ d: "remains odd",			dd: "remain odd",				g:"di",							],
-		stays_unchanged			: [ d: "stays unchanged",	dd: "stay unchanged",				g:"bdfis",				t: 1,	],
-		stays				: [ d: "is now and stays",		dd: "are now and stay",				g:"bdis",	p: 1,			t: 1,	],
-		stays_not			: [ d: "is not and stays not",		dd: "are not and stay not",			g:"bdis",	p: 1,			t: 1,	],
-		stays_away_from			: [ d: "is away and stays away from",		dd: "are away and stay away from",	g:"bdis",	p: 1,			t: 1,	],
-		stays_any_of			: [ d: "is any and stays any of",		dd: "are any and stay any of",				g:"dis",	p: 1,	m: true,	t: 1,	],
-		stays_away_from_any_of		: [ d: "is away and stays away from any of",	dd: "are away and stay away from any of",		g:"bdis",	p: 1,	m: true,	t: 1,	],
-		stays_equal_to			: [ d: "is equal to and stays equal to",	dd: "are equal or stay equal to",			g:"di",		p: 1,			t: 1,	],
-		stays_different_than		: [ d: "is different and stays different than",	dd: "are different and stay different than",		g:"di",		p: 1,			t: 1,	],
-		stays_less_than			: [ d: "is less and stays less than",		dd: "are less and stay less than",			g:"di",		p: 1,			t: 1,	],
-		stays_less_than_or_equal_to	: [ d: "is less or equal and stays less than or equal to",	dd: "are less or equal and stay less than or equal to",		g:"di",		p: 1,			t: 1,	],
-		stays_greater_than		: [ d: "is greater and stays greater than",	dd: "are greater and stay greater than",		g:"di",		p: 1,			t: 1,	],
-		stays_greater_than_or_equal_to	: [ d: "is greater or equal and stays greater than or equal to",	dd: "are greater or equal stay greater than or equal to",	g:"di",		p: 1,			t: 1,	],
-		stays_inside_of_range		: [ d: "is inside and stays inside of range",	dd: "are inside and stay inside of range",		g:"di",		p: 2,			t: 1,	],
-		stays_outside_of_range		: [ d: "is outside and stays outside of range",	dd: "stay outside of range",		g:"di",		p: 2,			t: 1,	],
-		stays_even			: [ d: "is even and stays even",		dd: "are even and stay even",		g:"di",					t: 1,	],
-		stays_odd			: [ d: "is odd and stays odd",			dd: "are odd and stay odd",		g:"di",					t: 1,	],
+		gets				: [ (sD): "gets",										(sG):sM,		(sP): 1					],
+		happens_daily_at	: [ (sD): "happens daily at",								(sG):sT,		(sP): 1					],
+		arrives				: [ (sD): "arrives",									(sG):"e",		(sP): 2					],
+		event_occurs		: [ (sD): "event occurs",									(sG):sS,						],
+		executes			: [ (sD): "executes",									(sG):"v",		(sP): 1					],
+		changes				: [ (sD): "changes",			(sDD): "change",					(sG):"bdfis",						],
+		changes_to			: [ (sD): "changes to",			(sDD): "change to",				(sG):"bdis",	(sP): 1,					],
+		changes_away_from	: [ (sD): "changes away from",		(sDD): "change away from",				(sG):"bdis",	(sP): 1,					],
+		changes_to_any_of	: [ (sD): "changes to any of",		(sDD): "change to any of",				(sG):"dis",	(sP): 1,	(sM): true,			],
+		changes_away_from_any_of	: [ (sD): "changes away from any of",	(sDD): "change away from any of",			(sG):"dis",	(sP): 1,	(sM): true,			],
+		drops				: [ (sD): "drops",				(sDD): "drop",					(sG):sDI,							],
+		does_not_drop		: [ (sD): "does not drop",			(sDD): "do not drop",				(sG):sDI,							],
+		drops_below			: [ (sD): "drops below",			(sDD): "drop below",				(sG):sDI,		(sP): 1,					],
+		drops_to_or_below	: [ (sD): "drops to or below",		(sDD): "drop to or below",				(sG):sDI,		(sP): 1,					],
+		remains_below		: [ (sD): "remains below",			(sDD): "remains below",				(sG):sDI,		(sP): 1,					],
+		remains_below_or_equal_to	: [ (sD): "remains below or equal to",	(sDD): "remains below or equal to",		(sG):sDI,		(sP): 1,					],
+		rises				: [ (sD): "rises",				(sDD): "rise",					(sG):sDI,							],
+		does_not_rise		: [ (sD): "does not rise",			(sDD): "do not rise",				(sG):sDI,							],
+		receives			: [ (sD): "receives",			(sDD): "receive",					(sG):"bdis",	(sP): 1,					],
+		rises_above			: [ (sD): "rises above",			(sDD): "rise above",				(sG):sDI,		(sP): 1,					],
+		rises_to_or_above	: [ (sD): "rises to or above",		(sDD): "rise to or above",				(sG):sDI,		(sP): 1,					],
+		remains_above		: [ (sD): "remains above",			(sDD): "remains above",				(sG):sDI,		(sP): 1,					],
+		remains_above_or_equal_to	: [ (sD): "remains above or equal to",	(sDD): "remains above or equal to",		(sG):sDI,		(sP): 1,					],
+		enters_range		: [ (sD): "enters range",			(sDD): "enter range",				(sG):sDI,		(sP): 2,					],
+		remains_outside_of_range	: [ (sD): "remains outside of range",	(sDD): "remain outside of range",			(sG):sDI,		(sP): 2,					],
+		exits_range			: [ (sD): "exits range",			(sDD): "exit range",				(sG):sDI,		(sP): 2,					],
+		remains_inside_of_range		: [ (sD): "remains inside of range",	(sDD): "remain inside of range",			(sG):sDI,		(sP): 2,					],
+		becomes_even		: [ (sD): "becomes even",			(sDD): "become even",				(sG):sDI,							],
+		remains_even		: [ (sD): "remains even",			(sDD): "remain even",				(sG):sDI,							],
+		becomes_odd			: [ (sD): "becomes odd",			(sDD): "become odd",				(sG):sDI,							],
+		remains_odd			: [ (sD): "remains odd",			(sDD): "remain odd",				(sG):sDI,							],
+		stays_unchanged		: [ (sD): "stays unchanged",	(sDD): "stay unchanged",				(sG):"bdfis",				(sT): 1,	],
+		stays				: [ (sD): "is now and stays",		(sDD): "are now and stay",				(sG):"bdis",	(sP): 1,			(sT): 1,	],
+		stays_not			: [ (sD): "is not and stays not",		(sDD): "are not and stay not",			(sG):"bdis",	(sP): 1,			(sT): 1,	],
+		stays_away_from		: [ (sD): "is away and stays away from",		(sDD): "are away and stay away from",	(sG):"bdis",	(sP): 1,			(sT): 1,	],
+		stays_any_of		: [ (sD): "is any and stays any of",		(sDD): "are any and stay any of",				(sG):"dis",	(sP): 1,	(sM): true,	(sT): 1,	],
+		stays_away_from_any_of		: [ (sD): "is away and stays away from any of",	(sDD): "are away and stay away from any of",		(sG):"bdis",	(sP): 1,	(sM): true,	(sT): 1,	],
+		stays_equal_to		: [ (sD): "is equal to and stays equal to",	(sDD): "are equal or stay equal to",			(sG):sDI,		(sP): 1,			(sT): 1,	],
+		stays_different_than		: [ (sD): "is different and stays different than",	(sDD): "are different and stay different than",		(sG):sDI,		(sP): 1,			(sT): 1,	],
+		stays_less_than		: [ (sD): "is less and stays less than",		(sDD): "are less and stay less than",			(sG):sDI,		(sP): 1,			(sT): 1,	],
+		stays_less_than_or_equal_to	: [ (sD): "is less or equal and stays less than or equal to",	(sDD): "are less or equal and stay less than or equal to",		(sG):sDI,		(sP): 1,			(sT): 1,	],
+		stays_greater_than	: [ (sD): "is greater and stays greater than",	(sDD): "are greater and stay greater than",		(sG):sDI,		(sP): 1,			(sT): 1,	],
+		stays_greater_than_or_equal_to	: [ (sD): "is greater or equal and stays greater than or equal to",	(sDD): "are greater or equal stay greater than or equal to",	(sG):sDI,		(sP): 1,			(sT): 1,	],
+		stays_inside_of_range		: [ (sD): "is inside and stays inside of range",	(sDD): "are inside and stay inside of range",		(sG):sDI,		(sP): 2,			(sT): 1,	],
+		stays_outside_of_range		: [ (sD): "is outside and stays outside of range",	(sDD): "stay outside of range",		(sG):sDI,		(sP): 2,			(sT): 1,	],
+		stays_even			: [ (sD): "is even and stays even",		(sDD): "are even and stay even",		(sG):sDI,					(sT): 1,	],
+		stays_odd			: [ (sD): "is odd and stays odd",			(sDD): "are odd and stay odd",		(sG):sDI,					(sT): 1,	],
 	]
 ]
 
@@ -3881,100 +4221,100 @@ static Map getChildComparisons(){
 	return comparisonsFLD
 }*/
 
-@Field final Map functionsFLD=[
-	age			: [ t: sINT,						],
-	previousage		: [ t: sINT,	d: "previousAge",	],
-	previousvalue		: [ t: sDYN,	d: "previousValue",	],
-	newer			: [ t: sINT,						],
-	older			: [ t: sINT,						],
-	least			: [ t: sDYN,						],
-	most			: [ t: sDYN,						],
-	avg			: [ t: sDEC,						],
-	variance		: [ t: sDEC,						],
-	median			: [ t: sDEC,						],
-	stdev			: [ t: sDEC,						],
-	round			: [ t: sDEC,						],
-	ceil			: [ t: sDEC,						],
-	ceiling			: [ t: sDEC,						],
-	floor			: [ t: sDEC,						],
-	min			: [ t: sDEC,						],
-	max			: [ t: sDEC,						],
-	sum			: [ t: sDEC,						],
-	count			: [ t: sINT,						],
-	size			: [ t: sINT,						],
-	left			: [ t: sSTR,						],
-	right			: [ t: sSTR,						],
-	mid			: [ t: sSTR,						],
-	substring		: [ t: sSTR,						],
-	sprintf			: [ t: sSTR,						],
-	format			: [ t: sSTR,						],
-	string			: [ t: sSTR,						],
-	replace			: [ t: sSTR,						],
-	indexof			: [ t: sINT,	d: "indexOf",		],
-	lastindexof		: [ t: sINT,	d: "lastIndexOf",	],
-	concat			: [ t: sSTR,						],
-	text			: [ t: sSTR,						],
-	lower			: [ t: sSTR,						],
-	upper			: [ t: sSTR,						],
-	title			: [ t: sSTR,						],
-	int			: [ t: sINT,						],
-	integer			: [ t: sINT,						],
-	float			: [ t: sDEC,						],
-	decimal			: [ t: sDEC,						],
-	number			: [ t: sDEC,						],
-	bool			: [ t: sBOOL,						],
-	boolean			: [ t: sBOOL,						],
-	power			: [ t: sDEC,						],
-	sqr			: [ t: sDEC,						],
-	sqrt			: [ t: sDEC,						],
-	dewpoint		: [ t: sDEC,	d: "dewPoint",		],
-	fahrenheit		: [ t: sDEC,						],
-	celsius			: [ t: sDEC,						],
-	converttemperatureifneeded	: [ t:sDEC, d: "convertTemperatureIfNeeded",	],
-	dateAdd			: [ t: "time",		d: "dateAdd",		],
-	startswith		: [ t: sBOOL,	d: "startsWith",	],
-	endswith		: [ t: sBOOL,	d: "endsWith",		],
-	contains		: [ t: sBOOL,						],
-	matches			: [ t: sBOOL,						],
-	eq			: [ t: sBOOL,						],
-	lt			: [ t: sBOOL,						],
-	le			: [ t: sBOOL,						],
-	gt			: [ t: sBOOL,						],
-	ge			: [ t: sBOOL,						],
-	not			: [ t: sBOOL,						],
-	isempty			: [ t: sBOOL,	d: "isEmpty",		],
-	if			: [ t: sDYN,						],
-	datetime		: [ t: sDATIM,						],
-	date			: [ t: "date",							],
-	time			: [ t: "time",							],
-	addseconds		: [ t: sDATIM,	d: "addSeconds"		],
-	addminutes		: [ t: sDATIM,	d: "addMinutes"		],
-	addhours		: [ t: sDATIM,	d: "addHours"		],
-	adddays			: [ t: sDATIM,	d: "addDays"		],
-	addweeks		: [ t: sDATIM,	d: "addWeeks"		],
-	isbetween		: [ t: sBOOL,	d: "isBetween"		],
-	formatduration		: [ t: sSTR,	d: "formatDuration"	],
-	formatdatetime		: [ t: sSTR,	d: "formatDateTime"	],
-	random			: [ t: sDYN,					],
-	strlen			: [ t: sINT,					],
-	length			: [ t: sINT,					],
-	coalesce		: [ t: sDYN,					],
-	weekdayname		: [ t: sSTR,	d: "weekDayName"	],
-	monthname		: [ t: sSTR,	d: "monthName"		],
-	arrayitem		: [ t: sDYN,	d: "arrayItem"		],
-	trim			: [ t: sSTR							],
-	trimleft		: [ t: sSTR,	d: "trimLeft"		],
-	ltrim			: [ t: sSTR							],
-	trimright		: [ t: sSTR,	d: "trimRight"		],
-	rtrim			: [ t: sSTR							],
-	hsltohex		: [ t: sSTR,	d: "hslToHex"		],
-	abs			: [ t: sDYN						],
-	rangevalue		: [ t: sDYN,	d: "rangeValue"		],
-	rainbowvalue		: [ t: sSTR,	d: "rainbowValue"	],
-	distance		: [ t: sDEC						],
-	json			: [ t: sDYN						],
-	urlencode		: [ t: sSTR,	d: "urlEncode"				],
-	encodeuricomponent	: [ t: sSTR,	d: "encodeURIComponent"			],
+@Field final Map<String,Map> functionsFLD=[
+	age				: [ (sT): sINT,						],
+	previousage		: [ (sT): sINT,	(sD): "previousAge",	],
+	previousvalue	: [ (sT): sDYN,	(sD): "previousValue",	],
+	newer			: [ (sT): sINT,						],
+	older			: [ (sT): sINT,						],
+	least			: [ (sT): sDYN,						],
+	most			: [ (sT): sDYN,						],
+	avg				: [ (sT): sDEC,						],
+	variance		: [ (sT): sDEC,						],
+	median			: [ (sT): sDEC,						],
+	stdev			: [ (sT): sDEC,						],
+	round			: [ (sT): sDEC,						],
+	ceil			: [ (sT): sDEC,						],
+	ceiling			: [ (sT): sDEC,						],
+	floor			: [ (sT): sDEC,						],
+	min				: [ (sT): sDEC,						],
+	max				: [ (sT): sDEC,						],
+	sum				: [ (sT): sDEC,						],
+	count			: [ (sT): sINT,						],
+	size			: [ (sT): sINT,						],
+	left			: [ (sT): sSTR,						],
+	right			: [ (sT): sSTR,						],
+	mid				: [ (sT): sSTR,						],
+	substring		: [ (sT): sSTR,						],
+	sprintf			: [ (sT): sSTR,						],
+	format			: [ (sT): sSTR,						],
+	string			: [ (sT): sSTR,						],
+	replace			: [ (sT): sSTR,						],
+	indexof			: [ (sT): sINT,	(sD): "indexOf",		],
+	lastindexof		: [ (sT): sINT,	(sD): "lastIndexOf",	],
+	concat			: [ (sT): sSTR,						],
+	(sTXT)			: [ (sT): sSTR,						],
+	lower			: [ (sT): sSTR,						],
+	upper			: [ (sT): sSTR,						],
+	title			: [ (sT): sSTR,						],
+	int				: [ (sT): sINT,						],
+	integer			: [ (sT): sINT,						],
+	float			: [ (sT): sDEC,						],
+	decimal			: [ (sT): sDEC,						],
+	number			: [ (sT): sDEC,						],
+	bool			: [ (sT): sBOOLN,					],
+	boolean			: [ (sT): sBOOLN,					],
+	power			: [ (sT): sDEC,						],
+	sqr				: [ (sT): sDEC,						],
+	sqrt			: [ (sT): sDEC,						],
+	dewpoint		: [ (sT): sDEC,	(sD): "dewPoint",	],
+	fahrenheit		: [ (sT): sDEC,						],
+	celsius			: [ (sT): sDEC,						],
+	converttemperatureifneeded	: [ (sT):sDEC, (sD): "convertTemperatureIfNeeded",	],
+	dateAdd			: [ (sT): "time",		(sD): "dateAdd",		],
+	startswith		: [ (sT): sBOOLN,	(sD): "startsWith",	],
+	endswith		: [ (sT): sBOOLN,	(sD): "endsWith",		],
+	contains		: [ (sT): sBOOLN,					],
+	matches			: [ (sT): sBOOLN,					],
+	eq				: [ (sT): sBOOLN,					],
+	lt				: [ (sT): sBOOLN,					],
+	le				: [ (sT): sBOOLN,					],
+	gt				: [ (sT): sBOOLN,					],
+	ge				: [ (sT): sBOOLN,					],
+	not				: [ (sT): sBOOLN,					],
+	isempty			: [ (sT): sBOOLN,	(sD): "isEmpty",		],
+	if				: [ (sT): sDYN,						],
+	datetime		: [ (sT): sDTIME,					],
+	date			: [ (sT): "date",					],
+	time			: [ (sT): "time",					],
+	addseconds		: [ (sT): sDTIME,	(sD): "addSeconds"		],
+	addminutes		: [ (sT): sDTIME,	(sD): "addMinutes"		],
+	addhours		: [ (sT): sDTIME,	(sD): "addHours"		],
+	adddays			: [ (sT): sDTIME,	(sD): "addDays"		],
+	addweeks		: [ (sT): sDTIME,	(sD): "addWeeks"		],
+	isbetween		: [ (sT): sBOOLN,	(sD): "isBetween"		],
+	formatduration	: [ (sT): sSTR,	(sD): "formatDuration"	],
+	formatdatetime	: [ (sT): sSTR,	(sD): "formatDateTime"	],
+	random			: [ (sT): sDYN,					],
+	strlen			: [ (sT): sINT,					],
+	length			: [ (sT): sINT,					],
+	coalesce		: [ (sT): sDYN,					],
+	weekdayname		: [ (sT): sSTR,	(sD): "weekDayName"	],
+	monthname		: [ (sT): sSTR,	(sD): "monthName"		],
+	arrayitem		: [ (sT): sDYN,	(sD): "arrayItem"		],
+	trim			: [ (sT): sSTR							],
+	trimleft		: [ (sT): sSTR,	(sD): "trimLeft"		],
+	ltrim			: [ (sT): sSTR							],
+	trimright		: [ (sT): sSTR,	(sD): "trimRight"		],
+	rtrim			: [ (sT): sSTR							],
+	hsltohex		: [ (sT): sSTR,	(sD): "hslToHex"		],
+	abs				: [ (sT): sDYN						],
+	rangevalue		: [ (sT): sDYN,	(sD): "rangeValue"		],
+	rainbowvalue	: [ (sT): sSTR,	(sD): "rainbowValue"	],
+	distance		: [ (sT): sDEC						],
+	json			: [ (sT): sDYN						],
+	urlencode		: [ (sT): sSTR,	(sD): "urlEncode"				],
+	encodeuricomponent	: [ (sT): sSTR,	(sD): "encodeURIComponent"			],
 ]
 
 /*private Map functions(){
@@ -4005,10 +4345,10 @@ private static Map getAlarmSystemStatusActions(){
 		armNight:		"Arm Night",
 		disarm:			"Disarm",
 		armRules:		"Arm Monitor Rules",
-		disarmRules:		"Disarm Monitor Rules",
+		disarmRules:	"Disarm Monitor Rules",
 		disarmAll:		"Disarm All",
 		armAll:			"Arm All",
-		cancelAlerts:		"Cancel Alerts"
+		cancelAlerts:	"Cancel Alerts"
 	]
 }
 
@@ -4029,9 +4369,9 @@ private static Map getHubitatAlarmSystemStatusOptions(){
 		armedHome:		"Armed Home",
 		armingHome:		"Arming Home pending exit delay",
 		armedNight:		"Armed Night",
-		armingNight:		"Arming Night pending exit delay",
+		armingNight:	"Arming Night pending exit delay",
 		disarmed:		"Disarmed",
-		allDisarmed:		"All Disarmed"
+		allDisarmed:	"All Disarmed"
 	]
 }
 
@@ -4095,117 +4435,117 @@ private Map getRuleOptions(Boolean updateCache){
 }
 
 Map getChildVirtDevices(){
-	Map result=virtualDevices()
+	Map<String,Map> result=virtualDevices()
 	Map cleanResult=[:]
-	Map defv=[n:"a"]
+	Map defv=[(sN):sA]
 	result.each{
 		Map t0=[:]
 		def hasAC=it.value.ac
 		def hasO=it.value.o
 		if(hasAC != null) t0=t0 + [ac:hasAC]
-		if(hasO != null) t0=t0 + [o:hasO]
+		if(hasO != null) t0=t0 + [(sO):hasO]
 		if(t0 == [:]) t0=defv
 		cleanResult[it.key.toString()]=t0
 	}
 	return cleanResult
 }
 
-private Map virtualDevices(Boolean updateCache=false){
+private Map<String,Map> virtualDevices(Boolean updateCache=false){
 	return [
-		date:			[ n: 'Date',			t: 'date',		],
-		datetime:		[ n: 'Date & Time',		t: sDATIM,	],
-		time:			[ n: 'Time',			t: 'time',		],
-		email:			[ n: 'Email',			t: 'email',						m: true	],
-		powerSource:	[ n: 'Hub power source',	t: sENUM,	o: [battery: 'battery', mains: 'mains'],					x: true	],
-		ifttt:			[ n: 'IFTTT',			t: sSTR,						m: true	],
-		mode:			[ n: 'Location mode',		t: sENUM,	o: getLocationModeOptions(updateCache),	x: true],
-		tile:			[ n: 'Piston tile',		t: sENUM,	o: ['1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','10':'10','11':'11','12':'12','13':'13','14':'14','15':'15','16':'16'],		m: true	],
-		rule:			[ n: 'Rule',			t: sENUM,	o: getRuleOptions(updateCache),		m: true ],
-		systemStart:		[ n: 'System Start', t: sSTR,		x: true],
+		date:			[ (sN): 'Date',				(sT): 'date',		],
+		datetime:		[ (sN): 'Date & Time',		(sT): sDTIME,	],
+		time:			[ (sN): 'Time',				(sT): 'time',		],
+		email:			[ (sN): 'Email',			(sT): 'email',						(sM): true	],
+		powerSource:	[ (sN): 'Hub power source',	(sT): sENUM,	(sO): [battery: 'battery', mains: 'mains'],					x: true	],
+		ifttt:			[ (sN): 'IFTTT',			(sT): sSTR,						(sM): true	],
+		mode:			[ (sN): 'Location mode',	(sT): sENUM,	(sO): getLocationModeOptions(updateCache),	x: true],
+		tile:			[ (sN): 'Piston tile',		(sT): sENUM,	(sO): ['1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','10':'10','11':'11','12':'12','13':'13','14':'14','15':'15','16':'16'],		(sM): true	],
+		rule:			[ (sN): 'Rule',				(sT): sENUM,	(sO): getRuleOptions(updateCache),		(sM): true ],
+		systemStart:	[ (sN): 'System Start',		(sT): sSTR,		x: true],
 //ac - actions. hubitat doesn't reuse the status for actions
-		alarmSystemStatus:	[ n: 'Hubitat Safety Monitor status',t: sENUM,		o: getHubitatAlarmSystemStatusOptions(), ac: getAlarmSystemStatusActions(),		x: true],
-		alarmSystemEvent:	[ n: 'Hubitat Safety Monitor event',t: sENUM,		o: getAlarmSystemStatusActions(),	m: true],
-		alarmSystemAlert:	[ n: 'Hubitat Safety Monitor alert',t: sENUM,		o: getAlarmSystemAlertOptions(),	m: true,			x: true],
-		alarmSystemRule:	[ n: 'Hubitat Safety Monitor rule',t: sENUM,		o: getAlarmSystemRuleOptions(),		m: true]
+		alarmSystemStatus:	[ (sN): 'Hubitat Safety Monitor status',	(sT): sENUM,		(sO): getHubitatAlarmSystemStatusOptions(), ac: getAlarmSystemStatusActions(),		x: true],
+		alarmSystemEvent:	[ (sN): 'Hubitat Safety Monitor event',		(sT): sENUM,		(sO): getAlarmSystemStatusActions(),	(sM): true],
+		alarmSystemAlert:	[ (sN): 'Hubitat Safety Monitor alert',		(sT): sENUM,		(sO): getAlarmSystemAlertOptions(),	(sM): true,			x: true],
+		alarmSystemRule:	[ (sN): 'Hubitat Safety Monitor rule',		(sT): sENUM,		(sO): getAlarmSystemRuleOptions(),		(sM): true]
 	]
 }
 
-@Field static final List myColorsFLD= [
-	[name:"Alice Blue",	rgb:"#F0F8FF",	h:208,	s:100,	l:97],		[name:"Antique White",	rgb:"#FAEBD7",	h:34,	s:78,	l:91],
-	[name:"Aqua",	rgb:"#00FFFF",	h:180,	s:100,	l:50],	[name:"Aquamarine",	rgb:"#7FFFD4",	h:160,	s:100,	l:75],
-	[name:"Azure",	rgb:"#F0FFFF",	h:180,	s:100,	l:97],	[name:"Beige",	rgb:"#F5F5DC",	h:60,	s:56,	l:91],
-	[name:"Bisque",	rgb:"#FFE4C4",	h:33,	s:100,	l:88],	[name:"Blanched Almond",	rgb:"#FFEBCD",	h:36,	s:100,	l:90],
-	[name:"Blue",	rgb:"#0000FF",	h:240,	s:100,	l:50],	[name:"Blue Violet",	rgb:"#8A2BE2",	h:271,	s:76,	l:53],
-	[name:"Brown",	rgb:"#A52A2A",	h:0,	s:59,	l:41],	[name:"Burly Wood",	rgb:"#DEB887",	h:34,	s:57,	l:70],
-	[name:"Cadet Blue",	rgb:"#5F9EA0",	h:182,	s:25,	l:50],	[name:"Chartreuse",	rgb:"#7FFF00",	h:90,	s:100,	l:50],
-	[name:"Chocolate",	rgb:"#D2691E",	h:25,	s:75,	l:47],	[name:"Cool White",	rgb:"#F3F6F7",	h:187,	s:19,	l:96],
-	[name:"Coral",	rgb:"#FF7F50",	h:16,	s:100,	l:66],	[name:"Corn Flower Blue",	rgb:"#6495ED",	h:219,	s:79,	l:66],
-	[name:"Corn Silk",	rgb:"#FFF8DC",	h:48,	s:100,	l:93],	[name:"Crimson",	rgb:"#DC143C",	h:348,	s:83,	l:58],
-	[name:"Cyan",	rgb:"#00FFFF",	h:180,	s:100,	l:50],	[name:"Dark Blue",	rgb:"#00008B",	h:240,	s:100,	l:27],
-	[name:"Dark Cyan",	rgb:"#008B8B",	h:180,	s:100,	l:27],	[name:"Dark Golden Rod",	rgb:"#B8860B",	h:43,	s:89,	l:38],
-	[name:"Dark Gray",	rgb:"#A9A9A9",	h:0,	s:0,	l:66],	[name:"Dark Green",	rgb:"#006400",	h:120,	s:100,	l:20],
-	[name:"Dark Khaki",	rgb:"#BDB76B",	h:56,	s:38,	l:58],	[name:"Dark Magenta",	rgb:"#8B008B",	h:300,	s:100,	l:27],
-	[name:"Dark Olive Green",	rgb:"#556B2F",	h:82,	s:39,	l:30],	[name:"Dark Orange",	rgb:"#FF8C00",	h:33,	s:100,	l:50],
-	[name:"Dark Orchid",	rgb:"#9932CC",	h:280,	s:61,	l:50],	[name:"Dark Red",	rgb:"#8B0000",	h:0,	s:100,	l:27],
-	[name:"Dark Salmon",	rgb:"#E9967A",	h:15,	s:72,	l:70],	[name:"Dark Sea Green",	rgb:"#8FBC8F",	h:120,	s:25,	l:65],
-	[name:"Dark Slate Blue",	rgb:"#483D8B",	h:248,	s:39,	l:39],	[name:"Dark Slate Gray",	rgb:"#2F4F4F",	h:180,	s:25,	l:25],
-	[name:"Dark Turquoise",	rgb:"#00CED1",	h:181,	s:100,	l:41],	[name:"Dark Violet",	rgb:"#9400D3",	h:282,	s:100,	l:41],
-	[name:"Daylight White",	rgb:"#CEF4FD",	h:191,	s:9,	l:90],	[name:"Deep Pink",	rgb:"#FF1493",	h:328,	s:100,	l:54],
-	[name:"Deep Sky Blue",	rgb:"#00BFFF",	h:195,	s:100,	l:50],	[name:"Dim Gray",	rgb:"#696969",	h:0,	s:0,	l:41],
-	[name:"Dodger Blue",	rgb:"#1E90FF",	h:210,	s:100,	l:56],	[name:"Fire Brick",	rgb:"#B22222",	h:0,	s:68,	l:42],
-	[name:"Floral White",	rgb:"#FFFAF0",	h:40,	s:100,	l:97],	[name:"Forest Green",	rgb:"#228B22",	h:120,	s:61,	l:34],
-	[name:"Fuchsia",	rgb:"#FF00FF",	h:300,	s:100,	l:50],	[name:"Gainsboro",	rgb:"#DCDCDC",	h:0,	s:0,	l:86],
-	[name:"Ghost White",	rgb:"#F8F8FF",	h:240,	s:100,	l:99],	[name:"Gold",	rgb:"#FFD700",	h:51,	s:100,	l:50],
-	[name:"Golden Rod",	rgb:"#DAA520",	h:43,	s:74,	l:49],	[name:"Gray",	rgb:"#808080",	h:0,	s:0,	l:50],
-	[name:"Green",	rgb:"#008000",	h:120,	s:100,	l:25],	[name:"Green Yellow",	rgb:"#ADFF2F",	h:84,	s:100,	l:59],
-	[name:"Honeydew",	rgb:"#F0FFF0",	h:120,	s:100,	l:97],	[name:"Hot Pink",	rgb:"#FF69B4",	h:330,	s:100,	l:71],
-	[name:"Indian Red",	rgb:"#CD5C5C",	h:0,	s:53,	l:58],	[name:"Indigo",	rgb:"#4B0082",	h:275,	s:100,	l:25],
-	[name:"Ivory",	rgb:"#FFFFF0",	h:60,	s:100,	l:97],	[name:"Khaki",	rgb:"#F0E68C",	h:54,	s:77,	l:75],
-	[name:"Lavender",	rgb:"#E6E6FA",	h:240,	s:67,	l:94],	[name:"Lavender Blush",	rgb:"#FFF0F5",	h:340,	s:100,	l:97],
-	[name:"Lawn Green",	rgb:"#7CFC00",	h:90,	s:100,	l:49],	[name:"Lemon Chiffon",	rgb:"#FFFACD",	h:54,	s:100,	l:90],
-	[name:"Light Blue",	rgb:"#ADD8E6",	h:195,	s:53,	l:79],	[name:"Light Coral",	rgb:"#F08080",	h:0,	s:79,	l:72],
-	[name:"Light Cyan",	rgb:"#E0FFFF",	h:180,	s:100,	l:94],	[name:"Light Golden Rod Yellow",	rgb:"#FAFAD2",	h:60,	s:80,	l:90],
-	[name:"Light Gray",	rgb:"#D3D3D3",	h:0,	s:0,	l:83],	[name:"Light Green",	rgb:"#90EE90",	h:120,	s:73,	l:75],
-	[name:"Light Pink",	rgb:"#FFB6C1",	h:351,	s:100,	l:86],	[name:"Light Salmon",	rgb:"#FFA07A",	h:17,	s:100,	l:74],
-	[name:"Light Sea Green",	rgb:"#20B2AA",	h:177,	s:70,	l:41],	[name:"Light Sky Blue",	rgb:"#87CEFA",	h:203,	s:92,	l:75],
-	[name:"Light Slate Gray",	rgb:"#778899",	h:210,	s:14,	l:53],	[name:"Light Steel Blue",	rgb:"#B0C4DE",	h:214,	s:41,	l:78],
-	[name:"Light Yellow",	rgb:"#FFFFE0",	h:60,	s:100,	l:94],	[name:"Lime",	rgb:"#00FF00",	h:120,	s:100,	l:50],
-	[name:"Lime Green",	rgb:"#32CD32",	h:120,	s:61,	l:50],	[name:"Linen",	rgb:"#FAF0E6",	h:30,	s:67,	l:94],
-	[name:"Maroon",	rgb:"#800000",	h:0,	s:100,	l:25],	[name:"Medium Aquamarine",	rgb:"#66CDAA",	h:160,	s:51,	l:60],
-	[name:"Medium Blue",	rgb:"#0000CD",	h:240,	s:100,	l:40],	[name:"Medium Orchid",	rgb:"#BA55D3",	h:288,	s:59,	l:58],
-	[name:"Medium Purple",	rgb:"#9370DB",	h:260,	s:60,	l:65],	[name:"Medium Sea Green",	rgb:"#3CB371",	h:147,	s:50,	l:47],
-	[name:"Medium Slate Blue",	rgb:"#7B68EE",	h:249,	s:80,	l:67],	[name:"Medium Spring Green",	rgb:"#00FA9A",	h:157,	s:100,	l:49],
-	[name:"Medium Turquoise",	rgb:"#48D1CC",	h:178,	s:60,	l:55],	[name:"Medium Violet Red",	rgb:"#C71585",	h:322,	s:81,	l:43],
-	[name:"Midnight Blue",	rgb:"#191970",	h:240,	s:64,	l:27],	[name:"Mint Cream",	rgb:"#F5FFFA",	h:150,	s:100,	l:98],
-	[name:"Misty Rose",	rgb:"#FFE4E1",	h:6,	s:100,	l:94],	[name:"Moccasin",	rgb:"#FFE4B5",	h:38,	s:100,	l:85],
-	[name:"Navajo White",	rgb:"#FFDEAD",	h:36,	s:100,	l:84],	[name:"Navy",	rgb:"#000080",	h:240,	s:100,	l:25],
-	[name:"Old Lace",	rgb:"#FDF5E6",	h:39,	s:85,	l:95],	[name:"Olive",	rgb:"#808000",	h:60,	s:100,	l:25],
-	[name:"Olive Drab",	rgb:"#6B8E23",	h:80,	s:60,	l:35],	[name:"Orange",	rgb:"#FFA500",	h:39,	s:100,	l:50],
-	[name:"Orange Red",	rgb:"#FF4500",	h:16,	s:100,	l:50],	[name:"Orchid",	rgb:"#DA70D6",	h:302,	s:59,	l:65],
-	[name:"Pale Golden Rod",	rgb:"#EEE8AA",	h:55,	s:67,	l:80],	[name:"Pale Green",	rgb:"#98FB98",	h:120,	s:93,	l:79],
-	[name:"Pale Turquoise",	rgb:"#AFEEEE",	h:180,	s:65,	l:81],	[name:"Pale Violet Red",	rgb:"#DB7093",	h:340,	s:60,	l:65],
-	[name:"Papaya Whip",	rgb:"#FFEFD5",	h:37,	s:100,	l:92],	[name:"Peach Puff",	rgb:"#FFDAB9",	h:28,	s:100,	l:86],
-	[name:"Peru",	rgb:"#CD853F",	h:30,	s:59,	l:53],	[name:"Pink",	rgb:"#FFC0CB",	h:350,	s:100,	l:88],
-	[name:"Plum",	rgb:"#DDA0DD",	h:300,	s:47,	l:75],	[name:"Powder Blue",	rgb:"#B0E0E6",	h:187,	s:52,	l:80],
-	[name:"Purple",	rgb:"#800080",	h:300,	s:100,	l:25],	[name:"Red",	rgb:"#FF0000",	h:0,	s:100,	l:50],
-	[name:"Rosy Brown",	rgb:"#BC8F8F",	h:0,	s:25,	l:65],	[name:"Royal Blue",	rgb:"#4169E1",	h:225,	s:73,	l:57],
-	[name:"Saddle Brown",	rgb:"#8B4513",	h:25,	s:76,	l:31],	[name:"Salmon",	rgb:"#FA8072",	h:6,	s:93,	l:71],
-	[name:"Sandy Brown",	rgb:"#F4A460",	h:28,	s:87,	l:67],	[name:"Sea Green",	rgb:"#2E8B57",	h:146,	s:50,	l:36],
-	[name:"Sea Shell",	rgb:"#FFF5EE",	h:25,	s:100,	l:97],	[name:"Sienna",	rgb:"#A0522D",	h:19,	s:56,	l:40],
-	[name:"Silver",	rgb:"#C0C0C0",	h:0,	s:0,	l:75],	[name:"Sky Blue",	rgb:"#87CEEB",	h:197,	s:71,	l:73],
-	[name:"Slate Blue",	rgb:"#6A5ACD",	h:248,	s:53,	l:58],	[name:"Slate Gray",	rgb:"#708090",	h:210,	s:13,	l:50],
-	[name:"Snow",	rgb:"#FFFAFA",	h:0,	s:100,	l:99],	[name:"Soft White",	rgb:"#B6DA7C",	h:83,	s:44,	l:67],
-	[name:"Spring Green",	rgb:"#00FF7F",	h:150,	s:100,	l:50],	[name:"Steel Blue",	rgb:"#4682B4",	h:207,	s:44,	l:49],
-	[name:"Tan",	rgb:"#D2B48C",	h:34,	s:44,	l:69],	[name:"Teal",	rgb:"#008080",	h:180,	s:100,	l:25],
-	[name:"Thistle",	rgb:"#D8BFD8",	h:300,	s:24,	l:80],	[name:"Tomato",	rgb:"#FF6347",	h:9,	s:100,	l:64],
-	[name:"Turquoise",	rgb:"#40E0D0",	h:174,	s:72,	l:56],	[name:"Violet",	rgb:"#EE82EE",	h:300,	s:76,	l:72],
-	[name:"Warm White",	rgb:"#DAF17E",	h:72,	s:20,	l:72],	[name:"Wheat",	rgb:"#F5DEB3",	h:39,	s:77,	l:83],
-	[name:"White",	rgb:"#FFFFFF",	h:0,	s:0,	l:100],	[name:"White Smoke",	rgb:"#F5F5F5",	h:0,	s:0,	l:96],
-	[name:"Yellow",	rgb:"#FFFF00",	h:60,	s:100,	l:50],	[name:"Yellow Green",	rgb:"#9ACD32",	h:80,	s:61,	l:50]
+@Field final List theColorsFLD=[
+		[(sNM): "Alice Blue", (sRGB): "#F0F8FF", (sH): 208, (sS): 100, (sL): 97], [(sNM): "Antique White", (sRGB): "#FAEBD7", (sH): 34, (sS): 78, (sL): 91],
+		[(sNM): "Aqua", (sRGB): "#00FFFF", (sH): 180, (sS): 100, (sL): 50], [(sNM): "Aquamarine", (sRGB): "#7FFFD4", (sH): 160, (sS): 100, (sL): 75],
+		[(sNM): "Azure", (sRGB): "#F0FFFF", (sH): 180, (sS): 100, (sL): 97], [(sNM): "Beige", (sRGB): "#F5F5DC", (sH): 60, (sS): 56, (sL): 91],
+		[(sNM): "Bisque", (sRGB): "#FFE4C4", (sH): 33, (sS): 100, (sL): 88], [(sNM): "Blanched Almond", (sRGB): "#FFEBCD", (sH): 36, (sS): 100, (sL): 90],
+		[(sNM): "Blue", (sRGB): "#0000FF", (sH): 240, (sS): 100, (sL): 50], [(sNM): "Blue Violet", (sRGB): "#8A2BE2", (sH): 271, (sS): 76, (sL): 53],
+		[(sNM): "Brown", (sRGB): "#A52A2A", (sH): 0, (sS): 59, (sL): 41], [(sNM): "Burly Wood", (sRGB): "#DEB887", (sH): 34, (sS): 57, (sL): 70],
+		[(sNM): "Cadet Blue", (sRGB): "#5F9EA0", (sH): 182, (sS): 25, (sL): 50], [(sNM): "Chartreuse", (sRGB): "#7FFF00", (sH): 90, (sS): 100, (sL): 50],
+		[(sNM): "Chocolate", (sRGB): "#D2691E", (sH): 25, (sS): 75, (sL): 47], [(sNM): "Cool White", (sRGB): "#F3F6F7", (sH): 187, (sS): 19, (sL): 96],
+		[(sNM): "Coral", (sRGB): "#FF7F50", (sH): 16, (sS): 100, (sL): 66], [(sNM): "Corn Flower Blue", (sRGB): "#6495ED", (sH): 219, (sS): 79, (sL): 66],
+		[(sNM): "Corn Silk", (sRGB): "#FFF8DC", (sH): 48, (sS): 100, (sL): 93], [(sNM): "Crimson", (sRGB): "#DC143C", (sH): 348, (sS): 83, (sL): 58],
+		[(sNM): "Cyan", (sRGB): "#00FFFF", (sH): 180, (sS): 100, (sL): 50], [(sNM): "Dark Blue", (sRGB): "#00008B", (sH): 240, (sS): 100, (sL): 27],
+		[(sNM): "Dark Cyan", (sRGB): "#008B8B", (sH): 180, (sS): 100, (sL): 27], [(sNM): "Dark Golden Rod", (sRGB): "#B8860B", (sH): 43, (sS): 89, (sL): 38],
+		[(sNM): "Dark Gray", (sRGB): "#A9A9A9", (sH): 0, (sS): 0, (sL): 66], [(sNM): "Dark Green", (sRGB): "#006400", (sH): 120, (sS): 100, (sL): 20],
+		[(sNM): "Dark Khaki", (sRGB): "#BDB76B", (sH): 56, (sS): 38, (sL): 58], [(sNM): "Dark Magenta", (sRGB): "#8B008B", (sH): 300, (sS): 100, (sL): 27],
+		[(sNM): "Dark Olive Green", (sRGB): "#556B2F", (sH): 82, (sS): 39, (sL): 30], [(sNM): "Dark Orange", (sRGB): "#FF8C00", (sH): 33, (sS): 100, (sL): 50],
+		[(sNM): "Dark Orchid", (sRGB): "#9932CC", (sH): 280, (sS): 61, (sL): 50], [(sNM): "Dark Red", (sRGB): "#8B0000", (sH): 0, (sS): 100, (sL): 27],
+		[(sNM): "Dark Salmon", (sRGB): "#E9967A", (sH): 15, (sS): 72, (sL): 70], [(sNM): "Dark Sea Green", (sRGB): "#8FBC8F", (sH): 120, (sS): 25, (sL): 65],
+		[(sNM): "Dark Slate Blue", (sRGB): "#483D8B", (sH): 248, (sS): 39, (sL): 39], [(sNM): "Dark Slate Gray", (sRGB): "#2F4F4F", (sH): 180, (sS): 25, (sL): 25],
+		[(sNM): "Dark Turquoise", (sRGB): "#00CED1", (sH): 181, (sS): 100, (sL): 41], [(sNM): "Dark Violet", (sRGB): "#9400D3", (sH): 282, (sS): 100, (sL): 41],
+		[(sNM): "Daylight White", (sRGB): "#CEF4FD", (sH): 191, (sS): 9, (sL): 90], [(sNM): "Deep Pink", (sRGB): "#FF1493", (sH): 328, (sS): 100, (sL): 54],
+		[(sNM): "Deep Sky Blue", (sRGB): "#00BFFF", (sH): 195, (sS): 100, (sL): 50], [(sNM): "Dim Gray", (sRGB): "#696969", (sH): 0, (sS): 0, (sL): 41],
+		[(sNM): "Dodger Blue", (sRGB): "#1E90FF", (sH): 210, (sS): 100, (sL): 56], [(sNM): "Fire Brick", (sRGB): "#B22222", (sH): 0, (sS): 68, (sL): 42],
+		[(sNM): "Floral White", (sRGB): "#FFFAF0", (sH): 40, (sS): 100, (sL): 97], [(sNM): "Forest Green", (sRGB): "#228B22", (sH): 120, (sS): 61, (sL): 34],
+		[(sNM): "Fuchsia", (sRGB): "#FF00FF", (sH): 300, (sS): 100, (sL): 50], [(sNM): "Gainsboro", (sRGB): "#DCDCDC", (sH): 0, (sS): 0, (sL): 86],
+		[(sNM): "Ghost White", (sRGB): "#F8F8FF", (sH): 240, (sS): 100, (sL): 99], [(sNM): "Gold", (sRGB): "#FFD700", (sH): 51, (sS): 100, (sL): 50],
+		[(sNM): "Golden Rod", (sRGB): "#DAA520", (sH): 43, (sS): 74, (sL): 49], [(sNM): "Gray", (sRGB): "#808080", (sH): 0, (sS): 0, (sL): 50],
+		[(sNM): "Green", (sRGB): "#008000", (sH): 120, (sS): 100, (sL): 25], [(sNM): "Green Yellow", (sRGB): "#ADFF2F", (sH): 84, (sS): 100, (sL): 59],
+		[(sNM): "Honeydew", (sRGB): "#F0FFF0", (sH): 120, (sS): 100, (sL): 97], [(sNM): "Hot Pink", (sRGB): "#FF69B4", (sH): 330, (sS): 100, (sL): 71],
+		[(sNM): "Indian Red", (sRGB): "#CD5C5C", (sH): 0, (sS): 53, (sL): 58], [(sNM): "Indigo", (sRGB): "#4B0082", (sH): 275, (sS): 100, (sL): 25],
+		[(sNM): "Ivory", (sRGB): "#FFFFF0", (sH): 60, (sS): 100, (sL): 97], [(sNM): "Khaki", (sRGB): "#F0E68C", (sH): 54, (sS): 77, (sL): 75],
+		[(sNM): "Lavender", (sRGB): "#E6E6FA", (sH): 240, (sS): 67, (sL): 94], [(sNM): "Lavender Blush", (sRGB): "#FFF0F5", (sH): 340, (sS): 100, (sL): 97],
+		[(sNM): "Lawn Green", (sRGB): "#7CFC00", (sH): 90, (sS): 100, (sL): 49], [(sNM): "Lemon Chiffon", (sRGB): "#FFFACD", (sH): 54, (sS): 100, (sL): 90],
+		[(sNM): "Light Blue", (sRGB): "#ADD8E6", (sH): 195, (sS): 53, (sL): 79], [(sNM): "Light Coral", (sRGB): "#F08080", (sH): 0, (sS): 79, (sL): 72],
+		[(sNM): "Light Cyan", (sRGB): "#E0FFFF", (sH): 180, (sS): 100, (sL): 94], [(sNM): "Light Golden Rod Yellow", (sRGB): "#FAFAD2", (sH): 60, (sS): 80, (sL): 90],
+		[(sNM): "Light Gray", (sRGB): "#D3D3D3", (sH): 0, (sS): 0, (sL): 83], [(sNM): "Light Green", (sRGB): "#90EE90", (sH): 120, (sS): 73, (sL): 75],
+		[(sNM): "Light Pink", (sRGB): "#FFB6C1", (sH): 351, (sS): 100, (sL): 86], [(sNM): "Light Salmon", (sRGB): "#FFA07A", (sH): 17, (sS): 100, (sL): 74],
+		[(sNM): "Light Sea Green", (sRGB): "#20B2AA", (sH): 177, (sS): 70, (sL): 41], [(sNM): "Light Sky Blue", (sRGB): "#87CEFA", (sH): 203, (sS): 92, (sL): 75],
+		[(sNM): "Light Slate Gray", (sRGB): "#778899", (sH): 210, (sS): 14, (sL): 53], [(sNM): "Light Steel Blue", (sRGB): "#B0C4DE", (sH): 214, (sS): 41, (sL): 78],
+		[(sNM): "Light Yellow", (sRGB): "#FFFFE0", (sH): 60, (sS): 100, (sL): 94], [(sNM): "Lime", (sRGB): "#00FF00", (sH): 120, (sS): 100, (sL): 50],
+		[(sNM): "Lime Green", (sRGB): "#32CD32", (sH): 120, (sS): 61, (sL): 50], [(sNM): "Linen", (sRGB): "#FAF0E6", (sH): 30, (sS): 67, (sL): 94],
+		[(sNM): "Maroon", (sRGB): "#800000", (sH): 0, (sS): 100, (sL): 25], [(sNM): "Medium Aquamarine", (sRGB): "#66CDAA", (sH): 160, (sS): 51, (sL): 60],
+		[(sNM): "Medium Blue", (sRGB): "#0000CD", (sH): 240, (sS): 100, (sL): 40], [(sNM): "Medium Orchid", (sRGB): "#BA55D3", (sH): 288, (sS): 59, (sL): 58],
+		[(sNM): "Medium Purple", (sRGB): "#9370DB", (sH): 260, (sS): 60, (sL): 65], [(sNM): "Medium Sea Green", (sRGB): "#3CB371", (sH): 147, (sS): 50, (sL): 47],
+		[(sNM): "Medium Slate Blue", (sRGB): "#7B68EE", (sH): 249, (sS): 80, (sL): 67], [(sNM): "Medium Spring Green", (sRGB): "#00FA9A", (sH): 157, (sS): 100, (sL): 49],
+		[(sNM): "Medium Turquoise", (sRGB): "#48D1CC", (sH): 178, (sS): 60, (sL): 55], [(sNM): "Medium Violet Red", (sRGB): "#C71585", (sH): 322, (sS): 81, (sL): 43],
+		[(sNM): "Midnight Blue", (sRGB): "#191970", (sH): 240, (sS): 64, (sL): 27], [(sNM): "Mint Cream", (sRGB): "#F5FFFA", (sH): 150, (sS): 100, (sL): 98],
+		[(sNM): "Misty Rose", (sRGB): "#FFE4E1", (sH): 6, (sS): 100, (sL): 94], [(sNM): "Moccasin", (sRGB): "#FFE4B5", (sH): 38, (sS): 100, (sL): 85],
+		[(sNM): "Navajo White", (sRGB): "#FFDEAD", (sH): 36, (sS): 100, (sL): 84], [(sNM): "Navy", (sRGB): "#000080", (sH): 240, (sS): 100, (sL): 25],
+		[(sNM): "Old Lace", (sRGB): "#FDF5E6", (sH): 39, (sS): 85, (sL): 95], [(sNM): "Olive", (sRGB): "#808000", (sH): 60, (sS): 100, (sL): 25],
+		[(sNM): "Olive Drab", (sRGB): "#6B8E23", (sH): 80, (sS): 60, (sL): 35], [(sNM): "Orange", (sRGB): "#FFA500", (sH): 39, (sS): 100, (sL): 50],
+		[(sNM): "Orange Red", (sRGB): "#FF4500", (sH): 16, (sS): 100, (sL): 50], [(sNM): "Orchid", (sRGB): "#DA70D6", (sH): 302, (sS): 59, (sL): 65],
+		[(sNM): "Pale Golden Rod", (sRGB): "#EEE8AA", (sH): 55, (sS): 67, (sL): 80], [(sNM): "Pale Green", (sRGB): "#98FB98", (sH): 120, (sS): 93, (sL): 79],
+		[(sNM): "Pale Turquoise", (sRGB): "#AFEEEE", (sH): 180, (sS): 65, (sL): 81], [(sNM): "Pale Violet Red", (sRGB): "#DB7093", (sH): 340, (sS): 60, (sL): 65],
+		[(sNM): "Papaya Whip", (sRGB): "#FFEFD5", (sH): 37, (sS): 100, (sL): 92], [(sNM): "Peach Puff", (sRGB): "#FFDAB9", (sH): 28, (sS): 100, (sL): 86],
+		[(sNM): "Peru", (sRGB): "#CD853F", (sH): 30, (sS): 59, (sL): 53], [(sNM): "Pink", (sRGB): "#FFC0CB", (sH): 350, (sS): 100, (sL): 88],
+		[(sNM): "Plum", (sRGB): "#DDA0DD", (sH): 300, (sS): 47, (sL): 75], [(sNM): "Powder Blue", (sRGB): "#B0E0E6", (sH): 187, (sS): 52, (sL): 80],
+		[(sNM): "Purple", (sRGB): "#800080", (sH): 300, (sS): 100, (sL): 25], [(sNM): "Red", (sRGB): "#FF0000", (sH): 0, (sS): 100, (sL): 50],
+		[(sNM): "Rosy Brown", (sRGB): "#BC8F8F", (sH): 0, (sS): 25, (sL): 65], [(sNM): "Royal Blue", (sRGB): "#4169E1", (sH): 225, (sS): 73, (sL): 57],
+		[(sNM): "Saddle Brown", (sRGB): "#8B4513", (sH): 25, (sS): 76, (sL): 31], [(sNM): "Salmon", (sRGB): "#FA8072", (sH): 6, (sS): 93, (sL): 71],
+		[(sNM): "Sandy Brown", (sRGB): "#F4A460", (sH): 28, (sS): 87, (sL): 67], [(sNM): "Sea Green", (sRGB): "#2E8B57", (sH): 146, (sS): 50, (sL): 36],
+		[(sNM): "Sea Shell", (sRGB): "#FFF5EE", (sH): 25, (sS): 100, (sL): 97], [(sNM): "Sienna", (sRGB): "#A0522D", (sH): 19, (sS): 56, (sL): 40],
+		[(sNM): "Silver", (sRGB): "#C0C0C0", (sH): 0, (sS): 0, (sL): 75], [(sNM): "Sky Blue", (sRGB): "#87CEEB", (sH): 197, (sS): 71, (sL): 73],
+		[(sNM): "Slate Blue", (sRGB): "#6A5ACD", (sH): 248, (sS): 53, (sL): 58], [(sNM): "Slate Gray", (sRGB): "#708090", (sH): 210, (sS): 13, (sL): 50],
+		[(sNM): "Snow", (sRGB): "#FFFAFA", (sH): 0, (sS): 100, (sL): 99], [(sNM): "Soft White", (sRGB): "#B6DA7C", (sH): 83, (sS): 44, (sL): 67],
+		[(sNM): "Spring Green", (sRGB): "#00FF7F", (sH): 150, (sS): 100, (sL): 50], [(sNM): "Steel Blue", (sRGB): "#4682B4", (sH): 207, (sS): 44, (sL): 49],
+		[(sNM): "Tan", (sRGB): "#D2B48C", (sH): 34, (sS): 44, (sL): 69], [(sNM): "Teal", (sRGB): "#008080", (sH): 180, (sS): 100, (sL): 25],
+		[(sNM): "Thistle", (sRGB): "#D8BFD8", (sH): 300, (sS): 24, (sL): 80], [(sNM): "Tomato", (sRGB): "#FF6347", (sH): 9, (sS): 100, (sL): 64],
+		[(sNM): "Turquoise", (sRGB): "#40E0D0", (sH): 174, (sS): 72, (sL): 56], [(sNM): "Violet", (sRGB): "#EE82EE", (sH): 300, (sS): 76, (sL): 72],
+		[(sNM): "Warm White", (sRGB): "#DAF17E", (sH): 72, (sS): 20, (sL): 72], [(sNM): "Wheat", (sRGB): "#F5DEB3", (sH): 39, (sS): 77, (sL): 83],
+		[(sNM): "White", (sRGB): "#FFFFFF", (sH): 0, (sS): 0, (sL): 100], [(sNM): "White Smoke", (sRGB): "#F5F5F5", (sH): 0, (sS): 0, (sL): 96],
+		[(sNM): "Yellow", (sRGB): "#FFFF00", (sH): 60, (sS): 100, (sL): 50], [(sNM): "Yellow Green", (sRGB): "#9ACD32", (sH): 80, (sS): 61, (sL): 50]
 ]
 
-static List getColors(){
-	return myColorsFLD
+List getColors(){
+	return theColorsFLD
 }
 
 private Boolean isHubitat(){
