@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update October 19, 2021 for Hubitat
+ * Last update October 20, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -1846,25 +1846,21 @@ private api_intf_variable_set(){
 					if(!name || name!=(String)value.n ) {
 						if (name) {
 							vn = name.substring(2)
-							chgd = deleteGlobalVar(vn)
 							meth1=meth+"DELETE before update of HE global $vn "
+							try{
+								chgd = deleteGlobalVar(vn)
+							} catch (ignored){
+								meth1=meth+"DELETE not allowed HE global $vn "
+							}
 							if (!chgd) warn meth1+"FAILED"
 							else trace meth1
 						}
 						// add a variable
 						def vl=value.v
 						if((String)value.t==sTIME){
+							Long aa=vl.toLong()
 							// the browers is in local zone but internally HE is utc
-							/*Date nTime=new Date()
-							String format="XX"
-							SimpleDateFormat formatter=new SimpleDateFormat(format)
-							formatter.setTimeZone((TimeZone)location.timeZone)
-							String tt= (String)formatter.format(nTime)
-							Integer mtvl=(tt.toInteger() * 3600 *10)
-							//TimeZone
-							log.warn "att is $tt and adjustment is $mtvl or $mmtvl"
-							vl=vl - mtvl*/
-							Integer mmtvl=((TimeZone)location.timeZone).getOffset(now())
+							Integer mmtvl=((TimeZone)location.timeZone).rawOffset
 							if(eric()) log.warn "att is adjustment is $mmtvl"
 							vl=vl - mmtvl
 						}
@@ -1872,8 +1868,12 @@ private api_intf_variable_set(){
 						ta.each {
 							String typ=(String)it.key
 							vl=it.value
-							chgd = createGlobalVar(vln, vl, typ)
 							meth1=meth+"CREATE HE global $vln ${value.t} ${typ} "
+							try{
+								chgd = createGlobalVar(vln, vl, typ)
+							} catch (ignored){
+								meth1=meth+"CREATE not allowed HE global $vn "
+							}
 							if(!chgd) warn meth1+"FAILED"
 							else trace meth1
 						}
@@ -1883,30 +1883,30 @@ private api_intf_variable_set(){
 						if(!hg) warn meth+"GET HE global failed $vln"
 						else {
 							def vl=value.v
-							if((String)value.t==sTIME){
-								// the browers is in local zone but internally HE is utc
-								/*Date nTime=new Date()
-								String format="XX"
-								SimpleDateFormat formatter=new SimpleDateFormat(format)
-								formatter.setTimeZone((TimeZone)location.timeZone)
-								String tt= (String)formatter.format(nTime)
-								Integer mtvl=(tt.toInteger() * 3600 *10)*/
-								Integer mmtvl=((TimeZone)location.timeZone).getOffset(now())
-								//TimeZone
-								//log.warn "btt is $tt and adjustment is $mtvl or $mmtvl"
-								if(eric()) log.warn "btt is adjustment is $mmtvl"
-								vl=vl - mmtvl
-							}
-							Map ta = fixHeGType(true, (String)value.t, vl, (String)hg.type)
-							ta.each {
-								String typ=(String)it.key
-								vl = it.value
-								chgd = setGlobalVar(vln, vl)
-								meth1=meth+"SET HE global $vln ${vl} "
-								if (!chgd) {
-									warn meth1+"FAILED mismatch $vln ${hg.type} ${typ}   ${value.t} ${vl}"
-								} else trace meth1
-							}
+							if(vl){
+								if(eric())log.warn "vl is ${myObj(vl)}"
+								if((String)value.t==sTIME) {
+									Long aa = vl.toLong()
+									if(eric())log.warn "aa is $aa"
+									// the browers is in local zone but internally HE is utc
+									if (vl instanceof Long) {
+										Integer mtvl = ((TimeZone) location.timeZone).getOffset(now())
+										Integer mmtvl = ((TimeZone) location.timeZone).rawOffset
+										if (eric()) log.warn "btt is adjustment is ${mmtvl} - ${mtvl}"
+										vl = vl - mmtvl - mtvl
+									}
+									if(eric()) log.warn "found time $vl"
+								}
+								Map ta = fixHeGType(true, (String)value.t, vl, (String)hg.type)
+								ta.each {
+									String typ=(String)it.key
+									vl = it.value
+									chgd = setGlobalVar(vln, vl)
+									meth1=meth+"SET HE global $vln ${vl} "
+									if (!chgd) warn meth1+"FAILED mismatch $vln ${hg.type} ${typ}   ${value.t} ${vl}"
+									else trace meth1
+								}
+							} else warn meth1+"no value"
 						}
 					}
 					//chgd=true
@@ -1976,8 +1976,30 @@ private api_intf_variable_set(){
 //@Field static final String sBOOLN='boolean'
 @Field static final String sDEV='device'
 
+@Field static final Integer iMSDAY=86400000
+
+private Long getMidnightTime(){
+	return (Long)((Date)timeToday('00:00',(TimeZone)location.timeZone)).getTime()
+}
+
+static String myObj(obj){
+	if(obj instanceof String){return 'String'}
+	else if(obj instanceof Map){return 'Map'}
+	else if(obj instanceof List){return 'List'}
+	else if(obj instanceof ArrayList){return 'ArrayList'}
+	else if(obj instanceof Integer){return 'Int'}
+	else if(obj instanceof BigInteger){return 'BigInt'}
+	else if(obj instanceof Long){return 'Long'}
+	else if(obj instanceof Boolean){return 'Bool'}
+	else if(obj instanceof BigDecimal){return 'BigDec'}
+	else if(obj instanceof Float){return 'Float'}
+	else if(obj instanceof Byte){return 'Byte'}
+	else{ return 'unknown'}
+}
+
 Map fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 	Map ret=[:]
+	def myv=v
 	if(toHubV){ // from webcore(9) -> global(5)
 		switch(typ) {
 			case sINT:
@@ -1996,14 +2018,31 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				ret = [(sSTR): v]
 				break
 			case sTIME:
-				// have to fix offsets?
+				if(eric())log.warn "got time $v"
+				if("$v".isNumber() && v<iMSDAY) {
+					myv=getMidnightTime()+v
+					if(eric())log.warn "extended myv by $v"
+				} else {
+					if(eric())log.warn "strange time $v"
+					Date t1=new Date(v)
+					Long t2=Math.round(((Integer)t1.hours*3600+(Integer)t1.minutes*60+(Integer)t1.seconds)*1000.0D)
+					myv=t2
+					if(eric())log.warn "new myv is $myv"
+				}
 			case sDATE:
-			case sDTIME:
-				Date nTime = new Date((Long)v)
+			case sDTIME: //@@
+				//if(eric())log.warn "found myv is $myv"
+				Date nTime = new Date((Long)myv)
+				/*TimeZone aa=(TimeZone)location.timeZone
+				Boolean a= aa.inDaylightTime(nTime)
+				if(eric())log.warn "found inDaylight  $a"
+				if(eric())log.warn "found current offset is  ${aa.getOffset(now())}"
+				if(eric())log.warn "found rawoffset is  ${aa.rawOffset}"*/
 				String format = "yyyy-MM-dd'T'HH:mm:ss.sssXX"
 				SimpleDateFormat formatter = new SimpleDateFormat(format)
 				formatter.setTimeZone((TimeZone)location.timeZone)
 				String tt = (String) formatter.format(nTime)
+				if(eric())log.warn "found time tt is $tt"
 				String[] t1 = tt.split('T')
 
 				if (typ == sDATE) {
@@ -2014,6 +2053,7 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				}
 				if (typ == sTIME) {
 					//comes in long format should be string -> 9999-99-99T14:25:09.009-0700
+					// we are ignoring the -0000 offset at end
 					String t2 = '9999-99-99T' + t1[1]
 					ret = [(sDTIME): t2]
 					break
@@ -2070,7 +2110,7 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				SimpleDateFormat formatter=new SimpleDateFormat(format)
 				formatter.setTimeZone((TimeZone)location.timeZone)
 				String tt= (String)formatter.format(nTime)
-				String[] start=tt.split('T')
+				String[] mystart=tt.split('T')
 
 				String iD=v
 				String[] t1= iD.split('T')
@@ -2079,13 +2119,24 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				String t2=v
 				if(iD.endsWith("9999")) {
 					mtyp=sDATE
-					t2= t1[0]+'T'+start[1] // 00:15:00:000'+end //'-9999'
+					t2= t1[0]+'T'+mystart[1] // 00:15:00.000'+myend //'-9999'
 				} else if(iD.startsWith("9999")) {
 					mtyp=sTIME
-					t2= start[0]+'T'+t1[1]
+					String withOutEnd=t1[1][0..-6]
+					String myend=tt[-5..-1]
+					//if(eric())log.warn "tt: ${tt}  myend: ${myend}  iD: ${iD}  mystart: ${mystart}  withOutEnd: ${withOutEnd}"
+					t2= mystart[0]+'T'+withOutEnd+myend // t1[1]
+					//t2= mystart[0]+'T'+t1[1]
 				}
 				Date tt1=(Date)toDateTime(t2)
 				Long r2=tt1.getTime()
+				if(mtyp==sTIME){
+					Date m1=new Date(r2)
+					Long m2=Math.round(((Integer)m1.hours*3600+(Integer)m1.minutes*60+(Integer)m1.seconds)*1000.0D)
+					//if(eric())log.warn "fixing $t2 $r2 to $m2"
+					r2=m2
+				}
+				//if(eric())log.warn "returning $r2"
 				ret=[(mtyp):r2]
 		}
 	}

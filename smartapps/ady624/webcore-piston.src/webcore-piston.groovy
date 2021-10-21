@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update October 19, 2021 for Hubitat
+ * Last update October 20, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -6622,6 +6622,7 @@ private void loadGlobalCache(){
 }
 Map fixHeGType(Boolean toHubV, String typ, v, String dtyp) {
 	Map ret=[:]
+	def myv=v
 	if(toHubV){ // from webcore(9) -> global(5)
 		switch(typ) {
 			case sINT:
@@ -6640,10 +6641,17 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp) {
 				ret = [(sSTR): v]
 				break
 			case sTIME:
-				// have to fix offsets?
+				if("$v".isNumber() && v.toLong()<lMSDAY) {
+					myv=getMidnightTime()+v.toLong()
+				} else {
+					if(eric())log.warn "strange time $v"
+					Date t1=new Date(v)
+					Long t2=Math.round(((Integer)t1.hours*3600+(Integer)t1.minutes*60+(Integer)t1.seconds)*1000.0D)
+					myv=t2
+				}
 			case sDATE:
 			case sDTIME:
-				Date nTime = new Date((Long)v)
+				Date nTime = new Date((Long)myv)
 				String format = "yyyy-MM-dd'T'HH:mm:ss.sssXX"
 				SimpleDateFormat formatter = new SimpleDateFormat(format)
 				formatter.setTimeZone((TimeZone)location.timeZone)
@@ -6714,22 +6722,30 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp) {
 				SimpleDateFormat formatter=new SimpleDateFormat(format)
 				formatter.setTimeZone((TimeZone)location.timeZone)
 				String tt= (String)formatter.format(nTime)
-				String[] start=tt.split('T')
+				String[] mystart=tt.split('T')
 
 				String iD=v
 				String[] t1= iD.split('T')
 
 				String mtyp=sDTIME
 				String t2=v
-				if(iD.endsWith("9999")) {
+				if(iD.endsWith("-9999")) {
 					mtyp=sDATE
-					t2= t1[0]+'T'+start[1] // 00:15:00:000'+end //'-9999'
+					t2= t1[0]+'T'+mystart[1] // 00:15:00.000'+end //'-9999'
 				} else if(iD.startsWith("9999")) {
 					mtyp=sTIME
-					t2= start[0]+'T'+t1[1]
+					String withOutEnd=t1[1][0..-6]
+					String myend=tt[-5..-1]
+					//if(eric())log.warn "tt: ${tt}  myend: ${myend}  iD: ${iD}  mystart: ${mystart}  withOutEnd: ${withOutEnd}"
+					t2= mystart[0]+'T'+withOutEnd+myend // t1[1]
 				}
 				Date tt1=(Date)toDateTime(t2)
 				Long r2=tt1.getTime()
+				if(mtyp==sTIME){
+					Date m1=new Date(r2)
+					Long m2=Math.round(((Integer)m1.hours*3600+(Integer)m1.minutes*60+(Integer)m1.seconds)*1000.0D)
+					r2=m2
+				}
 				ret=[(mtyp):r2]
 		}
 	}
@@ -6859,6 +6875,7 @@ private Map setVariable(Map rtD,String name,value){
 				}
 				if(wctyp){ // if we know current type
 					Map ta = fixHeGType(true, wctyp, value, sNULL)
+					Map result=null
 					ta.each {
 						typ = (String)it.key
 						vl = it.value
@@ -6867,11 +6884,11 @@ private Map setVariable(Map rtD,String name,value){
 							//typ=typ!='bigdecimal'?typ:sDEC
 							//		def r=cast(rtD,value,typ)
 							//		Map result=[(sT):typ,(sV): r]
-							Map result=[(sT):wctyp,(sV): value]
+							result=[(sT):wctyp,(sV): value]
 							if(eric())log.debug "setVariable returning ${result} to webcore"
-							return result
 						} else err.v='setGlobal failed'
 					}
+					if(result) return result
 				} else err.v='setGlobal unknown wctyp'
 			}
 		} else{
@@ -8863,11 +8880,8 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 		if(value instanceof Boolean){srcDataType=sBOOLN}else
 		if(value instanceof String){srcDataType=sSTR}else
 		if(value instanceof Integer){srcDataType=sINT}else
-		if(value instanceof BigInteger){srcDataType=sLONG}else
-		if(value instanceof Long){srcDataType=sLONG}else
-		if(value instanceof Double){srcDataType=sDEC}else
-		if(value instanceof Float){srcDataType=sDEC}else
-		if(value instanceof BigDecimal){srcDataType=sDEC}else
+		if(value instanceof Long || value instanceof BigInteger){srcDataType=sLONG}else
+		if(value instanceof Double || value instanceof BigDecimal || value instanceof Float){srcDataType=sDEC}else
 		if(value instanceof Map && value.x!=null && value.y!=null && value.z!=null){srcDataType='vector3'}else{
 			value="$value".toString()
 			srcDataType=sSTR
@@ -9052,24 +9066,27 @@ private Long elapseT(Long st){
 }
 
 private Date utcToLocalDate(dateOrTimeOrString=null){ // this is really cast to Date
-	if(dateOrTimeOrString instanceof String){
-		dateOrTimeOrString=stringToTime((String)dateOrTimeOrString)
+	def ldate=dateOrTimeOrString
+	if(!(ldate instanceof Long)){
+		if(ldate instanceof String){
+			ldate=stringToTime((String)ldate)
+		}
+		if(ldate instanceof Date){
+			//get unix time
+			ldate=(Long)((Date)ldate).getTime()
+		}
 	}
-	if(dateOrTimeOrString instanceof Date){
-		//get unix time
-		dateOrTimeOrString=(Long)((Date)dateOrTimeOrString).getTime()
+	if(ldate==null || ldate==lZERO){
+		ldate=now()
 	}
-	if(dateOrTimeOrString==null || dateOrTimeOrString==lZERO){
-		dateOrTimeOrString=now()
-	}
-	if(dateOrTimeOrString instanceof Long){
-		//HE adjusts Date fields (except for getTime()to local timezone of hub)
-		return new Date((Long)dateOrTimeOrString)
+	if(ldate instanceof Long){
+		//HE is set to local timezone of hub by default, so we don't have to try to set local timezone
+		return new Date((Long)ldate)
 	}
 	return null
 }
 
-private Date localDate(){ return utcToLocalDate()}
+private Date localDate(){ return utcToLocalDate(now())}
 
 //private Long localTime(){ return now()} //utcToLocalTime()}
 
