@@ -27,8 +27,11 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection unused
 
-static String version(){ return 'v0.3.113.20210203' }
-static String HEversion(){ return 'v0.3.113.20211005_HE' }
+@Field static final String sVER='v0.3.113.20210203'
+@Field static final String sHVER='v0.3.113.20211005_HE'
+
+static String version(){ return sVER }
+static String HEversion(){ return sHVER }
 
 /** webCoRE DEFINITION	**/
 
@@ -305,8 +308,8 @@ def pageMain(){
 				if((String)rtD.bin!=sNULL){
 					paragraph 'Automatic backup bin code: '+(String)rtD.bin
 				}
-				paragraph 'Version: '+version()
-				paragraph 'VersionH: '+HEversion()
+				paragraph 'Version: '+sVER
+				paragraph 'VersionH: '+sHVER
 				paragraph 'Memory Usage: '+mem()
 				paragraph 'RunTime History: '+runTimeHis(rtD)
 				rtD=null
@@ -798,7 +801,7 @@ Map setup(LinkedHashMap data,Map<String,String>chunks){
 	}
 	state.schedules=[]
 	state.vars=(Map)state.vars ?: [:]
-	state.modifiedVersion=version()
+	state.modifiedVersion=sVER
 
 	state.cache=[:]
 	state.logs=[]
@@ -1053,7 +1056,7 @@ Map resume(LinkedHashMap piston=null){
 	Map msg=timer 'Piston successfully started',tmpRtD,-1
 	if(piston!=null)tmpRtD.piston=piston
 	LinkedHashMap rtD=getRunTimeData(tmpRtD,null,true,false) //performs subscribeAll(rtD); reinitializes cache variables
-	if((Integer)rtD.logging>0)info 'Starting piston... ('+HEversion()+')',rtD,0
+	if((Integer)rtD.logging>0)info 'Starting piston... ('+sHVER+')',rtD,0
 	checkVersion(rtD)
 	if((Integer)rtD.logging>0)info msg,rtD
 	updateLogs(rtD)
@@ -1698,7 +1701,7 @@ private void dumpPCsize(){
 }
 
 private void checkVersion(Map rtD){
-	String ver=HEversion()
+	String ver=sHVER
 	String t0=(String)rtD.hcoreVersion
 	if(ver!=t0){
 		String tt0="child app's version($ver)".toString()
@@ -1837,7 +1840,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 		if(lg>2)debug "RunTime initialize > ${t0} LockT > ${t1}ms > rtDT > ${t2}ms > pistonT > ${t3}ms (first state access ${missing} $t4 $t5)".toString(),rtD
 		String adMsg=sBLK
 		if(eric())adMsg=" (Init:$t0, Lock: $t1, pistonT $t3 first state access $missing ($t4 $t5) $stAccess".toString()
-		trace "Runtime (${(Integer)"$rtD".size()} bytes) successfully initialized in ${t2}ms (${HEversion()})".toString()+adMsg,rtD
+		trace "Runtime (${(Integer)"$rtD".size()} bytes) successfully initialized in ${t2}ms (${sHVER})".toString()+adMsg,rtD
 	}
 
 	resetRandomValues(rtD)
@@ -2399,9 +2402,9 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 
 	Boolean a
 	if((Boolean)rtD.cancelations.all){
-		 //a=schedules.removeAll{ (Integer)it.i>0 }
+		//a=schedules.removeAll{ (Integer)it.i>0 }
 		//if we have any other pending -3 events (device schedules),we cancel them all
-		 a=schedules.removeAll{ (Integer)it.i>0 || (Integer)it.i==-3 }
+		a=schedules.removeAll{ (Integer)it.i>0 || (Integer)it.i==-3 }
 	}
 
 	//cancel statements
@@ -6620,7 +6623,8 @@ private void loadGlobalCache(){
 		if(eric())log.debug lockTyp
 	}
 }
-Map fixHeGType(Boolean toHubV, String typ, v, String dtyp) {
+
+Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp) {
 	Map ret=[:]
 	def myv=v
 	if(toHubV){ // from webcore(9) -> global(5)
@@ -6641,14 +6645,20 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp) {
 				ret = [(sSTR): v]
 				break
 			case sTIME:
-				if("$v".isNumber() && v.toLong()<lMSDAY) {
-					myv=getMidnightTime()+v.toLong()
-				} else {
-					if(eric())log.warn "strange time $v"
-					Date t1=new Date(v)
-					Long t2=Math.round(((Integer)t1.hours*3600+(Integer)t1.minutes*60+(Integer)t1.seconds)*1000.0D)
-					myv=t2
-				}
+				Long aaa= ("$v".isNumber()) ? v as Long : null
+				if(aaa!=null){
+					if(aaa<lMSDAY && aaa>=0L) {
+						Long t0=getMidnightTime()
+						Long aa=t0+aaa
+						TimeZone tz=(TimeZone)location.timeZone
+						myv=Math.round(aa+((Integer)tz.getOffset(t0)-(Integer)tz.getOffset(aa)))
+					} else {
+						Date t1=new Date(v)
+						Long t2=Math.round(((Integer)t1.hours*3600+(Integer)t1.minutes*60+(Integer)t1.seconds)*1000.0D)
+						myv=t2
+						if(eric())log.warn "strange time $aaa new myv is $myv"
+					}
+				} else if(eric()) log.warn "trying to convert nonnumber time"
 			case sDATE:
 			case sDTIME:
 				Date nTime = new Date((Long)myv)
@@ -6685,7 +6695,7 @@ Map fixHeGType(Boolean toHubV, String typ, v, String dtyp) {
 						res= res ? res+sSPC+it : it
 					} else ok=false
 				}
-				if(ok){ ret=[(sSTR):res]}
+				if(ok) ret=[(sSTR):res]
 				else ret=[(sSTR):sNULL]
 				break
 		}
@@ -6880,13 +6890,19 @@ private Map setVariable(Map rtD,String name,value){
 						typ = (String)it.key
 						vl = it.value
 						if(eric())log.debug "setVariable setting Hub $vn to $vl with type ${typ}  wc original type ${wctyp}"
-						if(setGlobalVar(vn,vl)) {
+						Boolean a=false
+						try {
+							a=setGlobalVar(vn, vl)
+						} catch(all){
+							error 'An error occurred while executing set hub variable',rtD,-2,all
+						}
+						if(a){
 							//typ=typ!='bigdecimal'?typ:sDEC
 							//		def r=cast(rtD,value,typ)
 							//		Map result=[(sT):typ,(sV): r]
-							result=[(sT):wctyp,(sV): value]
-							if(eric())log.debug "setVariable returning ${result} to webcore"
-						} else err.v='setGlobal failed'
+							result = [(sT): wctyp, (sV): value]
+							if((Boolean)rtD.eric) myDetail rtD,"setVariable returning ${result} to webcore",-1
+						} else err.v = 'setGlobal failed'
 					}
 					if(result) return result
 				} else err.v='setGlobal unknown wctyp'
@@ -9754,8 +9770,8 @@ private getSystemVariableValue(Map rtD,String name){
 	case '$tzName': return (String)((TimeZone)location.timeZone).displayName
 	case '$tzId': return (String)((TimeZone)location.timeZone).getID()
 	case '$tzOffset': return (Integer)((TimeZone)location.timeZone).rawOffset
-	case '$version': return version()
-	case '$versionH': return HEversion()
+	case '$version': return sVER
+	case '$versionH': return sHVER
 	case '$localNow': //return (Long)localTime()
 	case '$now':
 	case '$utc': return (Long)now()
