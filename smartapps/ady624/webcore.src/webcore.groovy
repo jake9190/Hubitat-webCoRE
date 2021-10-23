@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update October 20, 2021 for Hubitat
+ * Last update October 22, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -93,6 +93,8 @@ preferences{
 }
 
 private static Boolean eric(){ return false }
+
+//#include ady624.webCoRElib1
 
 /******************************************************************************/
 /*** webCoRE CONSTANTS														***/
@@ -211,20 +213,6 @@ def pageMain(){
 			href "pageSettings", (sTIT): imgTitle("settings.png", inputTitleStr("Settings")), (sREQ): false, state: "complete"
 		}
 	}
-}
-
-private static String sectionTitleStr(String title)	{ return '<h3>'+title+'</h3>' }
-private static String inputTitleStr(String title)	{ return '<u>'+title+'</u>' }
-//private static String pageTitleStr(String title)	{ return '<h1>'+title+'</h1>' }
-//private static String paraTitleStr(String title)	{ return '<b>'+title+'</b>' }
-
-private static String imgTitle(String imgSrc,String titleStr,String color=sNULL,Integer imgWidth=30,Integer imgHeight=0){
-	String imgStyle=sBLK
-	String myImgSrc='https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/'+imgSrc
-	imgStyle += imgWidth>0 ? 'width: '+imgWidth.toString()+'px !important;':sBLK
-	imgStyle += imgHeight>0 ? imgWidth!=0 ? sSPC:sBLK+'height:'+imgHeight.toString()+'px !important;':sBLK
-	if(color!=sNULL){ return """<div style="color: ${color}; font-weight:bold;"><img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img></div>""".toString() }
-	else{ return """<img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img>""".toString() }
 }
 
 private pageSectionDisclaimer(){
@@ -422,7 +410,7 @@ def pageSettings(){
 			input "pushDevice", "capability.notification", (sTIT): "Notification device for pushMessage (HE PhoneApp or pushOver)", multiple: true, (sREQ): false, submitOnChange: true
 		}
 
-		section(sectionTitleStr('enable \$weather via external provider')){
+		section(sectionTitleStr('Enable \$weather via external provider')){
 			String apiXU='apiXU'
 			String DarkSky='DarkSky'
 			String OpnW='OpenWeatherMap'
@@ -712,8 +700,7 @@ private void clearGlobalPistonCache(String meth=null){
 
 private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, Boolean callAll=false){
 	String wName=app.id.toString()
-	theHashMapFLD[wName]=[:]
-	theHashMapFLD=theHashMapFLD
+	clearHashMap(wName)
 	pStateFLD[wName]=(Map)[:]
 	pStateFLD=pStateFLD
 	mb()
@@ -1116,7 +1103,7 @@ private Map api_get_base_result(Boolean updateCache=false){
 		],
 		location: [
 			//hubs: location.getHubs().findAll{ !((String)it.name).contains(':') }.collect{ [id: it.id /*hashId(it.id, updateCache)*/, (sNM): (String)it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
-			hubs: ((List)location.getHubs()).collect{ [id: it.id /*hashId(it.id, updateCache)*/, (sNM): (String)location.name, firmware: isHubitat() ? (String)((Map)getHubitatVersion())[(String)it.id.toString] : (String)it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
+			hubs: ((List)location.getHubs()).collect{ [id: it.id /*hashId(it.id, updateCache)*/, (sNM): (String)location.name, firmware: isHubitat() ? (String)((Map)getHubitatVersion())[(String)it.id.toString()] : (String)it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
 			incidents: alerts.collect{it}.findAll{ (Long)it.date >= incidentThreshold },
 			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, (sTIT): it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
 			id: locationId,
@@ -1508,8 +1495,7 @@ private api_intf_dashboard_piston_set_start(){
 		Integer chunks=chunkstr.isInteger() ? chunkstr.toInteger() : 0
 		String wName=app.id.toString()
 		if((chunks > 0) && (chunks < 100)){
-			theHashMapFLD[wName]=[:]
-			theHashMapFLD=theHashMapFLD
+			clearHashMap(wName)
 			//atomicState.chunks=[id: params?.id, count: chunks]
 			pPistonChunksFLD[wName]=[id: params?.id, count: chunks]
 			pPistonChunksFLD=pPistonChunksFLD
@@ -1792,8 +1778,7 @@ private api_intf_dashboard_piston_delete(){
 			app.deleteChildApp(piston.id)
 //			p_executionFLD[wName][id]=null
 //			p_executionFLD=p_executionFLD
-			theHashMapFLD[wName]=[:]
-			theHashMapFLD=theHashMapFLD
+			clearHashMap(wName)
 			mb()
 			clearBaseResult('delete Piston')
 			result=[(sSTS): sSUCC]
@@ -1929,10 +1914,7 @@ private api_intf_variable_set(){
 							} else warn meth1+"no value"
 						}
 					}
-					//chgd=true
-					//result=[(sNM): vln, (sVAL): value.v, type: (String)value.t]
 				}
-
 			}else{
 				globalVars=(Map)atomicState.vars
 				globalVars=globalVars ?: [:]
@@ -2000,173 +1982,6 @@ private api_intf_variable_set(){
 
 private Long getMidnightTime(){
 	return (Long)((Date)timeToday('00:00',(TimeZone)location.timeZone)).getTime()
-}
-
-static String myObj(obj){
-	if(obj instanceof String){return 'String'}
-	else if(obj instanceof Map){return 'Map'}
-	else if(obj instanceof List){return 'List'}
-	else if(obj instanceof ArrayList){return 'ArrayList'}
-	else if(obj instanceof Integer){return 'Int'}
-	else if(obj instanceof BigInteger){return 'BigInt'}
-	else if(obj instanceof Long){return 'Long'}
-	else if(obj instanceof Boolean){return 'Bool'}
-	else if(obj instanceof BigDecimal){return 'BigDec'}
-	else if(obj instanceof Float){return 'Float'}
-	else if(obj instanceof Byte){return 'Byte'}
-	else{ return 'unknown'}
-}
-
-Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
-	Map ret=[:]
-	def myv=v
-	if(toHubV){ // from webcore(9) -> global(5)
-		//noinspection GroovyFallthrough
-		switch(typ) {
-			case sINT:
-				ret=[(sINT): v]
-				break
-			case sSTR:
-				ret=[(sSTR): v]
-				break
-			case sBOOLN:
-				ret=[(sBOOLN): v]
-				break
-			case sDEC:
-				ret=['bigdecimal': v]
-				break
-			case sDYN:
-				ret=[(sSTR): v]
-				break
-			case sTIME:
-				if(eric())log.warn "got time $v"
-				Long aaa= ("$v".isNumber()) ? v as Long : null
-				if(aaa!=null){
-					if(aaa<lMSDAY && aaa>=0L) {
-						Long t0=getMidnightTime()
-						Long aa=t0+aaa
-						TimeZone tz=(TimeZone)location.timeZone
-						myv=Math.round(aa+((Integer)tz.getOffset(t0)-(Integer)tz.getOffset(aa)))
-						if(eric())log.warn "extended midnight time by $aaa"
-					} else {
-						Date t1=new Date(aaa)
-						Long t2=Math.round(((Integer)t1.hours*3600+(Integer)t1.minutes*60+(Integer)t1.seconds)*1000.0D)
-						myv=t2
-						if(eric())log.warn "strange time $aaa new myv is $myv"
-					}
-				} else if(eric()) warn "trying to convert nonnumber time"
-			case sDATE:
-			case sDTIME: //@@
-				//if(eric())log.warn "found myv is $myv"
-				Date nTime=new Date((Long)myv)
-				/*TimeZone aa=(TimeZone)location.timeZone
-				Boolean a= aa.inDaylightTime(nTime)
-				if(eric())log.warn "found inDaylight  $a"
-				if(eric())log.warn "found current offset is  ${aa.getOffset(now())}"
-				if(eric())log.warn "found rawoffset is  ${aa.rawOffset}"*/
-				String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
-				SimpleDateFormat formatter=new SimpleDateFormat(format)
-				formatter.setTimeZone((TimeZone)location.timeZone)
-				String tt=(String) formatter.format(nTime)
-				if(eric())log.warn "found time tt is $tt"
-				String[] t1=tt.split('T')
-
-				if (typ == sDATE) {
-					// comes in long format should be string -> 2021-10-13T99:99:99:999-9999
-					String t2=t1[0]+'T99:99:99:999-9999'
-					ret=[(sDTIME): t2]
-					break
-				}
-				if (typ == sTIME) {
-					//comes in long format should be string -> 9999-99-99T14:25:09.009-0700
-					// we are ignoring the -0000 offset at end
-					String t2='9999-99-99T'+t1[1]
-					ret=[(sDTIME): t2]
-					break
-				}
-			//	if (typ == sDTIME) {
-					// this comes in as a long, needs to be string -> 2021-10-13T14:25:09.009-0700
-					ret=[(sDTIME): tt]
-					break
-			//	}
-			case sDEV:
-				// HE this is a List<String> -> String of words separated by a space (can split())
-				List<String> dL= v instanceof List ? (List<String>)v : (v ? (List<String>)[v]:[])
-				String res=sNULL
-				Boolean ok=true
-				dL.each{ String it->
-					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
-						res= res ? res+sSPC+it : it
-					} else ok=false
-				}
-				if(ok){ ret=[(sSTR):res]}
-				else ret=[(sSTR):v]
-				break
-		}
-	} else { // from global(5) -> to webcore(9)
-		switch(typ) {
-			case sINT:
-				ret=[(sINT):v]
-				break
-			case sBOOLN:
-				ret=[(sBOOLN):v]
-				break
-				// these match
-			case sSTR:
-				// if (dtyp == sDEV)
-				List<String> dvL=[]
-				Boolean ok=true
-				String[] t1=((String)v).split(sSPC)
-				t1.each{
-					// sDEV is a string in global, need to detect if it is really devices :xxxxx:
-					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
-						dvL.push(it)
-					} else ok=false
-				}
-				if(ok){ ret=[(sDEV):dvL]}
-				else ret=[(sSTR):v]
-				break
-				// cannot really return a string to dynamic type here res=sDYN
-			case 'bigdecimal':
-				ret=[(sDEC):v]
-				break
-			case sDTIME: // global everything is datetime -> these come in as a string and needs to be a long of appropriate type
-				Date nTime=new Date()
-				String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
-				SimpleDateFormat formatter=new SimpleDateFormat(format)
-				formatter.setTimeZone((TimeZone)location.timeZone)
-				String tt= (String)formatter.format(nTime)
-				String[] mystart=tt.split('T')
-
-				String iD=v
-				String[] t1= iD.split('T')
-
-				String mtyp=sDTIME
-				String t2=v
-				if(iD.endsWith("9999")) {
-					mtyp=sDATE
-					t2= t1[0]+'T'+mystart[1] // 00:15:00.000'+myend //'-9999'
-				} else if(iD.startsWith("9999")) {
-					mtyp=sTIME
-					String withOutEnd=t1[1][0..-6]
-					String myend=tt[-5..-1]
-					//if(eric())log.warn "tt: ${tt}  myend: ${myend}  iD: ${iD}  mystart: ${mystart}  withOutEnd: ${withOutEnd}"
-					t2= mystart[0]+'T'+withOutEnd+myend // t1[1]
-					//t2= mystart[0]+'T'+t1[1]
-				}
-				Date tt1=(Date)toDateTime(t2)
-				Long r2=tt1.getTime()
-				if(mtyp==sTIME){
-					Date m1=new Date(r2)
-					Long m2=Math.round(((Integer)m1.hours*3600+(Integer)m1.minutes*60+(Integer)m1.seconds)*1000.0D)
-					//if(eric())log.warn "fixing $t2 $r2 to $m2"
-					r2=m2
-				}
-				//if(eric())log.warn "returning $r2"
-				ret=[(mtyp):r2]
-		}
-	}
-	return ret
 }
 
 private void resetFuelStreamList(){
@@ -2399,15 +2214,6 @@ private api_global(){
 	Integer st= err ? 400 : 200
 	result.timestamp=(new Date()).time
 	render contentType: sAPPJAVA, data: JsonOutput.toJson(result), status: st
-}
-
-@Field static Semaphore theMBLockFLD=new Semaphore(0)
-
-// Memory Barrier
-static void mb(String meth=sNULL){
-	if((Boolean)theMBLockFLD.tryAcquire()){
-		theMBLockFLD.release()
-	}
 }
 
 @Field volatile static Map<String,Long> lastRecoveredFLD= [:]
@@ -3481,34 +3287,7 @@ def lifxHandler(response, Map cbkData) {
 /******************************************************************************/
 /*** SECURITY METHODS														***/
 /******************************************************************************/
-private static String md5(String md5){
-//log.debug "doing md5 $md5"
-	MessageDigest md= MessageDigest.getInstance("MD5")
-	byte[] array=md.digest(md5.getBytes())
-	String result=sBLK
-	for (Integer i=0; i<array.length; ++i){
-		result += Integer.toHexString((array[i] & 0xFF) | 0x100).substring(1,3)
-	}
-	return result
-}
-
-@Field volatile static Map<String,Map> theHashMapFLD=[:]
-
-private String hashId(id, Boolean updateCache=true){
-	//enabled hash caching for faster processing
-	String result
-	String myId=id.toString()
-	String wName=app.id.toString()
-	if(theHashMapFLD[wName] == null){ theHashMapFLD[wName]= [:]; theHashMapFLD=theHashMapFLD }
-	result=(String)theHashMapFLD[wName][myId]
-	if(result==sNULL){
-		result=sCOLON+md5('core.' + myId)+sCOLON
-		theHashMapFLD[wName][myId]=result
-		theHashMapFLD=theHashMapFLD
-		mb()
-	}
-	return result
-}
+@Field volatile static Map<String,Map> theHashMapVFLD=[:]
 
 /*private String temperatureUnit(){
 	return "°" + location.temperatureScale
@@ -4627,4 +4406,228 @@ List getColors(){
 
 private Boolean isHubitat(){
 	return hubUID != null
+}
+
+private static String sectionTitleStr(String title)	{ return '<h3>'+title+'</h3>' }
+private static String inputTitleStr(String title)	{ return '<u>'+title+'</u>' }
+//private static String pageTitleStr(String title)	{ return '<h1>'+title+'</h1>' }
+//private static String paraTitleStr(String title)	{ return '<b>'+title+'</b>' }
+
+private static String imgTitle(String imgSrc,String titleStr,String color=sNULL,Integer imgWidth=30,Integer imgHeight=0){
+	String imgStyle=sBLK
+	String myImgSrc='https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/'+imgSrc
+	imgStyle += imgWidth>0 ? 'width: '+imgWidth.toString()+'px !important;':sBLK
+	imgStyle += imgHeight>0 ? imgWidth!=0 ? sSPC:sBLK+'height:'+imgHeight.toString()+'px !important;':sBLK
+	if(color!=sNULL){ return """<div style="color: ${color}; font-weight:bold;"><img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img></div>""".toString() }
+	else{ return """<img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img>""".toString() }
+}
+
+static String myObj(obj){
+	if(obj instanceof String){return 'String'}
+	else if(obj instanceof Map){return 'Map'}
+	else if(obj instanceof List){return 'List'}
+	else if(obj instanceof ArrayList){return 'ArrayList'}
+	else if(obj instanceof Integer){return 'Int'}
+	else if(obj instanceof BigInteger){return 'BigInt'}
+	else if(obj instanceof Long){return 'Long'}
+	else if(obj instanceof Boolean){return 'Bool'}
+	else if(obj instanceof BigDecimal){return 'BigDec'}
+	else if(obj instanceof Float){return 'Float'}
+	else if(obj instanceof Byte){return 'Byte'}
+	else{ return 'unknown'}
+}
+
+@SuppressWarnings('GroovyAssignabilityCheck')
+Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
+	Map ret=[:]
+	def myv=v
+	if(toHubV){ // from webcore(9 types) -> global(5 types + 3 overloads + sDYN becomes sSTR)
+		//noinspection GroovyFallthrough
+		switch(typ) {
+			case sINT:
+				ret=[(sINT): v]
+				break
+			case sBOOLN:
+				ret=[(sBOOLN): v]
+				break
+			case sDEC:
+				ret=['bigdecimal': v]
+				break
+			case sDEV:
+				// HE this is a List<String> -> String of words separated by a space (can split())
+				List<String> dL= v instanceof List ? (List<String>)v : (v ? (List<String>)[v]:[])
+				String res=sNULL
+				Boolean ok=true
+				dL.each{ String it->
+					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+						res= res ? res+sSPC+it : it
+					} else ok=false
+				}
+				if(ok){
+					ret=[(sSTR):res]
+					break
+				}
+			case sDYN:
+			case sSTR:
+				ret=[(sSTR): v]
+				break
+			case sTIME:
+				if(eric())log.warn "got time $v"
+				Long aaa= ("$v".isNumber()) ? v as Long : null
+				if(aaa!=null){
+					if(aaa<lMSDAY && aaa>=0L) {
+						Long t0=getMidnightTime()
+						Long aa=t0+aaa
+						TimeZone tz=(TimeZone)location.timeZone
+						myv=Math.round(aa+((Integer)tz.getOffset(t0)-(Integer)tz.getOffset(aa)))
+						if(eric())log.warn "extended midnight time by $aaa"
+					} else {
+						Date t1=new Date(aaa)
+						Long t2=Math.round(((Integer)t1.hours*3600+(Integer)t1.minutes*60+(Integer)t1.seconds)*1000.0D)
+						myv=t2
+						if(eric())log.warn "strange time $aaa new myv is $myv"
+					}
+				} else if(eric()) warn "trying to convert nonnumber time"
+			case sDATE:
+			case sDTIME: //@@
+				//if(eric())log.warn "found myv is $myv"
+				Date nTime=new Date((Long)myv)
+				/*TimeZone aa=(TimeZone)location.timeZone
+				Boolean a= aa.inDaylightTime(nTime)
+				if(eric())log.warn "found inDaylight  $a"
+				if(eric())log.warn "found current offset is  ${aa.getOffset(now())}"
+				if(eric())log.warn "found rawoffset is  ${aa.rawOffset}"*/
+				String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
+				SimpleDateFormat formatter=new SimpleDateFormat(format)
+				formatter.setTimeZone((TimeZone)location.timeZone)
+				String tt=(String) formatter.format(nTime)
+				if(eric())log.warn "found time tt is $tt"
+				String[] t1=tt.split('T')
+
+				if (typ == sDATE) {
+					// comes in long format should be string -> 2021-10-13T99:99:99:999-9999
+					String t2=t1[0]+'T99:99:99:999-9999'
+					ret=[(sDTIME): t2]
+					break
+				}
+				if (typ == sTIME) {
+					//comes in long format should be string -> 9999-99-99T14:25:09.009-0700
+					String t2='9999-99-99T'+t1[1]
+					ret=[(sDTIME): t2]
+					break
+				}
+				//	if (typ == sDTIME) {
+				// this comes in as a long, needs to be string -> 2021-10-13T14:25:09.009-0700
+				ret=[(sDTIME): tt]
+				break
+				//	}
+		}
+	} else { // from global(5 types + 3 overloads ) -> to webcore(8 (cannot restore sDYN)
+		switch(typ) {
+			case sINT:
+				ret=[(sINT):v]
+				break
+			case sBOOLN:
+				ret=[(sBOOLN):v]
+				break
+				// these match
+			case 'bigdecimal':
+				ret=[(sDEC):v]
+				break
+			case sSTR:
+				// if (dtyp == sDEV)
+				List<String> dvL=[]
+				Boolean ok=true
+				String[] t1=((String)v).split(sSPC)
+				t1.each{
+					// sDEV is a string in global, need to detect if it is really devices :xxxxx:
+					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+						dvL.push(it)
+					} else ok=false
+				}
+				if(ok){ ret=[(sDEV):dvL]}
+				else ret=[(sSTR):v]
+				break
+				// cannot really return a string to dynamic type here res=sDYN
+			case sDTIME: // global times: everything is datetime -> these come in as a string and needs to be a long of appropriate type
+				String iD=v
+				String mtyp=sDTIME
+				String res=v
+				if(iD.endsWith("9999") || iD.startsWith("9999")) {
+					Date nTime=new Date()
+					String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
+					SimpleDateFormat formatter=new SimpleDateFormat(format)
+					formatter.setTimeZone((TimeZone)location.timeZone)
+					String tt= (String)formatter.format(nTime)
+					String[] mystart=tt.split('T')
+
+					String[] t1= iD.split('T')
+
+					if(iD.endsWith("9999")) {
+						mtyp=sDATE
+						res= t1[0]+'T'+mystart[1] // 00:15:00.000'+myend //'-9999'
+					} else if(iD.startsWith("9999")) {
+						mtyp=sTIME
+						// we are ignoring the -0000 offset at end and using our current one
+						String withOutEnd=t1[1][0..-6]
+						String myend=tt[-5..-1]
+						//if(eric())log.warn "tt: ${tt}  myend: ${myend}  iD: ${iD}  mystart: ${mystart}  withOutEnd: ${withOutEnd}"
+						res= mystart[0]+'T'+withOutEnd+myend
+						//res= mystart[0]+'T'+t1[1]
+					}
+				}
+				Date tt1=(Date)toDateTime(res)
+				Long lres=tt1.getTime()
+				if(mtyp==sTIME){
+					Date m1=new Date(lres)
+					Long m2=Math.round(((Integer)m1.hours*3600+(Integer)m1.minutes*60+(Integer)m1.seconds)*1000.0D)
+					//if(eric())log.warn "fixing $res $lres to $m2"
+					lres=m2
+				}
+				//if(eric())log.warn "returning $lres"
+				ret=[(mtyp):lres]
+		}
+	}
+	return ret
+}
+
+private static String md5(String md5){
+	MessageDigest md= MessageDigest.getInstance('MD5')
+	byte[] array=md.digest(md5.getBytes())
+	String result=sBLK
+	Integer l=array.size()
+	for(Integer i=0; i<l; ++i){
+		result += Integer.toHexString((array[i] & 0xFF)| 0x100).substring(1,3)
+	}
+	return result
+}
+
+static void clearHashMap(String wName){
+	theHashMapVFLD[wName]=[:]
+	theHashMapVFLD=theHashMapVFLD
+}
+
+private String hashId(id, Boolean updateCache=true){
+	//enabled hash caching for faster processing
+	String result
+	String myId=id.toString()
+	String wName= parent ? parent.id.toString() : app.id.toString()
+	if(theHashMapVFLD[wName] == null){ theHashMapVFLD[wName]= [:]; theHashMapVFLD=theHashMapVFLD }
+	result=(String)theHashMapVFLD[wName][myId]
+	if(result==sNULL){
+		result=sCOLON+md5('core.' + myId)+sCOLON
+		theHashMapVFLD[wName][myId]=result
+		theHashMapVFLD=theHashMapVFLD
+		mb()
+	}
+	return result
+}
+
+@Field static Semaphore theMBLockFLD=new Semaphore(0)
+
+// Memory Barrier
+static void mb(String meth=sNULL){
+	if((Boolean)theMBLockFLD.tryAcquire()){
+		theMBLockFLD.release()
+	}
 }
