@@ -191,7 +191,7 @@ def pageMain(){
 	dynamicPage((sNM): "pageMain", (sTIT): sBLK, install: true, uninstall: false){
 		if(!(Boolean)settings.agreement){
 			pageSectionDisclaimer()
-		} else {
+		}else{
 			section("Engine block"){
 				href "pageEngineBlock", (sTIT): imgTitle("app-CoRE.png", inputTitleStr("Cast iron")), (sDESC): sVER+" HE: "+ sHVER, (sREQ): false, state: "complete"
 			}
@@ -469,7 +469,7 @@ def pageSettings(){
 				input "customWebcoreInstanceUrl", sSTR, (sTIT): "Custom webcore webserver (local webserver url different from dashboard.webcore.co)", default: null, (sREQ): req
 				if((Boolean)localHubUrl && !customWebcoreInstanceUrl) paragraph "If you use a local hub API url you MUST use a custom webcore server url, as dashboard.webcore.co site is restricted to Hubitat and Smartthing's cloud API access only"
 				input "localHubUrl", sBOOL, (sTIT): "Use local hub URL for API access?", submitOnChange: true, default: false, (sREQ): false
-			} else {
+			}else{
 				app.clearSetting('localHubUrl')
 				app.clearSetting('customWebcoreInstanceUrl')
 			}
@@ -713,7 +713,7 @@ private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, B
 			t0.sort().each{ chld -> // this runs updated on all child pistons
 				chld.updated()
 			}
-		}else if(callAll) {
+		}else if(callAll){
 			clearChldCaches(true)
 		}
 	}
@@ -732,7 +732,7 @@ void clearChldCaches(Boolean all=false, Boolean clrLogs=false){
 	Long t1=now()
 	List t0=getChildApps().findAll{ (String)it.name == name }
 	if(t0){
-		if(!cldClearFLD[wName]) { cldClearFLD[wName]=(Map)[:]; cldClearFLD=cldClearFLD }
+		if(!cldClearFLD[wName]){ cldClearFLD[wName]=(Map)[:]; cldClearFLD=cldClearFLD }
 		if(clrLogs){
 			t0.sort().each{ chld ->
 				Map a=chld.clearLogsQ()
@@ -747,7 +747,7 @@ void clearChldCaches(Boolean all=false, Boolean clrLogs=false){
 			Long threshold=t1 - recTime
 			t0.sort().each{ chld ->
 				String myId=hashId(chld.id, updateCache)
-				if(pStateFLD[wName] == null) { pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
+				if(pStateFLD[wName] == null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 				Map meta=(Map)pStateFLD[wName][myId]
 				if(meta==null){
 					meta=(Map)chld.curPState()
@@ -805,7 +805,7 @@ private void initialize(){
 	if(recoveryMethod != 'Never'){
 		try{
 			"run$recoveryMethod"(recoveryHandler)
-		} catch (ignored){ }
+		}catch (ignored){ }
 	}
 	schedule('22 4/15 * * * ?', 'clearChldCaches') // regular child cache cleanup
 }
@@ -827,7 +827,7 @@ private void checkWeather(){
 				storageApp.stopWeather()
 				//delete it ??
 			}
-		} else state.storAppOn=false
+		}else state.storAppOn=false
 	}
 }
 
@@ -872,7 +872,7 @@ private Boolean initializeWebCoREEndpoint(Boolean disableRetry=false){
 		if(!accessToken){
 			try{
 				accessToken=createAccessToken() // this fills in state.accessToken
-			} catch(e){
+			}catch(e){
 				error "An error has occurred during endpoint initialization: ", null, e
 				state.endpointCloud=sNULL
 				state.endpoint=sNULL
@@ -881,10 +881,10 @@ private Boolean initializeWebCoREEndpoint(Boolean disableRetry=false){
 		}
 		if(accessToken){
 			updateEndpoint()
-		} else if(!disableRetry){
+		}else if(!disableRetry){
 			enableOauth()
 			return initializeWebCoREEndpoint(true)
-		} else error "Could not get access token"
+		}else error "Could not get access token"
 	}
 	return (String)state.endpoint != sNULL
 }
@@ -898,7 +898,7 @@ private void enableOauth(){
 		httpPost(params){ resp ->
 			//LogTrace("response (sDATA): ${resp.data}")
 		}
-	} catch (e){
+	}catch (e){
 		error "enableOauth something went wrong: ", null, e
 	}
 }
@@ -976,10 +976,10 @@ private Map api_get_error_result(String error){
 
 private Map getHubitatVersion(){
 	try{
-		return ((List)location.getHubs()).collectEntries {[it.id, it.getFirmwareVersionString()]}
+		return ((List)location.getHubs()).collectEntries { [it.id, it.getFirmwareVersionString()] }
 	}
 	catch(ignored){
-		return ((List)location.getHubs()).collectEntries {[it.id, "< 1.1.2.112"]}
+		return ((List)location.getHubs()).collectEntries { [it.id, "< 1.1.2.112"] }
 	}
 }
 
@@ -1007,7 +1007,7 @@ Boolean getTheLock(String meth=sNULL){
 		//if(eric())log.warn "waiting for ${qname} lock access $meth"
 		pauseExecution(waitT)
 		wait=true
-		if((now() - timeL) > 30000L) {
+		if((now() - timeL) > 30000L){
 			releaseTheLock('getLock')
 			warn "overriding lock $meth"
 		}
@@ -1074,7 +1074,7 @@ private Map api_get_base_result(Boolean updateCache=false){
 			account: [id: getAccountSid()],
 			pistons: getChildApps().findAll{ (String)it.name == name }.sort{ (String)it.label }.collect{
 				String myId=hashId(it.id, true)
-				if(pStateFLD[wName] == null) { pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
+				if(pStateFLD[wName] == null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 				Map meta=(Map)pStateFLD[wName][myId]
 				if(meta==null){
 					meta=(Map)it.curPState()
@@ -1367,7 +1367,7 @@ private void checkResultSize(Map result, Boolean requireDb=false, String caller=
 		if(resl > 105){ //these are loaded anyway right after loading the piston
 			warn "Trimming ${resl}KB response to smaller size (${requireDb}) caller: ${caller}"
 
-			if(result.data) {
+			if(result.data){
 				result.data.logs=[]
 				result.data.stats.timing=[]
 				result.data.trace=[:]
@@ -1381,7 +1381,7 @@ private void checkResultSize(Map result, Boolean requireDb=false, String caller=
 			if(responseLength == svLength || resl > 105){
 				warn "First TRIMMING may be un-successful, trying further trimming ${resl}KB"
 
-				if(result.data) {
+				if(result.data){
 					result.data.systemVars=[:]
 					result.data.localVars=[:]
 					result.data.schedules=[]
@@ -1394,8 +1394,8 @@ private void checkResultSize(Map result, Boolean requireDb=false, String caller=
 				debug "Second Trimmed response length: ${resl}KB"
 				if(responseLength == svLength || resl > 105){
 					warn "Final TRIMMING may be un-successful, you should load a smaller piston then reload this piston ${resl}KB"
-				} else warn "Final TRIMMING successful, you should load a small piston again to complete IDE update ${resl}KB"
-			} else warn "First TRIMMING successful ${resl}KB"
+				}else warn "Final TRIMMING successful, you should load a small piston again to complete IDE update ${resl}KB"
+			}else warn "First TRIMMING successful ${resl}KB"
 		}
 		//log.debug "Trimmed response length: ${jsonData.getBytes("UTF-8").length}"
 	}
@@ -1707,7 +1707,7 @@ private api_intf_dashboard_piston_set_category(){
 		if(piston){
 			result=(Map)piston.setCategory(params.category)
 			String myId=(String)params.id
-			if(pStateFLD[wName] == null) { pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
+			if(pStateFLD[wName] == null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 			Map st=(Map)pStateFLD[wName][myId]
 			if(st==null) st=(Map)piston.curPState() //st=atomicState[myId]
 			if(st){
@@ -1768,11 +1768,11 @@ private api_intf_dashboard_piston_delete(){
 		String id=(String)params.id
 		def piston=getChildApps().find{ hashId(it.id) == id }
 		if(piston){
-			if(pStateFLD[wName] == null) { pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
+			if(pStateFLD[wName] == null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 			pStateFLD[wName][id]=null
 			pStateFLD=pStateFLD
 			String schld=piston.id.toString()
-			if(!cldClearFLD[wName]) { cldClearFLD[wName]=(Map)[:]; cldClearFLD=cldClearFLD }
+			if(!cldClearFLD[wName]){ cldClearFLD[wName]=(Map)[:]; cldClearFLD=cldClearFLD }
 			cldClearFLD[wName].remove(schld)
 			result=(Map)piston.deletePiston()
 			app.deleteChildApp(piston.id)
@@ -1831,9 +1831,9 @@ private api_intf_variable_set(){
 		if(!pid){
 			Boolean chgd=false
 			String vln=value ? (String)value.n : sNULL
-			if( (name && (Boolean)name.startsWith('@@')) || (vln && vln.startsWith('@@')) ) {
+			if( (name && (Boolean)name.startsWith('@@')) || (vln && vln.startsWith('@@')) ){
 				String vn=sNULL
-				if(name && !value) {
+				if(name && !value){
 					// delete a global
 					vn=name.substring(2)
 					chgd=deleteGlobalVar(vn)
@@ -1842,16 +1842,16 @@ private api_intf_variable_set(){
 					else trace meth1
 					chgd=true
 					//result=[(sNM): name, (sVAL): null, type: null]
-				} else if(value && value.n){
+				}else if(value && value.n){
 					vln=((String)value.n).substring(2)
 					if(name =='null') name=sNULL
-					if(!name || name!=(String)value.n ) {
-						if (name) {
+					if(!name || name!=(String)value.n ){
+						if (name){
 							vn= name.substring(2)
 							meth1=meth+"DELETE before update of HE global $vn "
 							try{
 								chgd= deleteGlobalVar(vn)
-							} catch (ignored){
+							}catch (ignored){
 								meth1=meth+"DELETE not allowed HE global $vn "
 							}
 							if (!chgd) warn meth1+"FAILED"
@@ -1873,7 +1873,7 @@ private api_intf_variable_set(){
 							meth1=meth+"CREATE HE global $vln ${value.t} ${typ} ${vl} "
 							try{
 								chgd=createGlobalVar(vln, vl, typ)
-							} catch (ignored){
+							}catch (ignored){
 								meth1=meth+"CREATE not allowed HE global $vn "
 							}
 							if(!chgd) warn meth1+"FAILED"
@@ -1883,11 +1883,11 @@ private api_intf_variable_set(){
 						//update a variable
 						def hg=getGlobalVar(vln)
 						if(!hg) warn meth+"GET HE global failed $vln"
-						else {
+						else{
 							def vl=value.v
 							if(vl){
 								if(eric())log.warn "vl is ${myObj(vl)}"
-								if((String)value.t==sTIME) {
+								if((String)value.t==sTIME){
 									Long aa=vl.toLong()
 									if(eric())log.warn "aa is $aa"
 									// the browers is in local zone but internally HE is utc
@@ -1900,7 +1900,7 @@ private api_intf_variable_set(){
 									if(eric()) log.warn "found time $vl"
 								}
 								Map ta=fixHeGType(true, (String)value.t, vl, (String)hg.type)
-								ta.each {
+								ta.each{
 									String typ=(String)it.key
 									vl=it.value
 									chgd=false
@@ -1911,7 +1911,7 @@ private api_intf_variable_set(){
 									if (!chgd) warn meth1+"FAILED mismatch $vln ${hg.type} ${typ}   ${value.t} ${vl}"
 									else trace meth1
 								}
-							} else warn meth1+"no value"
+							}else warn meth1+"no value"
 						}
 					}
 				}
@@ -1923,7 +1923,7 @@ private api_intf_variable_set(){
 					globalVars.remove(name)
 					chgd=true
 					result=[(sNM): name, (sVAL): null, type: null]
-				} else if(value && value.n){
+				}else if(value && value.n){
 					if(!name || name!=vln ){
 						//add a new variable
 						if(name) globalVars.remove(name)
@@ -1942,7 +1942,7 @@ private api_intf_variable_set(){
 					clearBaseResult('api_intf_variable_set')
 					//noinspection GroovyVariableNotAssigned
 					sendVariableEvent(result)
-				} else trace meth+"SET webcore global FAILED $name"
+				}else trace meth+"SET webcore global FAILED $name"
 			}
 			if(chgd){
 				// return all globals
@@ -1951,7 +1951,7 @@ private api_intf_variable_set(){
 				Map heV=AddHeGlobals(globalVars, meth)
 				globalVars=globalVars+heV
 				result=[(sSTS): sSUCC]+[globalVars: globalVars]
-			} else result=[(sSTS): sERROR, (sERR): sERRUNK]
+			}else result=[(sSTS): sERROR, (sERR): sERRUNK]
 		}else{
 			def piston=getChildApps().find{ hashId(it.id) == pid }
 			if(piston){
@@ -2184,7 +2184,7 @@ private api_global(){
 	Boolean err=true
 	String varName=(String)params?.varName
 	if(varName && (Boolean)varName.startsWith('@') ){
-		if((Boolean)varName.startsWith('@@')) {
+		if((Boolean)varName.startsWith('@@')){
 			String vn=varName.substring(2)
 			def hg=getGlobalVar(vn)
 			if(hg){ // could return these as webcore types....this uses what is in HE
@@ -2194,7 +2194,7 @@ private api_global(){
 				result.desc='HE Hub variable'
 				err=false
 			}
-		} else{
+		}else{
 			Map vars=(Map)atomicState.vars
 			vars=vars ?: [:]
 			if(vars[varName]){
@@ -2261,7 +2261,7 @@ void finishRecovery(){
 	Long threshold=now() - recTime
 	Boolean updateCache=true
 	String wName=app.id.toString()
-	if(pStateFLD[wName] == null) { pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
+	if(pStateFLD[wName] == null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 
 	String sMETA='meta'
 	def failedPistons=getChildApps().findAll{ (String)it.name == name }.collect {
@@ -2307,7 +2307,7 @@ private void cleanUp(){
 		}
 	}
 	def a=api_get_base_result(true)
-    } catch (ignored){
+    }catch (ignored){
     }
 }
 
@@ -2346,7 +2346,7 @@ private getStorageApp(Boolean install=false){
 		if(storageApp==null){
 			try{
 				storageApp=addChildApp("ady624", name, label)
-			} catch (ignored){
+			}catch (ignored){
 				error "Please install the webCoRE Storage App for \$weather to work"
 				return null
 			}
@@ -2354,7 +2354,7 @@ private getStorageApp(Boolean install=false){
 		if(weatDev==null){
 			try{
 				weatDev=addChildDevice("ady624", name1, hashId("${now()}"), null, [label: label1])
-			} catch (ignored){
+			}catch (ignored){
 //				error "Please install the webCoRE Weather Devicefor \$weather notification to work"
 //				return null
 			}
@@ -2371,7 +2371,7 @@ private getStorageApp(Boolean install=false){
 		}
 		//app.updateSetting('contacts', [type: sTXT, (sVAL): null])
 		app.clearSetting('contacts')
-	} catch (all){
+	}catch (all){
 	}
 */
 
@@ -2402,7 +2402,7 @@ private getDashboardApp(Boolean install=false){
 	}
 	try{
 		dashboardApp=addChildApp("ady624", name, myN)
-	} catch (ignored){
+	}catch (ignored){
 		return null
 	}
 	return dashboardApp
@@ -2521,7 +2521,7 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 					}
 					false
 				}
-			} else result.complete=true
+			}else result.complete=true
 			debug "Generated list of ${offset}-${offset + (Integer)((Map)result.devices).size()-1} of ${deviceCount} devices in ${now() - time}ms. Data size is ${result.toString().size()}"
 		}
 	}
@@ -2570,7 +2570,7 @@ Map getDevDetails(dev, Boolean addtransform=false){
 		newCL.push(mycmd)
 		if(addtransform){
 			String an=transformCommand(cmd,overrides,nm)
-			if(an) {
+			if(an){
 				mycmd.n=an
 				newCL.push(mycmd)
 			}
@@ -2627,24 +2627,22 @@ private void setPowerSource(String powerSource, Boolean atomic=true){
 	sendLocationEvent([(sNM): 'powerSource', (sVAL): powerSource, isStateChange: true, linkText: "webCoRE power source event", descriptionText: handle()+" has detected a new power source: "+powerSource])
 }
 
-private Map AddHeGlobals(Map<String,Map> globalVars, String meth) {
+private Map AddHeGlobals(Map<String,Map> globalVars, String meth){
 	Map<String,Map> res=[:]
 	def heV=getAllGlobalVars()
-	trace meth+" ALL HE globals $heV"
+	//if(eric()) trace meth+" ALL HE globals $heV"
+	String nm
+	Map ta
+	String typ
+	def vl
 	heV?.each{
-		String nm='@@'+(String)it.key
-		//if(globalVars.containsKey(nm)){
-		//	trace meth+" FOUND HE global same as webCoRE global $nm"
-		//}else{
-			Map ta=fixHeGType(false, (String)it.value.type, it.value.value, sNULL)
-			String typ=sNULL
-			def vl=null
-			ta.each {
-				typ=(String)it.key
-				vl=it.value
-			}
-			res[nm]=[(sT):typ,(sV): vl]
-		//}
+		nm='@@'+(String)it.key
+		ta=fixHeGType(false, (String)it.value.type, it.value.value, sNULL)
+		ta.each{
+			typ=(String)it.key
+			vl=it.value
+		}
+		res[nm]=[(sT):typ,(sV): vl]
 	}
 	return res
 }
@@ -2661,7 +2659,7 @@ private Map listAvailableVariables1(){
 	return listAV(myV, 'list variables1')
 }
 
-private Map listAV(Map my, String meth) {
+private Map listAV(Map my, String meth){
 	Map<String,Map> myV=my ?: [:]
 	//'@@'
 	Map heV=AddHeGlobals(myV, meth)
@@ -2735,7 +2733,7 @@ private void startDashboard(){
 	if(!dashboardApp) return //false
 	Map t0=listAvailableDevices(true)
 	dashboardApp.start(t0.collect{ it.value }, getInstanceSid())
-	if((String)state.dashboard != sACT) {
+	if((String)state.dashboard != sACT){
 		atomicState.dashboard=sACT
 	}
 }
@@ -2745,7 +2743,7 @@ private void stopDashboard(){
 	def dashboardApp=getDashboardApp()
 	if(!dashboardApp) return //false
 	dashboardApp.stop()
-	if((String)state.dashboard != sINACT) {
+	if((String)state.dashboard != sINACT){
 		atomicState.dashboard=sINACT
 	}
 }
@@ -2769,14 +2767,14 @@ private String getInstanceSid(){
 	return hashId(instStr)
 }
 
-private void testLifx() {
+private void testLifx(){
 	String token=state.settings?.lifx_token
 	if (!token) return
 	testLifx1(true)
 	runIn(4, testLifx1)
 }
 
-private void testLifx1(Boolean first=false) {
+private void testLifx1(Boolean first=false){
 	String token=state.settings?.lifx_token
 	if (!token) return
 	def requestParams= [
@@ -2788,7 +2786,7 @@ private void testLifx1(Boolean first=false) {
 
 	]
 	if(first) asynchttpGet('lifxHandler', requestParams, [request: 'scenes'])
-	else {
+	else{
 		requestParams.path= "/v1/lights/all"
 		asynchttpGet('lifxHandler', requestParams, [request: 'lights'])
 	}
@@ -3114,9 +3112,9 @@ def webCoREHandler(event){
 			vars=vars ?: [:]
 			Map oldVar= vars[vN] ?: [(sT):sBLK, (sV):sBLK]
 			if(((String)oldVar.t != vType) || (oldVar.v != vV)){ // only notify if it is a change for us.
-				if (vV==null) {
+				if (vV==null){
 					vars.remove(vN)
-				} else {
+				}else{
 					vars[vN]=[(sT): vType, (sV): vV]
 				}
 				atomicState.vars=vars
@@ -3124,8 +3122,8 @@ def webCoREHandler(event){
 				clearGlobalPistonCache("variable event")
 // notify my child instances
 				if (vV!=null) sendVariableEvent([(sNM): vN, (sVAL): vV, type: vType], true)
-			} else releaseTheLock(t) // no change
-		} else warn "no variable name $data"
+			}else releaseTheLock(t) // no change
+		}else warn "no variable name $data"
 		return
 	} */
 	switch (eV){
@@ -3235,7 +3233,7 @@ private List getIncidents(){
 		else Boolean aa=new3Alerts.push(myE)
 	}
 	Integer nsz=new3Alerts.size()
-	if(osz!=nsz) {
+	if(osz!=nsz){
 		atomicState.hsmAlerts=new3Alerts
 	}
 	return new3Alerts
@@ -3260,14 +3258,14 @@ void startWork(){
 	broadcastPistonList()
 }
 
-def lifxHandler(response, Map cbkData) {
+def lifxHandler(response, Map cbkData){
 	if((response.status == 200)){
 		def data= response.data instanceof List ? response.data : new JsonSlurper().parseText((String)response.data)
 		//cbkData= cbkData instanceof Map ? cbkData : (LinkedHashMap) new JsonSlurper().parseText(cbkData)
 		Boolean fnd=false
 		if(data instanceof List){
 			state.lifx= state.lifx ?: [:]
-			switch ((String)cbkData.request) {
+			switch ((String)cbkData.request){
 			case 'scenes':
 				state.lifx.scenes= data.collectEntries{[(it.uuid): it.name]}
 				fnd=true

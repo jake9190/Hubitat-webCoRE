@@ -3407,7 +3407,7 @@ private static Long checkTimeRestrictions(Map rtD,Map operand,Long time,Integer 
 	Integer dyHr=date.hours
 	Integer dyMins=date.minutes
 
-    Double dminDay=1440.0D
+	Double dminDay=1440.0D
 	Double dsecDay=86400.0D
 
 	Long result=-1L
@@ -8654,21 +8654,18 @@ private static String encodeURIComponent(value){
 
 @Field volatile static Map<String,Map> theHashMapVFLD=[:]
 
-private static getThreeAxisOrientation(value,Boolean getIndex=false){
-	if(value instanceof Map){
-		Map m=(Map)value
-		if((m.x!=null)&& (m.y!=null)&& (m.z!=null)){
-			Integer x=Math.abs(m.x.toDouble()).toInteger()
-			Integer y=Math.abs(m.y.toDouble()).toInteger()
-			Integer z=Math.abs(m.z.toDouble()).toInteger()
-			Integer side=(x>y ? (x>z ? 0:2):(y>z ? 1:2))
-			side+= ( (side==0 && m.x<0) || (side==1 && m.y<0) || (side==2 && m.z<0) ? 3:0 )
-			if(getIndex){ return side }
-			List<String> orientations=['rear','down','left','front','up','right']
-			return orientations[side]+' side up'
-		}
+private static String getThreeAxisOrientation(Map m /*, Boolean getIndex=false */){
+	if((m.x!=null)&& (m.y!=null)&& (m.z!=null)){
+		Integer x=Math.abs(m.x.toDouble()).toInteger()
+		Integer y=Math.abs(m.y.toDouble()).toInteger()
+		Integer z=Math.abs(m.z.toDouble()).toInteger()
+		Integer side=(x>y ? (x>z ? 0:2):(y>z ? 1:2))
+		side+= ( (side==0 && m.x<0) || (side==1 && m.y<0) || (side==2 && m.z<0) ? 3:0 )
+//		if(getIndex){ return side }
+		List<String> orientations=['rear','down','left','front','up','right']
+		return orientations[side]+' side up'
 	}
-	return value
+	return sNULL
 }
 
 private Long getTimeToday(Long time){
@@ -8837,7 +8834,7 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 		case 'vector3':
 			return value instanceof Map && value.x!=null && value.y!=null && value.z!=null ? value : [x:0,y:0,z:0]
 		case sORIENT:
-			return getThreeAxisOrientation(value)
+			return value instanceof Map ? getThreeAxisOrientation(value) : value
 		case 'ms':
 		case sS:
 		case 'm':
