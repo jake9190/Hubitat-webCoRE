@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update October 22, 2021 for Hubitat
+ * Last update October 29, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -4917,8 +4917,8 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 		rtD.cache[mC]=result
 		//true/false actions
 		if(collection==sC){
-			if((result || (Integer)rtD.ffTo!=0) && conditions.ts!=null && (List)(conditions.ts).size())Boolean a=executeStatements(rtD,(List)conditions.ts,async)
-			if((!result || (Integer)rtD.ffTo!=0) && conditions.fs!=null && (List)(conditions.fs).size())Boolean a=executeStatements(rtD,(List)conditions.fs,async)
+			if((result || (Integer)rtD.ffTo!=0) && conditions.ts!=null && ((List)conditions.ts).size())Boolean a=executeStatements(rtD,(List)conditions.ts,async)
+			if((!result || (Integer)rtD.ffTo!=0) && conditions.fs!=null && ((List)conditions.fs).size())Boolean a=executeStatements(rtD,(List)conditions.fs,async)
 		}
 		if((Integer)rtD.ffTo==0 && lg>2){
 			msg.m="Condition group #${myC} evaluated $result (state ${(Boolean)rtD.conditionStateChanged ? 'changed' : 'did not change'})".toString()
