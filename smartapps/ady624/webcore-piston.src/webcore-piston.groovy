@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 4, 2021 for Hubitat
+ * Last update November 5, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -1850,20 +1850,20 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 
 		if(!ListAsync) ListAsync=[sHTTPR,sSTOREM,'lifx',sSENDE,sIFTTM]
 		Boolean syncTime=true
-		Long t=now()
-		//while(success&&firstTime){
-		while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-t >(Long)getPistonLimits.scheduleRemain){
-			List<Map> schedules
-			Map tt0=getCachedMaps(sHNDLEVT)
+		Boolean sv_syncTime=syncTime
+
+		List<Map> schedules
+		Map tt0
+		Boolean a
+		while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-(Long)now() >(Long)getPistonLimits.scheduleRemain){
+			tt0=getCachedMaps(sHNDLEVT)
 			if(tt0!=null)schedules=(List<Map>)[]+(List<Map>)tt0.schedules
 			else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
 
 			if(schedules==null || schedules==(List<Map>)[] || (Integer)schedules.size()==0)break
 
-			t=now()
 			if(evntName==sASYNCREP){
 				event.schedule=schedules.sort{ (Long)it.t }.find{ (String)it.d==evntVal }
-				syncTime=false
 			}else{
 				// as long as no pending events
 				if(!firstTime && doSerialization && semName!=sNULL){
@@ -1878,6 +1878,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 					}
 				}
 
+				Long t=now()
 				//anything less than scheduleVariance (270ms) in the future is considered due, we'll do some pause to sync with it
 				//we're doing this because many times,the scheduler will run a job early
 				Map sch=schedules.sort{(Long)it.t }.find{(Long)it.t<t+(Long)getPistonLimits.scheduleVariance }
@@ -1900,13 +1901,12 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 					rtD.systemVars=sysV
 
 					event.date=new Date((Long)sch.t)
-					syncTime=true
 				}
 			}
 
 			if(event.schedule==null) break
 
-			Boolean a=schedules.remove(event.schedule)
+			a=schedules.remove(event.schedule)
 
 			tt0=getCachedMaps(sHNDLEVT+sONE)
 			if(tt0!=null){
@@ -1921,10 +1921,10 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 			else state.schedules=schedules
 
 			if(evntName==sASYNCREP){
+				syncTime=false
 				if((Boolean)rtD.eric) myDetail rtD,"async event $event"
 				Integer rCode=(Integer)event.responseCode
 				Boolean sOk=rCode>=200 && rCode<=299
-				String eMsg
 				//noinspection GroovyFallthrough
 				switch(evntVal){
 					case sHTTPR:
@@ -1950,8 +1950,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 						setSystemVariableValue(rtD,sIFTTTSTSOK,sOk)
 						break
 					default:
-						eMsg="unknown "
-						error eMsg+"async event "+evntVal,rtD
+						error "unknown async event "+evntVal,rtD
 				}
 				evntName=sTIME
 				event.name=evntName
@@ -1961,7 +1960,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 				String ttyp=(String)event.schedule.d
 				if(ttyp in ListAsync){
 					error "Timeout Error "+ttyp,rtD
-					syncTime=true
+					syncTime=false
 					Integer rCode=408
 					Boolean sOk=false
 					//noinspection GroovyFallthrough
@@ -1992,12 +1991,13 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 					doPause("Synchronizing scheduled event, waiting for ${delay}ms".toString(),delay,rtD,true)
 				}
 			}
-			if(firstTime && lg>0){
+			if(lg>0 && firstTime){
 				msg2=timer "Execution stage complete.",rtD,-1
 				info "Execution stage started",rtD,1
 			}
 			success=executeEvent(rtD,event)
 			firstTime=false
+			syncTime=sv_syncTime
 		} // end while
 
 		rtD.stats.timing.e=elapseT(startTime)
@@ -2005,9 +2005,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 		if(!success)msg.m='Event processing failed'
 		if(eric()){
 			msg.m=(String)msg.m+' Total Pauses ms: '+((Long)rtD.tPause).toString()
-			if(firstTime){
-				msg.m=(String)msg.m+' found nothing to do'
-			}
+			if(firstTime) msg.m=(String)msg.m+' found nothing to do'
 		}
 		finalizeEvent(rtD,msg,success)
 
@@ -2026,12 +2024,11 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 			}
 		}
 	}
-	def a
-	for(String foo in heData) a=rtD.remove(foo)
 
 	if((Boolean)rtD.updateDevices) clearMyCache('updateDeviceList')
-	List<String>data=rtD.collect{ it.key }
-	for(item in data)a=rtD.remove((String)item)
+
+	List<String>data=rtD.collect{ (String)it.key }
+	for(String item in data)a=rtD.remove(item)
 	event=null
 	rtD=null
 
@@ -2070,8 +2067,6 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 }
 
 @Field static List<String> ListAsync=[]
-
-@Field static final List<String>heData=['event','currentEvent','state','created','modified','sunTimes']
 
 private Boolean executeEvent(Map rtD,event){
 	String myS=sNULL
@@ -7167,6 +7162,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 			} // end for
 			//clean up operators, ensure there's one for each
 			Integer idx=0
+			Integer itmSz=(Integer)items.size()-1
 			for(Map item in items){
 				if(!item.o){
 					switch((String)item.t){
@@ -7176,7 +7172,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 						case sDEC:
 						case sNUMBER:
 							String nextType=sSTR
-							if(idx<(Integer)items.size()-1)nextType=(String)items[idx+1].t
+							if(idx<itmSz)nextType=(String)items[idx+1].t
 							item.o= nextType in LT0 ? sPLUS:sMULP // Strings
 							break
 						default:
@@ -7188,9 +7184,9 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 			}
 			//do the job
 			idx=0
+			itmSz=(Integer)items.size()
 			def aa
-			while ((Integer)items.size()>1){
-				Integer itmSz=(Integer)items.size()
+			while (itmSz>1){
 				//ternary
 				if(itmSz==3 && (String)items[0].o==sQM && (String)items[1].o==sCOLON){
 					//we have a ternary operator
@@ -7202,7 +7198,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 					items[0].o=sNULL
 					break
 				}
-				//order of operations :D
+				//order of operations
 				idx=0
 				//#2	!   !!   ~   -	Logical negation, logical double-negation, bitwise NOT, and numeric negation unary operators
 				for(Map item in items){
@@ -7321,12 +7317,13 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 				def v1=items[idx].v
 
 				Integer idxPlus=idx+1
+
 				String a2=(String)items[idxPlus].a
 				String t2=(String)items[idxPlus].t
 				def v2=items[idxPlus].v
 				String t=t1
+
 				//fix-ups
-				//integer with decimal gives decimal, also *,/ require decimals
 				if(t1==sDEV && a1!=sNULL && (Integer)a1.length()>0){
 					Map attr=Attributes()[a1]
 					t1=attr!=null ? (String)attr.t:sSTR
@@ -7372,6 +7369,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 								t2=t1
 							}
 						}
+						//integer with decimal gives decimal, also *,/ require decimals
 						if(o in pn1){
 							t= t1i && t2i ? (t1==sLONG || t2==sLONG ? sLONG:sINT) : sDEC
 							t1=t
@@ -7534,6 +7532,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 
 				aa=items.remove(idx)
 
+				itmSz=(Integer)items.size()
 			} //end while
 			result=items[0] ? ((String)items[0].t==sDEV ? (Map)items[0] : evaluateExpression(rtD,(Map)items[0])) : [(sT):sDYN,(sV):null]
 			break
