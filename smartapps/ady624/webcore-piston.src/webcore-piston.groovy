@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 5, 2021 for Hubitat
+ * Last update November 6, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -3028,15 +3028,10 @@ private Boolean executeTask(Map rtD,List devices,Map statement,Map task,Boolean 
 				Map v=(Map)evaluateOperand(rtD,null,param)
 				String tt1=(String)param.vt //?: (String)v.vt
 				def t0=v.v
-				Boolean match=tt1!=null && (
-					(tt1==(String)v.t)||
-					(tt1 in [sSTR,sENUM,sTEXT] && t0 instanceof String)||
-					(tt1==sINT && t0 instanceof Integer)||
-					(tt1==sLONG && t0 instanceof Long)||
-					(tt1==sDEC && t0 instanceof Double)||
-					(tt1==sDEC && t0 instanceof BigDecimal) )
-				//if not selected, return null to fill in parameter
-				p=(t0!=null)? (!match ? evaluateExpression(rtD,v,tt1).v:t0):null
+				//if not selected, return the null to fill in parameter
+				// (tt1==(String)v.t)
+				// (tt1==sDEC && t0 instanceof BigDecimal)
+				p= t0==null || matchCast(rtD,t0,tt1) ? t0 : evaluateExpression(rtD,v,tt1).v
 		}
 		//ensure value type is successfuly passed through
 		Boolean a=params.push(p)
@@ -3051,7 +3046,7 @@ private Boolean executeTask(Map rtD,List devices,Map statement,Map task,Boolean 
 	Map vcmd=VirtualCommands()[command]
 	Long delay=lZERO
 	for(device in (virtualDevice!=null ? [virtualDevice]:devices)){
-		if(virtualDevice==null && device?.hasCommand(command) && !(vcmd && vcmd.o /*  virtual command does not overrides physical command */)){
+		if(virtualDevice==null && device?.hasCommand(command) && !(vcmd && vcmd.o /*  virtual command does not override physical command */)){
 			Map msg=timer "Executed [$device].${command}",rtD
 			try{
 				delay="cmd_${command}"(rtD,device,params)
@@ -6225,25 +6220,26 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 	}
 }
 
-private List<String> expandDeviceList(Map rtD,List devices,Boolean localVarsOnly=false){
-	Boolean mlocalVars=false	//temporary allowing global vars
+private List<String> expandDeviceList(Map rtD,List devs,Boolean localVarsOnly=false){
+	Boolean mlocalVars=false	//allowing global vars
+	List<String>devices=devs
 	List<String> result=[]
 	for(String deviceId in devices){
-		if(deviceId && (Integer)deviceId.size()==34 && (Boolean)deviceId.startsWith(sCOLON) && (Boolean)deviceId.endsWith(sCOLON)){
-			Boolean a=result.push(deviceId)
-		}else{
-			if(mlocalVars){
-				//during subscriptions we use local vars only to make sure we don't subscribe to "variable" lists of devices
-				Map var=(Map)rtD.localVars[deviceId]
-				if(var && (String)var.t==sDEV && var.v instanceof Map && (String)var.v.t==sD && var.v.d instanceof List && (Integer)((List)var.v.d).size()!=0)result += (List)var.v.d
+		if(deviceId){
+			if(isWcDev(deviceId)){
+				Boolean a=result.push(deviceId)
 			}else{
-				Map var=getVariable(rtD,deviceId)
-				Boolean isD=((String)var.t==sDEV)
-				List mL= (var.v instanceof List) ? (List)var.v : []
-				if(isD)result += mL
-				else{
-					def device=getDevice(rtD,(String)cast(rtD,var.v,sSTR))
-					if(device!=null)result += [hashId(device.id)]
+				if(mlocalVars){
+					//during subscriptions we can use local vars only to make sure we don't subscribe to "variable" lists of devices
+					Map var=(Map)rtD.localVars[deviceId]
+					if(var && (String)var.t==sDEV && var.v instanceof Map && (String)var.v.t==sD && var.v.d instanceof List)result += (List)var.v.d
+				}else{
+					Map var=getVariable(rtD,deviceId)
+					if((String)var.t==sDEV)result += (var.v instanceof List) ? (List)var.v : []
+					else{
+						def device=getDevice(rtD,(String)cast(rtD,var.v,sSTR))
+						if(device!=null)result += [hashId(device.id)]
+					}
 				}
 			}
 		}
@@ -6359,22 +6355,15 @@ private Map getDeviceAttribute(Map rtD,String deviceId,String attributeName,subD
 	}
 	def device=getDevice(rtD,deviceId)
 	if(device!=null){
-		Map attribute=attributeName!=null ? Attributes()[attributeName]:null
+		Map attribute=attributeName!=sNULL ? Attributes()[attributeName]:null
 		if(attribute==null){
 			attribute=[(sT):sSTR, /* m:false */ ]
 		}
-		def t0=(attributeName!=null ? getDeviceAttributeValue(rtD,device,attributeName):null)
+		def t0=(attributeName!=sNULL ? getDeviceAttributeValue(rtD,device,attributeName):null)
 		String tt1=(String)attribute.t
-		if(!LTHR) {
-			if(!LS) LS=[sSTR,sENUM]
-			LTHR=fill_THR()
-		}
-		Boolean match=t0!=null && (
-			(tt1 in LS && t0 instanceof String)||
-			(tt1==sINT && t0 instanceof Integer) )
 //	String tt2=myObj(t0)
-//if(attributeName)log.warn "attributeName $attributeName t0   $t0 of $tt2   tt1 $tt1    match $match }"
-		def value=(attributeName!=null ? (match ? t0:cast(rtD,t0,tt1)):"$device")
+//	if(attributeName)log.warn "attributeName: $attributeName  t0:  ($tt2) $t0    tt1: $tt1"
+		def value= attributeName!=sNULL ? (matchCast(rtD,t0,tt1) ? t0 : cast(rtD,t0,tt1)) :"$device"
 		if(attributeName==sHUE){
 			value=cast(rtD,(Double)cast(rtD,value,sDEC)*3.6D,(String)attribute.t)
 		}
@@ -6382,6 +6371,7 @@ private Map getDeviceAttribute(Map rtD,String deviceId,String attributeName,subD
 		def tt0=rtD.event?.device!=null ? rtD.event.device:location
 		Boolean deviceMatch=device?.id==tt0.id && isDeviceLocation(device)==isDeviceLocation(tt0)
 		//x=eXclude - if a momentary attribute is looked for and the device does not match the current device, then we must ignore this during comparisons
+		if(!LTHR) { LTHR=fill_THR() }
 		return [
 			(sT):(String)attribute.t,
 			(sV):value,
@@ -6851,12 +6841,7 @@ private Map setVariable(Map rtD,String name,value){
 			}else{
 				def v=(value instanceof GString)? "$value".toString():value
 				String t=(String)variable.t
-				Boolean match=v!=null && (
-					(t==sSTR && v instanceof String)||
-					(t==sLONG && v instanceof Long)||
-					(t==sINT && v instanceof Integer)||
-					(t==sDEC && v instanceof Double) )
-				variable.v=match ? v:cast(rtD,v,(String)variable.t)
+				variable.v=matchCast(rtD,v,t) ? v:cast(rtD,v,t)
 			}
 			if(!variable.f){
 				Map<String,Object> vars
@@ -6882,6 +6867,23 @@ private Map setVariable(Map rtD,String name,value){
 		}
 	}
 	return err
+}
+
+@Field static List<String> mL=[]
+@Field static List<String> mL1=[]
+
+private static Boolean matchCast(Map rtD, v, String t) {
+	if(!mL) {
+		mL=[sSTR,sENUM,sTEXT,sLONG,sBOOLN,sINT,sDEC]
+		mL1=[sSTR,sENUM,sTEXT]
+	}
+	Boolean match= v!=null && t in mL && (
+			(t in mL1 && v instanceof String)||
+			(t==sLONG && v instanceof Long)||
+			(t==sINT && v instanceof Integer)||
+			(t==sBOOLN && v instanceof Boolean)||
+			(t==sDEC && v instanceof Double) )
+	return match
 }
 
 Map setLocalVariable(String name,value){ // called by parent (IDE) to set a variable
@@ -7304,23 +7306,21 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 						idx++
 					}
 				}
-				if(idx>=itmSz){
-					//just get the first one
-					idx=0
-				}
+				//if none selected get the first one
 				if(idx>=itmSz-1)idx=0
 
-				def v=null
 				String o=(String)items[idx].o
+
 				String a1=(String)items[idx].a
 				String t1=(String)items[idx].t
 				def v1=items[idx].v
 
 				Integer idxPlus=idx+1
-
 				String a2=(String)items[idxPlus].a
 				String t2=(String)items[idxPlus].t
 				def v2=items[idxPlus].v
+
+				def v=null
 				String t=t1
 
 				//fix-ups
@@ -7356,7 +7356,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 						}else if(t2n){
 							t=t1
 						}else{
-							t=t1==sDATE && t2==sDATE ? sDATE:((t1==sTIME) && (t2==sTIME)? sTIME:sDTIME)
+							t= t1==sDATE && t2==sDATE ? sDATE:(t1==sTIME && t2==sTIME ? sTIME:sDTIME)
 						}
 					}else{
 						if(o in lPLSMIN){
@@ -7517,17 +7517,9 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 					if((Integer)rtD.logging>2)debug "Calculating ($t1)$v1 $o ($t2)$v2 >> ($t)$v",rtD
 
 					//set the results
-					//items[idx+1].t=t
 					items[idxPlus].t=t
 					v=(v instanceof GString)? "$v".toString():v
-					Boolean match=v!=null && (
-						(t==sSTR && v instanceof String)||
-						(t==sLONG && v instanceof Long)||
-						(t==sBOOLN && v instanceof Boolean)||
-						(t==sINT && v instanceof Integer)||
-						(t==sDEC && v instanceof Double) )
-					if(match)items[idxPlus].v=v
-					else items[idxPlus].v=cast(rtD,v,t)
+					items[idxPlus].v=matchCast(rtD,v,t) ? v : cast(rtD,v,t)
 				} // end else
 
 				aa=items.remove(idx)
@@ -7553,7 +7545,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 		String t0=(String)result.t
 		def t1=result.v
 		if(dataType!=t0){
-			Boolean match= (dataType in LS && t0 in LS)
+			Boolean match= (dataType in LS && t0 in LS && t1 instanceof String)
 			if(!match)t1=cast(rtD,t1,dataType,t0)
 		}
 		result=[(sT):dataType,(sV): t1] + (ra ? [(sA):ra]:[:]) + (result.i ? [(sI):result.i]:[:])
@@ -9924,6 +9916,10 @@ static String myObj(obj){
 	else{ return 'unknown'}
 }
 
+private static Boolean isWcDev(String dev){
+	return (dev && (Integer)dev.size()==34 && (Boolean)dev.startsWith(sCOLON) && (Boolean)dev.endsWith(sCOLON))
+}
+
 @SuppressWarnings('GroovyAssignabilityCheck')
 Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 	Map ret=[:]
@@ -9946,7 +9942,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				String res=sNULL
 				Boolean ok=true
 				dL.each{ String it->
-					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+					if(ok && isWcDev(it)){
 						res= res ? res+sSPC+it : it
 					} else ok=false
 				}
@@ -10028,7 +10024,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				String[] t1=((String)v).split(sSPC)
 				t1.each{
 					// sDEV is a string in global, need to detect if it is really devices :xxxxx:
-					if(ok && it && (Integer)it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+					if(ok && isWcDev(it)){
 						dvL.push(it)
 					} else ok=false
 				}
