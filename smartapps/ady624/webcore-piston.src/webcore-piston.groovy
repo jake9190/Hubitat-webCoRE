@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 6, 2021 for Hubitat
+ * Last update November 7, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -1765,7 +1765,8 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	String appId=(String)tmpRtD.id
 	Boolean serializationOn=true // on / off switch
 	Boolean strictSync=true // this could be a setting
-	Boolean doSerialization=!myPep && (serializationOn || strictSync) && !callMySelf
+	serializationOn=!myPep && serializationOn
+	Boolean doSerialization=serializationOn && !callMySelf
 
 	tmpRtD.lstarted=now()
 	Map retSt=[semaphore:lZERO,semaphoreName:sNULL,semaphoreDelay:lZERO]
@@ -1855,7 +1856,22 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 		List<Map> schedules
 		Map tt0
 		Boolean a
+		String semaName=app.id.toString()
+		Map sch
 		while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-(Long)now() >(Long)getPistonLimits.scheduleRemain){
+			// as long as no queued events
+			if(!firstTime && serializationOn){
+				Boolean inq=false
+				getTheLock(semaName,sHNDLEVT)
+				List<Map> evtQ=(List<Map>)theQueuesVFLD[semaName]
+				if(evtQ){ inq=true }
+				releaseTheLock(semaName)
+				if(inq){
+					if(eric()) log.warn "found pending queued events"
+					break
+				}
+			}
+
 			tt0=getCachedMaps(sHNDLEVT)
 			if(tt0!=null)schedules=(List<Map>)[]+(List<Map>)tt0.schedules
 			else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
@@ -1865,60 +1881,49 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 			if(evntName==sASYNCREP){
 				event.schedule=schedules.sort{ (Long)it.t }.find{ (String)it.d==evntVal }
 			}else{
-				// as long as no pending events
-				if(!firstTime && doSerialization && semName!=sNULL){
-					Boolean inq=false
-					getTheLock(semName,sHNDLEVT)
-					List<Map> evtQ=(List<Map>)theQueuesVFLD[semName]
-					if(evtQ){ inq=true }
-					releaseTheLock(semName)
-					if(inq){
-						if(eric()) log.warn "found pending queued events"
-						break
-					}
-				}
-
 				Long t=now()
 				//anything less than scheduleVariance (270ms) in the future is considered due, we'll do some pause to sync with it
 				//we're doing this because many times,the scheduler will run a job early
-				Map sch=schedules.sort{(Long)it.t }.find{(Long)it.t<t+(Long)getPistonLimits.scheduleVariance }
+				sch=schedules.sort{(Long)it.t }.find{(Long)it.t<t+(Long)getPistonLimits.scheduleVariance }
 				if(!sch) break
 
 				evntName=sTIME
 				evntVal=t.toString()
 				event=[(sDATE):(Date)event.date,(sDEV):location,(sNM):evntName,(sVAL):t,schedule:sch]
-				if(!firstTime){
-					rtD.cachePersist=[:]
-					Map<String,Map>sysV=(Map<String,Map>)rtD.systemVars
-					sysV[sDLLRINDX].v=null
-					sysV[sDLLRDEVICE].v=null
-					sysV[sDLLRDEVS].v=null
-					sysV[sHTTPCONTENT].v=null
-					sysV[sHTTPSTSCODE].v=null
-					sysV[sHTTPSTSOK].v=null
-					sysV[sIFTTTSTSCODE].v=null
-					sysV[sIFTTTSTSOK].v=null
-					rtD.systemVars=sysV
-
-					event.date=new Date((Long)sch.t)
-				}
 			}
 
 			if(event.schedule==null) break
 
-			a=schedules.remove(event.schedule)
-
 			tt0=getCachedMaps(sHNDLEVT+sONE)
+			if(tt0!=null)schedules=(List<Map>)[]+(List<Map>)tt0.schedules
+			else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
+
+			a=schedules.remove(event.schedule)
 			if(tt0!=null){
-				String semaName=app.id.toString()
 				getTheLock(semaName,sX)
 				theCacheVFLD[myId].schedules=schedules
 				theCacheVFLD=theCacheVFLD
 				releaseTheLock(semaName)
 			}
-			tt0=null
 			if(myPep)atomicState.schedules=schedules
 			else state.schedules=schedules
+			tt0=null
+
+			if(!firstTime){
+				rtD.cachePersist=[:]
+				Map<String,Map>sysV=(Map<String,Map>)rtD.systemVars
+				sysV[sDLLRINDX].v=null
+				sysV[sDLLRDEVICE].v=null
+				sysV[sDLLRDEVS].v=null
+				sysV[sHTTPCONTENT].v=null
+				sysV[sHTTPSTSCODE].v=null
+				sysV[sHTTPSTSOK].v=null
+				sysV[sIFTTTSTSCODE].v=null
+				sysV[sIFTTTSTSOK].v=null
+				rtD.systemVars=sysV
+
+				event.date=new Date((Long)sch.t)
+			}
 
 			if(evntName==sASYNCREP){
 				syncTime=false
