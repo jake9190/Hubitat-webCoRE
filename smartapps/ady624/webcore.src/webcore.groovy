@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update October 22, 2021 for Hubitat
+ * Last update November 9, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -719,7 +719,7 @@ private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, B
 	}
 }
 
-@Field volatile static Map<String,Map<String, Long> > cldClearFLD=[:]
+@Field volatile static Map<String,Map<String, Long>> cldClearFLD=[:]
 
 void clearChldCaches(Boolean all=false, Boolean clrLogs=false){
 // clear child caches if has not run in 61 mins
@@ -1057,8 +1057,8 @@ private Map api_get_base_result(Boolean updateCache=false){
 	String currentDeviceVersion=(String)state.deviceVersion
 	String name=handlePistn()
 	Long incidentThreshold=Math.round((Long)now() - 604800000.0D)
-	List alerts=(List)state.hsmAlerts
-	alerts=alerts ?: []
+	def a=state.hsmAlerts
+	List<Map> alerts= a ? (List<Map>)a : []
 
 	String instanceId=getInstanceSid()
 	String locationId=getLocationSid()
@@ -1215,9 +1215,7 @@ private api_intf_dashboard_devices(){
 	if(verifySecurityToken((String)params.token)){
 		String offset="${params.offset}".toString()
 		result=api_get_devices_result(offset.isInteger() ? offset.toInteger() : 0)
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+	}else{ result=api_get_error_result(sERRTOK) }
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
@@ -1260,9 +1258,7 @@ private api_intf_dashboard_piston_new(){
 	debug "Dashboard: Request received to generate a new piston name"
 	if(verifySecurityToken((String)params.token)){
 		result=[(sSTS): sSUCC, (sNM): generatePistonName()]
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1300,9 +1296,7 @@ private api_intf_dashboard_piston_create(){
 			error "create piston: Name in use "+pname
 			result=[(sSTS): sERROR, (sERR): sERRUNK]
 		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1341,12 +1335,8 @@ private api_intf_dashboard_piston_get(){
 				result.db=theDb
 			}
 			if((Boolean)getLogging().debug) checkResultSize(result, requireDb, "get piston")
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
@@ -1426,9 +1416,7 @@ private api_intf_dashboard_piston_backup(){
 				}
 			}
 		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+	}else{ result=api_get_error_result(sERRTOK) }
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
@@ -1476,12 +1464,8 @@ private api_intf_dashboard_piston_set(){
 				saved.rtData=null
 			}
 			result=[(sSTS): sSUCC] + saved
-		}else{
-			result=[(sSTS): sERROR, (sERR): sERRUNK]
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=[(sSTS): sERROR, (sERR): sERRUNK] }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1501,12 +1485,8 @@ private api_intf_dashboard_piston_set_start(){
 			pPistonChunksFLD=pPistonChunksFLD
 			mb()
 			result=[(sSTS): "ST_READY"]
-		}else{
-			result=[(sSTS): sERROR, (sERR): "ERR_INVALID_CHUNK_COUNT"]
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=[(sSTS): sERROR, (sERR): "ERR_INVALID_CHUNK_COUNT"] }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1528,12 +1508,8 @@ private api_intf_dashboard_piston_set_chunk(){
 			pPistonChunksFLD[wName]=chunks
 			mb()
 			result=[(sSTS): "ST_READY"]
-		}else{
-			result=[(sSTS): sERROR, (sERR): sERRCHUNK]
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=[(sSTS): sERROR, (sERR): sERRCHUNK] }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1574,18 +1550,10 @@ private api_intf_dashboard_piston_set_end(){
 						saved.rtData=null
 					}
 					result=[(sSTS): sSUCC] + saved
-				}else{
-					result=[(sSTS): sERROR, (sERR): sERRUNK]
-				}
-			}else{
-				result=[(sSTS): sERROR, (sERR): sERRCHUNK]
-			}
-		}else{
-			result=[(sSTS): sERROR, (sERR): sERRCHUNK]
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+				}else{ result=[(sSTS): sERROR, (sERR): sERRUNK] }
+			}else{ result=[(sSTS): sERROR, (sERR): sERRCHUNK] }
+		}else{ result=[(sSTS): sERROR, (sERR): sERRCHUNK] }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1598,12 +1566,8 @@ private api_intf_dashboard_piston_pause(){
 			Map rtData=(Map)piston.pausePiston()
 			updateRunTimeData(rtData)
 			result=[(sSTS): sSUCC, active: false]
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else result=api_get_error_result(sERRID)
+	}else result=api_get_error_result(sERRTOK)
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1617,12 +1581,8 @@ private api_intf_dashboard_piston_resume(){
 			result=(Map)rtData.result
 			updateRunTimeData(rtData)
 			result.status=sSUCC
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else result=api_get_error_result(sERRID)
+	}else result=api_get_error_result(sERRTOK)
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1634,12 +1594,8 @@ private api_intf_dashboard_piston_test(){
 		if(piston!=null){
 			result=(Map)piston.test()
 			result.status=sSUCC
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else result=api_get_error_result(sERRID)
+	}else result=api_get_error_result(sERRTOK)
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1651,16 +1607,12 @@ private api_intf_dashboard_presence_create(){
 		if(sensor){
 			sensor.label=(String)params.name
 			result=[
-					(sSTS): sSUCC,
+				(sSTS): sSUCC,
 				deviceId: hashId(sensor.id)
 			]
 			refreshDevices()
-		}else{
-			result=api_get_error_result("ERR_COULD_NOT_CREATE_DEVICE")
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else result=api_get_error_result("ERR_COULD_NOT_CREATE_DEVICE")
+	}else result=api_get_error_result(sERRTOK)
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1672,12 +1624,8 @@ private api_intf_dashboard_piston_tile(){
 		if(piston){
 			result=(Map)piston.clickTile(params.tile)
 			result.status=sSUCC
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else result=api_get_error_result(sERRID)
+	}else result=api_get_error_result(sERRTOK)
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1689,12 +1637,8 @@ private api_intf_dashboard_piston_set_bin(){
 		if(piston){
 			result=(Map)piston.setBin((String)params.bin)
 			result.status=sSUCC
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1717,12 +1661,8 @@ private api_intf_dashboard_piston_set_category(){
 				//atomicState[myId]=st
 			}
 			result.status=sSUCC
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1734,12 +1674,8 @@ private api_intf_dashboard_piston_logging(){
 		if(piston){
 			result=(Map)piston.setLoggingLevel((String)params.level)
 			result.status=sSUCC
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1751,12 +1687,8 @@ private api_intf_dashboard_piston_clear_logs(){
 		if(piston){
 			result=(Map)piston.clearLogs()
 			result.status=sSUCC
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1785,12 +1717,8 @@ private api_intf_dashboard_piston_delete(){
 			//cleanUp()
 			//clearParentPistonCache("piston deleted")
 			runIn(10, broadcastPistonList)
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1826,8 +1754,8 @@ private api_intf_variable_set(){
 		String name=(String)params.name
 		def value=params.value ? (LinkedHashMap) new JsonSlurper().parseText(new String(((String)params.value).decodeBase64(), "UTF-8")) : null
 		trace meth+"pid: $pid  name: $name value: $value"
-		Map globalVars
-		Map localVars
+		Map<String,Map> globalVars
+		Map<String,Object> localVars
 		if(!pid){
 			Boolean chgd=false
 			String vln=value ? (String)value.n : sNULL
@@ -1890,7 +1818,7 @@ private api_intf_variable_set(){
 								if((String)value.t==sTIME){
 									Long aa=vl.toLong()
 									if(eric())log.warn "aa is $aa"
-									// the browers is in local zone but internally HE is utc
+									// the browser is in local zone but internally HE is utc
 									if(vl instanceof Long){
 										Integer mtvl=((TimeZone)location.timeZone).getOffset((Long)now())
 										Integer mmtvl=((TimeZone)location.timeZone).rawOffset
@@ -1916,8 +1844,8 @@ private api_intf_variable_set(){
 					}
 				}
 			}else{
-				globalVars=(Map)atomicState.vars
-				globalVars=globalVars ?: [:]
+				def am=atomicState.vars
+				globalVars= am? (Map<String,Map>)am : [:]
 				if(name && !value){
 					//deleting a variable
 					globalVars.remove(name)
@@ -1958,13 +1886,9 @@ private api_intf_variable_set(){
 				localVars=(Map)piston.setLocalVariable(name, value.v)
 				//clearBaseResult('api_intf_variable_set')
 				result=[(sSTS): sSUCC] + [id: pid, localVars: localVars]
-			}else{
-				result=api_get_error_result(sERRID)
-			}
+			}else{ result=api_get_error_result(sERRID) }
 		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -2065,9 +1989,7 @@ private api_intf_settings_set(){
 
 		testLifx()
 		result=[(sSTS): sSUCC]
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -2081,12 +2003,8 @@ private api_intf_dashboard_piston_evaluate(){
 			Map msg=timer "Evaluating expression"
 			result=[(sSTS): sSUCC, (sVAL): piston.proxyEvaluateExpression(null /* getRunTimeData()*/, expression, (String)params.dataType)]
 			trace msg
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -2099,12 +2017,8 @@ private api_intf_dashboard_piston_activity(){
 		if(piston!=null){
 			Map t0=(Map)piston.activity(params.log)
 			result=[(sSTS): sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id, updateCache), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
-		}else{
-			result=api_get_error_result(sERRID)
-		}
-	}else{
-		result=api_get_error_result(sERRTOK)
-	}
+		}else{ result=api_get_error_result(sERRID) }
+	}else{ result=api_get_error_result(sERRTOK) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -2195,8 +2109,8 @@ private api_global(){
 				err=false
 			}
 		}else{
-			Map vars=(Map)atomicState.vars
-			vars=vars ?: [:]
+			def am=atomicState.vars
+			Map<String,Map> vars= am? (Map<String,Map>)am : [:]
 			if(vars[varName]){
 				result.val=vars[varName].v
 				result.type=vars[varName].t
@@ -2307,8 +2221,7 @@ private void cleanUp(){
 		}
 	}
 	def a=api_get_base_result(true)
-    }catch (ignored){
-    }
+    }catch (ignored){ }
 }
 
 private getStorageApp(Boolean install=false){
@@ -2649,13 +2562,11 @@ private Map AddHeGlobals(Map<String,Map> globalVars, String meth){
 
 Map listAvailableVariables(){
 	Map myV=(Map)atomicState.vars
-	//'@@'
 	return listAV(myV, 'list variables')
 }
 
 private Map listAvailableVariables1(){
 	Map myV=(Map)state.vars
-	//'@@'
 	return listAV(myV, 'list variables1')
 }
 
@@ -2931,20 +2842,20 @@ void pCallupdateRunTimeData(Map data){
 	updateRunTimeData(data)
 }
 
-@Field volatile static Map<String,Map<String,Map> > pStateFLD=[:]
+@Field volatile static Map<String,Map<String,Map>> pStateFLD=[:]
 
 void updateRunTimeData(Map data){
 	if(!data || !data.id) return
 	String wName=app.id.toString()
-	List variableEvents=[]
+	List<Map> variableEvents=[]
 	if(data.gvCache!=null){
 		String t='updateGlobal'
 		Boolean didw=getTheLock(t)
 
-		Map vars=(Map)atomicState.vars
-		vars=vars ?: [:]
+		def am=atomicState.vars
+		Map<String,Map> vars= am? (Map<String,Map>)am : [:]
 		Boolean modified=false
-		for(var in (Map)data.gvCache){
+		for(var in (Map<String,Map>)data.gvCache){
 			String varName=(String)var.key
 			if(varName!=sNULL && varName.startsWith('@') && vars[varName] && var.value.v != vars[varName].v ){
 				Boolean a=variableEvents.push([(sNM): varName, oldValue: vars[varName].v, (sVAL): var.value.v, type: var.value.t])
@@ -2952,19 +2863,17 @@ void updateRunTimeData(Map data){
 				modified=true
 			}
 		}
-		if(modified){
-			atomicState.vars=vars
-		}
+		if(modified) atomicState.vars=vars
 		releaseTheLock(t)
 	}
 	if(data.gvStoreCache!=null){
 		String t='updateGlobal'
 		Boolean didw=getTheLock(t)
 
-		Map store=(Map)atomicState.store
-		store=store ?: [:]
+		am=atomicState.store
+		Map<String,Object> store= am? (Map<String,Object>)am : [:]
 		Boolean modified=false
-		for(var in (Map)data.gvStoreCache){
+		for(var in (Map<String,Object>)data.gvStoreCache){
 			if(var.value == null){
 				store.remove((String)var.key)
 			}else{
@@ -2972,9 +2881,7 @@ void updateRunTimeData(Map data){
 			}
 			modified=true
 		}
-		if(modified){
-			atomicState.store=store
-		}
+		if(modified) atomicState.store=store
 		releaseTheLock(t)
 	}
 	String id=(String)data.id
@@ -3189,7 +3096,7 @@ def hsmAlertHandler(evt){
 		des:evt.descriptionText,
 		//d: evt.data
 	]
-			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, (sTIT): it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
+	//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, (sTIT): it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
 
 // this should search the db from hsmAlert events?
 /*
@@ -3202,40 +3109,36 @@ List t1=getLocationEventsSince('hsmAlert', new Date() - 10)
 */
 	String locStat=(String)location.hsmStatus
 
-	List alerts=(List)atomicState.hsmAlerts
-	alerts=alerts ?: []
+	def a=atomicState.hsmAlerts
+	List<Map> alerts= a? (List<Map>)a : []
 	Boolean aa=alerts.push(alert)
 	if(locStat == 'allDisarmed' || evV == 'cancel' || evV=='cancelRuleAlerts') alerts=[]
 	atomicState.hsmAlerts=alerts
 
-	if(alerts) def a=getIncidents() // cause trimming
+	if(alerts) a=getIncidents() // cause trimming
 	clearParentPistonCache("hsmAlerts changed")
 	clearBaseResult('hsmAlertHandler')
 
 	info 'HSM Alert: '+title
 }
 
-private List getIncidents(){
+private List<Map> getIncidents(){
 	Long incidentThreshold=Math.round((Long)now() - 604800000.0D) // 1 week
 	String locStat=(String)location.hsmStatus
-	List alerts=(List)atomicState.hsmAlerts
-	alerts=alerts ?: []
+	def a=atomicState.hsmAlerts
+	List<Map> alerts= a? (List<Map>)a : []
 	Integer osz=(Integer)alerts.size()
 	if(osz == 0) return []
 	if(locStat == 'allDisarmed'){ alerts=[]; state.remove("hsmAlert") }
-	List newAlerts=alerts.collect{it}.findAll{ (Long)it.date >= incidentThreshold }
-	List new2Alerts=newAlerts.collect{it}.findAll{ !(locStat == 'disarmed' && ((String)it.v).contains('intrusion')) }.sort { it.date }
-	//return (state.vars ?: [:]).sort{ (String)it.key }
-			//for (capability in capabilities().findAll{ (!((String)it.value.d in [null, 'actuators', 'sensors'])) }.sort{ (String)it.value.d }){
-	List new3Alerts=[]
-	for(myE in new2Alerts){
+	List<Map> newAlerts=alerts.collect{it}.findAll{ (Long)it.date >= incidentThreshold }
+	List<Map> new2Alerts=newAlerts.collect{it}.findAll{ !(locStat == 'disarmed' && ((String)it.v).contains('intrusion')) }.sort { (Long)it.date }
+	List<Map> new3Alerts=[]
+	for(Map myE in new2Alerts){
 		if(myE.v=='cancel' || myE.v=='cancelRuleAlerts') new3Alerts=[]
 		else Boolean aa=new3Alerts.push(myE)
 	}
 	Integer nsz=new3Alerts.size()
-	if(osz!=nsz){
-		atomicState.hsmAlerts=new3Alerts
-	}
+	if(osz!=nsz) atomicState.hsmAlerts=new3Alerts
 	return new3Alerts
 }
 

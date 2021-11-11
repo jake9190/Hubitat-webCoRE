@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 7, 2021 for Hubitat
+ * Last update November 9, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -1254,7 +1254,7 @@ void releaseCacheLock(){
 	releaseTheLock(sTCCC)
 }
 
-@Field volatile static Map<String,List> theQueuesVFLD=[:]
+@Field volatile static Map<String,List<Map>> theQueuesVFLD=[:]
 @Field volatile static Map<String,Long> theSemaphoresVFLD=[:]
 
 // This can a)lock semaphore,b)wait for semaphore,c)queue event, d)just fall through (no locking, waiting)
@@ -1312,7 +1312,7 @@ private Map lockOrQueueSemaphore(Boolean synchr,event,Boolean queue,Map rtD){
 							myEvent.device.hubs=[(sT):'tt']
 						}
 					}
-					List evtQ=(List)theQueuesVFLD[semaName]
+					List<Map> evtQ=theQueuesVFLD[semaName]
 					evtQ=evtQ!=null ? evtQ:[]
 					qsize=(Integer)evtQ.size()
 					if(qsize>12){
@@ -1370,7 +1370,7 @@ private LinkedHashMap<String,Object> getTemporaryRunTimeData(Long startTime=now(
 	return rtD
 }
 
-@Field volatile static LinkedHashMap<String,LinkedHashMap> theCacheVFLD=[:] // each piston has a map
+@Field volatile static LinkedHashMap<String,LinkedHashMap<String,Object>> theCacheVFLD=[:] // each piston has a map
 
 private void clearMyCache(String meth=sNULL){
 	Boolean clrd=false
@@ -1381,7 +1381,7 @@ private void clearMyCache(String meth=sNULL){
 	String str='clearMyCache'
 	getTheLock(semaName,str)
 	getCacheLock(str)
-	Map t0=(Map)theCacheVFLD[myId]
+	Map t0=theCacheVFLD[myId]
 	if(t0){
 		theCacheVFLD[myId]=null
 		theCacheVFLD=theCacheVFLD
@@ -1395,7 +1395,7 @@ private void clearMyCache(String meth=sNULL){
 
 private LinkedHashMap<String,Object> getCachedMaps(String meth=sNULL,Boolean retry=true,Boolean Upd=true){
 	String myId=hashId(app.id)
-	LinkedHashMap<String,Object> result=(LinkedHashMap<String,Object>)theCacheVFLD[myId]
+	LinkedHashMap<String,Object> result=theCacheVFLD[myId]
 	if(result!=null){
 		if(result.cache instanceof Map && result.build instanceof Integer){
 			return result
@@ -1420,7 +1420,7 @@ private LinkedHashMap<String,Object> getDSCache(String meth,Boolean Upd=true){
 	String appId=hashId(appStr)
 	String myId=appId
 	LinkedHashMap<String,Object> pC=getParentCache()
-	LinkedHashMap<String,Object> result=(LinkedHashMap)theCacheVFLD[myId]
+	LinkedHashMap<String,Object> result=theCacheVFLD[myId]
 
 	if(result!=null) result.stateAccess=null
 	Boolean sendM=false
@@ -1428,7 +1428,7 @@ private LinkedHashMap<String,Object> getDSCache(String meth,Boolean Upd=true){
 		String lockTyp='getDSCache'
 		String semaName=appStr
 		getTheLock(semaName,lockTyp)
-		result=(LinkedHashMap)theCacheVFLD[myId]
+		result=theCacheVFLD[myId]
 		if(result==null){
 			Long stateStart=now()
 			if(state.pep==null){ // upgrades of older pistons
@@ -1863,7 +1863,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 			if(!firstTime && serializationOn){
 				Boolean inq=false
 				getTheLock(semaName,sHNDLEVT)
-				List<Map> evtQ=(List<Map>)theQueuesVFLD[semaName]
+				List<Map> evtQ=theQueuesVFLD[semaName]
 				if(evtQ){ inq=true }
 				releaseTheLock(semaName)
 				if(inq){
@@ -2043,7 +2043,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	Boolean lckd=false
 	while(doSerialization && semName!=sNULL){
 		if(!lckd){ getTheLock(semName,sHNDLEVT+'2'); lckd=true }
-		List<Map> evtQ=(List<Map>)theQueuesVFLD[semName]
+		List<Map> evtQ=theQueuesVFLD[semName]
 		if(!evtQ){
 			if(theSemaphoresVFLD[semName] <= lS){
 				if(lg>2)msgt='Released Lock and exiting'
@@ -2055,7 +2055,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 		}else{
 			Map theEvent
 			if(!lckd){ getTheLock(semName,sHNDLEVT+'3'); lckd=true }
-			evtQ=(List<Map>)theQueuesVFLD[semName]
+			evtQ=theQueuesVFLD[semName]
 			List<Map>evtList=evtQ.sort{(Long)it.t }
 			theEvent=evtList.remove(0)
 			Integer qsize=(Integer)evtList.size()
@@ -2210,7 +2210,7 @@ private Boolean executeEvent(Map rtD,event){
 					if(!(Boolean)rtD.restricted){
 						def data=event.schedule.d
 						if(data!=null && (String)data.d && (String)data.c){
-							//we have a device schedule,execute it
+							//we have a device schedule, execute it
 							def device=getDevice(rtD,(String)data.d)
 							if(device!=null){
 								//executing scheduled physical command
@@ -2320,7 +2320,7 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 			String semName=sTGBL
 			String wName=parent.id.toString()
 			getTheLock(semName,lockTyp)
-			for(var in (Map<String,Object>)rtD.gvCache){
+			for(var in (Map<String,Map>)rtD.gvCache){
 				Map vars=globalVarsVFLD[wName]
 				String varName=(String)var.key
 				if(varName && (Boolean)varName.startsWith(sAT) && vars[varName] && var.value.v!=vars[varName].v){
@@ -4782,11 +4782,11 @@ private Long vcmd_loadStateLocally(Map rtD,device,List params,Boolean global=fal
 		def a
 		if(empty){
 			if(global){
-				a=rtD.globalStore.remove(n)
+				a=((Map)rtD.globalStore).remove(n)
 				Map cache=(Map)rtD.gvStoreCache ?: [:]
 				cache[n]=null
 				rtD.gvStoreCache=cache
-			}else a=rtD.store.remove(n)
+			}else a=((Map)rtD.store).remove(n)
 		}
 		if(value==null)continue
 		String exactCommand=sNULL
@@ -6628,7 +6628,7 @@ private Map getIncidents(rtD,String name){
 }
 
 @Field volatile static Map<String,Boolean> initGlobalVFLD=[:]
-@Field volatile static Map<String,Map> globalVarsVFLD=[:]
+@Field volatile static Map<String,Map<String,Map>> globalVarsVFLD=[:]
 
 void clearGlobalCache(String meth=sNULL){
 	String lockTyp='clearGlobalCache '+meth
@@ -6813,7 +6813,7 @@ private Map setVariable(Map rtD,String name,value){
 				Map variable=(Map)globalVarsVFLD[wName][tname]
 				variable.v=cast(rtD,value,(String)variable.t)
 				globalVarsVFLD=globalVarsVFLD
-				Map cache=rtD.gvCache!=null ? (Map)rtD.gvCache:[:]
+				Map<String,Map> cache=rtD.gvCache!=null ? (Map<String,Map>)rtD.gvCache:[:]
 				cache[tname]=variable
 				rtD.gvCache=cache
 				releaseTheLock(semaName)
@@ -9663,7 +9663,7 @@ private getSystemVariableValue(Map rtD,String name){
 	case '$weather': return "${rtD.weather}".toString()
 	case '$nfl': return "${rtD.nfl}".toString()
 	case '$incidents': return "${rtD.incidents}".toString()
-	case '$hsmTripped': return rtD.incidents instanceof List && (Integer)rtD.incidents.size()>0
+	case '$hsmTripped': return rtD.incidents instanceof List && (Integer)((List)rtD.incidents).size()>0
 	case (shsm): return (String)location.hsmStatus
 	case '$mediaId': return rtD.mediaId
 	case '$mediaUrl': return (String)rtD.mediaUrl
