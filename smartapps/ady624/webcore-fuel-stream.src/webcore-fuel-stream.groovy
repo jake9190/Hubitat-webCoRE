@@ -1,6 +1,8 @@
+import java.text.SimpleDateFormat
+
 private static String handle() { return "webCoRE" }
-public static String version() { return "v0.3.110.20191009" }
-public static String HEversion() { return "v0.3.110.20200702_HE" }
+public static String version() { return "v0.3.113.20210203" }
+public static String HEversion() { return "v0.3.113.20211005_HE" }
 
 definition(
 	namespace:"ady624",
@@ -39,7 +41,7 @@ def updated(){
  	initialize()
 }
 
-def createStream(settings){
+void createStream(settings){
 	state.fuelStream = [i: settings.id, c: (settings.canister ?: ""), n: settings.name, w: 1, t: getFormattedDate(new Date())]
 }
 
@@ -48,65 +50,65 @@ def initialize(){
 	unschedule()
 
 	if(app.id){
-		getFuelStreamData()
+		def a=getFuelStreamData()
 		cleanFuelStreams()
 	}
 }
 
-def getFuelStreamData(){
+List<Map> getFuelStreamData(){
 	if(!state.fuelStreamData){
 	 	state.fuelStreamData = []
 	}
-	return state.fuelStreamData
+	return (List)state.fuelStreamData
 }
 
-def cleanFuelStreams(){
+void cleanFuelStreams(){
 	//ensure max size is obeyed
-	def storageSize = (Integer)(state.toString().size() / 1024.0)
-	def max = (settings.maxSize ?: 95).toInteger()
+	Double storageSize = (Integer)(state.toString().size() / 1024.0)
+	Integer max = (settings.maxSize ?: 95).toInteger()
 
 	if(storageSize > max){
 		log.debug "Trim down fuel stream"
-		def points = getFuelStreamData().size()
-		def averageSize = points > 0 ? storageSize/(Double)points : 0
+		Integer points = getFuelStreamData().size()
+		Double averageSize = points > 0 ? storageSize/points : 0
 
-		def pointsToRemove = averageSize > 0 ? (Integer)((storageSize - max) / (Double)averageSize) : 0
+		Integer pointsToRemove = averageSize > 0 ? (Integer)((storageSize - max) / averageSize) : 0
 		pointsToRemove = pointsToRemove > 0 ? pointsToRemove : 0
 
 		log.debug "Size ${storageSize}KB Points ${points} Avg $averageSize Remove $pointsToRemove"
-		def toBeRemoved = getFuelStreamData().sort { it.i }.take(pointsToRemove)
-		getFuelStreamData().removeAll(toBeRemoved)
+		List<Map> toBeRemoved = getFuelStreamData().sort { it.i }.take(pointsToRemove)
+		Boolean a=getFuelStreamData().removeAll(toBeRemoved)
 	}
 
 	getFuelStreamData().each {
-	 	it.keySet().remove('t')
+	 	Boolean a=it.keySet().remove('t')
 	}
 }
 
 def updateFuelStream(req){
-	def canister = req.c ?: ""
-	def name = req.n
+//	def canister = req.c ?: ""
+//	def name = req.n
 	def data = req.d
-	def instance = req.i
-	def source = req.s
+//	def instance = req.i
+//	def source = req.s
 
-	getFuelStreamData().add([d: data, i: (new Date()).getTime()])
+	getFuelStreamData().add([d: data, i: now()])
 
 	cleanFuelStreams()
 }
 
-def getFormattedDate(date = new Date()){
-	def format = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
-	format.setTimeZone(TimeZone.getTimeZone("UTC"));
+String getFormattedDate(Date date = new Date()){
+	SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+	format.setTimeZone(TimeZone.getTimeZone("UTC"))
 	format.format(date)
 }
 
-def getFuelStream(){
-	state.fuelStream
+Map getFuelStream(){
+	(Map)state.fuelStream
 }
 
-def listFuelStreamData(){
-	getFuelStreamData().collect{ it + [t: getFormattedDate(new Date(it.i))]}
+List<Map> listFuelStreamData(){
+	getFuelStreamData().collect{ it + [t: getFormattedDate(new Date((Long)it.i))]}
 }
 
 def uninstalled(){
