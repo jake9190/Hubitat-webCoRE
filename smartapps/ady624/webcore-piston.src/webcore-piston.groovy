@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 14, 2021 for Hubitat
+ * Last update November 15, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -878,7 +878,7 @@ private void cleanCode(item){
 		ListC1=[sC,sS,sV,sE]
 		ListC2=[sC,sS,sX,sV,sE]
 		ListC3=[sS,sX,sV,sE]
-		if(!LT1) { LT1=fill_TIM() }
+		if(!LT1){ LT1=fill_TIM() }
 	}
 	def a
 	if((String)item.t in ListC1){ // operand values that don't need g,a
@@ -4247,7 +4247,7 @@ private Long vcmd_executeRule(Map rtD,device,List params){
 		error message,rtD
 	}else{
 		Boolean sent=false
-		['4.1', '5.0'].each { String ver->
+		['4.1', '5.0'].each{ String ver->
 			List<Map> rules=RMUtils.getRuleList(ver ?: sNULL)
 			List myRule=[]
 			rules.each{rule->
@@ -5268,7 +5268,7 @@ private Boolean evaluateCondition(Map rtD,Map condition,String collection,Boolea
 		debug msg,rtD
 	}
 	if((Integer)rtD.ffTo<=0 && (Boolean)condition.s && (String)condition.t==sCONDITION && condition.lo!=null && (String)condition.lo.t==sV){
-		if(!LT1) { LT1=fill_TIM() }
+		if(!LT1){ LT1=fill_TIM() }
 		if((String)condition.lo.v in LT1){ scheduleTimeCondition(rtD,condition) }
 	}
 	if((Boolean)rtD.eric) myDetail rtD,myS+" result:$result",-1
@@ -5291,7 +5291,7 @@ void doStaysProcess(Map rtD,List<Map>schedules,Boolean isStays,Boolean isStaysUn
 		msgS= dev ? " stays device did not match" : " stays result false"
 		if(isStaysUnchg){
 			msgS += " stays unchanged result false (it changed)"
-			if (!schedules.find { Map it -> (Integer)it.s==conditionNum && (!dev || (String)it.d==dev) }) {
+			if (!schedules.find{ Map it -> (Integer)it.s==conditionNum && (!dev || (String)it.d==dev) }){
 				msgS += " no timer creating timer "
 				schd=true
 			}else{
@@ -5342,7 +5342,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 	//if multiple left values,go through each
 	Map tvalue=to && to.operand && to.values ? (Map)to.values+[f: to.operand.f]:null
 	Map tvalue2=to2 && to2.operand && to2.values ? (Map)to2.values:null
-	if(!LT1) { LT1=fill_TIM() }
+	if(!LT1){ LT1=fill_TIM() }
 	for(Map<String,Map> value in (List<Map>)lo.values){
 		Boolean res=false
 		//x=eXclude - if a momentary attribute is looked for and the device does not match the current device, then we must ignore this during comparisons
@@ -6100,8 +6100,8 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 				}
 			}
 		}
-		if(!LT1) { LT1=fill_TIM() }
-		if(!LTHR) { LTHR=fill_THR() }
+		if(!LT1){ LT1=fill_TIM() }
+		if(!LTHR){ LTHR=fill_THR() }
 		Map<String,Integer> dds=[:]
 		for(subscription in subscriptions){
 			String devStr=(String)subscription.value.d
@@ -6127,7 +6127,7 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 						condition.s= t1!=never && ((String)condition.ct==sT || t1==always || !hasTriggers) // modifies the code
 					}
 					if(a in LT1) break
-					else {
+					else{
 						Integer cnt=ss.events
 						List avals=(List)subscription.value.avals
 						if(allowA && avals.size()<9){
@@ -6283,8 +6283,8 @@ private getDeviceAttributeValue(Map rtD,device,String attributeName){
 	}else{
 		def result
 		String msg="Error reading current value for ${device}.".toString()
-		if(!LDAV) {
-			if(!LTHR) { LTHR=fill_THR() }
+		if(!LDAV){
+			if(!LTHR){ LTHR=fill_THR() }
 			LDAV=[sSTS]+LTHR
 		}
 		if(attributeName in LDAV){
@@ -6361,7 +6361,7 @@ private Map getDeviceAttribute(Map rtD,String deviceId,String attributeName,subD
 		def tt0=rtD.event?.device!=null ? rtD.event.device:location
 		Boolean deviceMatch=device?.id==tt0.id && isDeviceLocation(device)==isDeviceLocation(tt0)
 		//x=eXclude - if a momentary attribute is looked for and the device does not match the current device, then we must ignore this during comparisons
-		if(!LTHR) { LTHR=fill_THR() }
+		if(!LTHR){ LTHR=fill_THR() }
 		return [
 			(sT):(String)attribute.t,
 			(sV):value,
@@ -6648,7 +6648,7 @@ private Map getVariable(Map rtD,String name){
 				String typ=sNULL
 				def vl=null
 				Map ta=fixHeGType(false,(String)hg.type,hg.value,sNULL)
-				ta.each {
+				ta.each{
 					typ=(String)it.key
 					vl=it.value
 				}
@@ -6755,20 +6755,20 @@ private Map setVariable(Map rtD,String name,value){
 				String wctyp=sNULL
 				def vl=null
 				Map tb=fixHeGType(false,(String)hg.type,hg.value,sNULL)
-				tb.each {
+				tb.each{
 					wctyp=(String)it.key
 				}
 				if(wctyp){ // if we know current type
 					Map ta=fixHeGType(true,wctyp,value,sNULL)
 					Map result=null
-					ta.each {
+					ta.each{
 						typ=(String)it.key
 						vl=it.value
 						if(eric())log.debug "setVariable setting Hub $vn to $vl with type ${typ} wc original type ${wctyp}"
 						Boolean a=false
-						try {
+						try{
 							a=setGlobalVar(vn,vl)
-						} catch(all){
+						}catch(all){
 							error 'An error occurred while executing set hub variable',rtD,-2,all
 						}
 						if(a){
@@ -6854,8 +6854,8 @@ private Map setVariable(Map rtD,String name,value){
 @Field static List<String> mL=[]
 @Field static List<String> mL1=[]
 
-private static Boolean matchCast(Map rtD, v, String t) {
-	if(!mL) {
+private static Boolean matchCast(Map rtD, v, String t){
+	if(!mL){
 		mL=[sSTR,sENUM,sTEXT,sLONG,sBOOLN,sINT,sDEC]
 		mL1=[sSTR,sENUM,sTEXT]
 	}
@@ -6938,7 +6938,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 		LS=[sSTR,sENUM]
 		L1opt=[sPLUS,sMINUS,sPWR,sAMP,sBOR,sBXOR,sBNOT,sBNAND,sBNOR,sBNXOR,sLTH,sGTH,sLTHE,sGTHE,sEQ,sNEQ,sNEQA,sSBL,sSBR,sNEG,sDNEG,sQM]
 		lPLSMIN=[sPLUS,sMINUS]
-		if(!LT1) { LT1=fill_TIM() }
+		if(!LT1){ LT1=fill_TIM() }
 		LN=[sNUMBER,sINT,sLONG]
 		LD=[sDEC,sFLOAT]
 		LT2=[sDEV,sVARIABLE]
@@ -7049,7 +7049,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 							def device=getDevice(rtD,(String)var.v)
 							if(device!=null)deviceIds=[hashId(device.id)]
 						}
-					} else {
+					}else{
 						// [(sT):sERROR,v:'Invalid variable']
 						err=true
 						result=var
@@ -8763,7 +8763,7 @@ private static String getThreeAxisOrientation(Map m /*, Boolean getIndex=false *
 	return sNULL
 }
 
-private Long getTimeToday(Long time){
+private Long getWCTimeToday(Long time){
 	Long t0=getMidnightTime()
 	Long result=time+t0
 	//we need to adjust for time overlapping during DST changes
@@ -8916,11 +8916,11 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 			Long d
 			if(srcDataType in [sTIME,sLONG,sINT,sDEC]){
 				d=value.toLong()
-				if(d<lMSDAY) value=getTimeToday(d)
+				if(d<lMSDAY) value=getWCTimeToday(d)
 				else value=d
 			}
 			d=(srcDataType==sSTR)? stringToTime(value):(Long)value
-			if(dataType==sDATE) {
+			if(dataType==sDATE){
 				Date t1 = new Date(d)
 				// take ms off and first guess at midnight (could be earlier/later depending if DST change day
 				d = Math.round((Math.floor(d / dTHOUS) * dTHOUS) - ((t1.hours * dSECHR + t1.minutes * dSIXTY + t1.seconds) * dTHOUS))
@@ -9001,139 +9001,157 @@ private Date localDate(){ return utcToLocalDate(now())}
 //private Long localTime(){ return now()} //utcToLocalTime()}
 
 private Long stringToTime(dateOrTimeOrString){ // this is convert to time
-	Long result
+	Long result=null
+	Integer cnt
 	if("$dateOrTimeOrString".isNumber()){
 		Long tt=dateOrTimeOrString.toLong()
 		if(tt<lMSDAY){
-			result=getTimeToday(tt)
-			return result
+			result=getWCTimeToday(tt)
+			cnt=1
 		}else{
 // deal with a time in sec (vs. ms)
 			Long span=63072000L // Math.round(730*(dMSDAY/dTHOUS)) // 2 years in secs
 			Long nowInsecs=now()/lTHOUS
 			if(tt<(nowInsecs+span) && tt>(nowInsecs-span)){
 				result=tt*lTHOUS
-				return result
+				cnt=2
 			}
 		}
-		return tt
+		if(result==null){
+			result=tt
+			cnt=3
+		}
 	}
 
-	if(dateOrTimeOrString instanceof String){
-
+	else if(result==null && dateOrTimeOrString instanceof String){
 		String sdate=dateOrTimeOrString
-		try{
-			result=(new Date()).parse(sdate)
-			return result
-		}catch(ignored){}
 
+		cnt=4
 		try{
 			Date tt1=(Date)toDateTime(sdate)
 			result=tt1.getTime()
-			return result
-		}catch(ignored){}
+		}catch(ignored){ result=null }
+
 
 		// additional ISO 8601 that Hubitat does not parse
-		try{
-			String tt=sdate
-			def regex1 = /Z/
-			String tt0=tt.replaceAll(regex1," -0000")
-			result= (new Date()).parse("yyyy-MM-dd'T'HH:mm z",tt0).getTime()
-			return result
-		} catch(ignored){}
-
-		try{
-			//get unix time
-			//if(!(sdate =~ /(\s[A-Z]{3}((\+|\-)[0-9]{2}\:[0-9]{2}|\s[0-9]{4})?$)/)){
-			if(!(sdate =~ /(\s[A-Z]{3}([+\-][0-9]{2}:[0-9]{2}|\s[0-9]{4})?$)/)){
-				Long newDate=(new Date()).parse(sdate+sSPC+formatLocalTime(now(),'Z'))
-				result=newDate
-				return result
-			}
-			result=(new Date()).parse(sdate)
-			return result
-		}catch(ignored){}
-
-		try{
-			TimeZone tz=(TimeZone)location.timeZone
-			if(sdate =~ /\s[A-Z]{3}$/){ // this is not the timezone... strings like CET are not unique.
-				try{
-					tz=TimeZone.getTimeZone(sdate[-3..-1])
-					///sdate=sdate.take(sdate.size()-3).trim()
-					sdate=sdate[0..sdate.size()-3].trim()
-				}catch(ignored){}
-			}
-
-			String t0=sdate?.trim()?: sBLK
-			t0=t0.toLowerCase()
-			Boolean hasMeridian=false
-			Boolean hasAM=false
-			Boolean hasPM=false
-			if(t0.endsWith('a.m.')){
-				t0= t0.replaceAll('a\\.m\\.','am')
-			}
-			if(t0.endsWith('p.m.')){
-				t0= t0.replaceAll('p\\.m\\.','pm')
-			}
-			if(t0.endsWith('am')){
-				hasMeridian=true
-				hasAM=true
-			}
-			if(t0.endsWith('pm')){
-				hasMeridian=true
-				hasPM=true
-			}
-			Long time=null
-			if(hasMeridian) t0=t0[0..-3].trim()
-
+		if(result==null){
+			cnt=5
 			try{
-				if(t0.length() == 8){
-					String tt=t0
-					time= (new Date()).parse('HH:mm:ss',tt).getTime()
-					time=getTimeToday(time)
-				}else{
-					time=((Date)timeToday(t0,tz)).getTime()
+				String tt=sdate
+				def regex1=/Z/
+				String tt0=tt.replaceAll(regex1, " -0000")
+				result=(new Date()).parse("yyyy-MM-dd'T'HH:mm z", tt0).getTime()
+			}catch(ignored){ result=null }
+		}
+
+		if(result==null){
+			cnt=6
+			try{
+				result=(new Date()).parse(sdate)
+			}catch(ignored){ result=null }
+		}
+
+		if(result==null){
+			cnt=7
+			try{
+				//get unix time
+				//if(!(sdate =~ /(\s[A-Z]{3}((\+|\-)[0-9]{2}\:[0-9]{2}|\s[0-9]{4})?$)/)){
+				if(!(sdate =~ /(\s[A-Z]{3}([+\-][0-9]{2}:[0-9]{2}|\s[0-9]{4})?$)/)){
+					Long newDate=(new Date()).parse(sdate + sSPC + formatLocalTime(now(), 'Z'))
+					result=newDate
 				}
-			}catch(ignored){}
+			}catch(ignored){ result=null }
+		}
 
-			if(hasMeridian && time){
-				Date t1=new Date(time)
-				Integer hr=t1.hours
-				Integer min=t1.minutes
-				Integer sec=t1.seconds
-				Boolean twelve= hr>=12
-				if(twelve && hasAM)hr -= 12
-				if(!twelve && hasPM)hr += 12
-				String str1="${hr}".toString()
-				String str2="${min}".toString()
-				//String str3="${sec}".toString()
-				if(hr<10)str1=String.format('%02d',hr)
-				if(min<10)str2=String.format('%02d',min)
-				//if(sec<10)str3=String.format('%02d',sec)
-				String str=str1+sCOLON+str2
-				time=((Date)timeToday(str,tz)).getTime()
-				if(sec != 0) time += sec*1000
-			}
-			result=time ?: lZERO
-			return result
-		}catch(ignored){}
+		if(result==null){
+			cnt=8
+			try{
+				TimeZone tz=(TimeZone) location.timeZone
+				if(sdate =~ /\s[A-Z]{3}$/){ // this is not the timezone... strings like CET are not unique.
+					try{
+						tz=TimeZone.getTimeZone(sdate[-3..-1])
+						///sdate=sdate.take(sdate.size()-3).trim()
+						sdate=sdate[0..sdate.size() - 3].trim()
+					}catch(ignored){}
+				}
 
-//		result=(new Date()).getTime()
-//		return result
+				String t0=sdate?.trim() ?: sBLK
+				t0=t0.toLowerCase()
+				Boolean hasMeridian=false
+				Boolean hasAM=false
+				Boolean hasPM=false
+				if(t0.endsWith('a.m.')){
+					t0=t0.replaceAll('a\\.m\\.', 'am')
+				}
+				if(t0.endsWith('p.m.')){
+					t0=t0.replaceAll('p\\.m\\.', 'pm')
+				}
+				if(t0.endsWith('am')){
+					hasMeridian=true
+					hasAM=true
+				}
+				if(t0.endsWith('pm')){
+					hasMeridian=true
+					hasPM=true
+				}
+				Long time=null
+				if(hasMeridian)t0=t0[0..-3].trim()
+
+				try{
+					if(t0.length()==8){
+						cnt=9
+						String tt=t0
+						time=(new Date()).parse('HH:mm:ss', tt).getTime()
+						time=getWCTimeToday(time)
+					}else{
+						cnt=10
+						time=((Date)timeToday(t0, tz)).getTime()
+					}
+				}catch(ignored){}
+
+				if(hasMeridian && time){
+					cnt=11
+					Date t1=new Date(time)
+					Integer hr=t1.hours
+					Integer min=t1.minutes
+					Integer sec=t1.seconds
+					Boolean twelve=hr>=12
+					if(twelve && hasAM)hr-=12
+					if(!twelve && hasPM)hr+=12
+					String str1="${hr}".toString()
+					String str2="${min}".toString()
+					//String str3="${sec}".toString()
+					if(hr<10)str1=String.format('%02d', hr)
+					if(min<10)str2=String.format('%02d', min)
+					//if(sec<10)str3=String.format('%02d',sec)
+					String str=str1+sCOLON+str2
+					time=((Date)timeToday(str, tz)).getTime()
+					if(sec!=0)time+=sec*1000
+				}
+				result=time ?: lZERO
+			}catch(ignored){ result=null }
+		}
 	}
 
-	if(dateOrTimeOrString instanceof Date){
-		result=((Date)dateOrTimeOrString).getTime()
-		return result
+	if(result==null){
+		if(dateOrTimeOrString instanceof Date){
+			cnt=12
+			result=((Date)dateOrTimeOrString).getTime()
+		}
 	}
-	return lZERO
+	if(result==null){
+		cnt=13
+		result=lZERO
+	}
+	if(eric())log.warn "stringToTime ${dateOrTimeOrString} result: ${result} cnt: ${cnt}"
+	return result
 }
 
 private String formatLocalTime(time,String format='EEE, MMM d yyyy @ h:mm:ss a z'){
 	def nTime=time
 	if(time instanceof Long || "${time}".isNumber()){
 		Long lt=time.toLong()
-		if(lt<lMSDAY)lt=getTimeToday(lt)
+		if(lt<lMSDAY)lt=getWCTimeToday(lt)
 // deal with a time in sec (vs. ms)
 		if(lt<Math.round((Long)now()/dTHOUS+86400.0D*365.0D))lt=Math.round(lt*dTHOUS)
 		nTime=new Date(lt)
@@ -9541,7 +9559,7 @@ private Map<String,LinkedHashMap> getSystemVariablesAndValues(Map rtD){
 		if(variable.value.d!=null && (Boolean)variable.value.d) variable.value.v=getSystemVariableValue(rtD,keyt1)
 		else if(c[keyt1]!=null)variable.value.v=c[keyt1].v
 	}
-	return result.sort { (String)it.key }
+	return result.sort{ (String)it.key }
 }
 
 // UI will not display anything that starts with $current or $previous; variables without d: true will not display variable value
@@ -9956,8 +9974,8 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 						Long t0=getMidnightTime()
 						Long aa=t0+aaa
 						TimeZone tz=(TimeZone)location.timeZone
-						myv=Math.round(aa+(tz.getOffset(t0)-tz.getOffset(aa)))
-						if(eric())log.warn "extended midnight time by $aaa"
+						myv=aa+(tz.getOffset(t0)-tz.getOffset(aa))
+						if(eric())log.warn "extended midnight time by $aaa  +($t0) $myv"
 					}else{
 						Date t1=new Date(aaa)
 						Long t2=Math.round((t1.hours*3600+t1.minutes*60+t1.seconds)*1000.0D)

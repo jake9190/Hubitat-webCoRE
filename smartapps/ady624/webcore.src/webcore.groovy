@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update November 12, 2021 for Hubitat
+ * Last update November 15, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -805,7 +805,7 @@ private void initialize(){
 	if(recoveryMethod!='Never'){
 		try{
 			"run$recoveryMethod"(recoveryHandler)
-		}catch (ignored){ }
+		}catch(ignored){}
 	}
 	schedule('22 4/15 * * * ?', 'clearChldCaches') // regular child cache cleanup
 }
@@ -898,7 +898,7 @@ private void enableOauth(){
 		httpPost(params){ resp ->
 			//LogTrace("response (sDATA): ${resp.data}")
 		}
-	}catch (e){
+	}catch(e){
 		error "enableOauth something went wrong: ", null, e
 	}
 }
@@ -1246,7 +1246,7 @@ private Map getDashboardData(){
 		result=((Map)settings).findAll{ ((String)it.key).startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
 			[ (id): dev.getSupportedAttributes().collect{ (String)it.name }.unique().collectEntries {
 				def value
-				try { value=dev.currentValue(it) } catch (ignored){ value=null }
+				try { value=dev.currentValue(it) }catch(ignored){ value=null }
 				return [ (it) : value]
 			}]
 		}
@@ -1775,15 +1775,15 @@ private api_intf_variable_set(){
 					vln=((String)value.n).substring(2)
 					if(name=='null') name=sNULL
 					if(!name || name!=(String)value.n ){
-						if (name){
+						if(name){
 							vn= name.substring(2)
 							meth1=meth+"DELETE before update of HE global $vn "
 							try{
 								chgd= deleteGlobalVar(vn)
-							}catch (ignored){
+							}catch(ignored){
 								meth1=meth+"DELETE not allowed HE global $vn "
 							}
-							if (!chgd) warn meth1+"FAILED"
+							if(!chgd) warn meth1+"FAILED"
 							else trace meth1
 						}
 						// add a variable
@@ -1802,7 +1802,7 @@ private api_intf_variable_set(){
 							meth1=meth+"CREATE HE global $vln ${value.t} ${typ} ${vl} "
 							try{
 								chgd=createGlobalVar(vln, vl, typ)
-							}catch (ignored){
+							}catch(ignored){
 								meth1=meth+"CREATE not allowed HE global $vn "
 							}
 							if(!chgd) warn meth1+"FAILED"
@@ -1823,7 +1823,7 @@ private api_intf_variable_set(){
 									if(vl instanceof Long){
 										Integer mtvl=((TimeZone)location.timeZone).getOffset((Long)now())
 										Integer mmtvl=((TimeZone)location.timeZone).rawOffset
-										if (eric()) log.warn "btt is adjustment is ${mmtvl} - ${mtvl}"
+										if(eric()) log.warn "btt is adjustment is ${mmtvl} - ${mtvl}"
 										vl=vl-mmtvl-mtvl
 									}
 									if(eric()) log.warn "found time $vl"
@@ -1833,11 +1833,9 @@ private api_intf_variable_set(){
 									String typ=(String)it.key
 									vl=it.value
 									chgd=false
-									try{
-										chgd=setGlobalVar(vln, vl)
-									}catch (ignored){}
+									try{ chgd=setGlobalVar(vln, vl) }catch(ignored){}
 									meth1=meth+"SET HE global $vln ${vl} "
-									if (!chgd) warn meth1+"FAILED mismatch $vln ${hg.type} ${typ}   ${value.t} ${vl}"
+									if(!chgd) warn meth1+"FAILED mismatch $vln ${hg.type} ${typ}   ${value.t} ${vl}"
 									else trace meth1
 								}
 							}else warn meth1+"no value"
@@ -2223,7 +2221,7 @@ private void cleanUp(){
 		}
 	}
 	Map a=api_get_base_result(true)
-    }catch (ignored){ }
+    }catch(ignored){}
 }
 
 private getStorageApp(Boolean install=false){
@@ -2261,7 +2259,7 @@ private getStorageApp(Boolean install=false){
 		if(storageApp==null){
 			try{
 				storageApp=addChildApp("ady624", name, label)
-			}catch (ignored){
+			}catch(ignored){
 				error "Please install the webCoRE Storage App for \$weather to work"
 				return null
 			}
@@ -2269,7 +2267,7 @@ private getStorageApp(Boolean install=false){
 		if(weatDev==null){
 			try{
 				weatDev=addChildDevice("ady624", name1, hashId("${now()}"), null, [label: label1])
-			}catch (ignored){
+			}catch(ignored){
 //				error "Please install the webCoRE Weather Devicefor \$weather notification to work"
 //				return null
 			}
@@ -2286,7 +2284,7 @@ private getStorageApp(Boolean install=false){
 		}
 		//app.updateSetting('contacts', [type: sTXT, (sVAL): null])
 		app.clearSetting('contacts')
-	}catch (all){
+	}catch(all){
 	}
 */
 
@@ -2317,7 +2315,7 @@ private getDashboardApp(Boolean install=false){
 	}
 	try{
 		dashboardApp=addChildApp("ady624", name, myN)
-	}catch (ignored){
+	}catch(ignored){
 		return null
 	}
 	return dashboardApp
@@ -2683,14 +2681,14 @@ private String getInstanceSid(){
 
 private void testLifx(){
 	String token=state.settings?.lifx_token
-	if (!token) return
+	if(!token) return
 	testLifx1(true)
 	runIn(4, testLifx1)
 }
 
 private void testLifx1(Boolean first=false){
 	String token=state.settings?.lifx_token
-	if (!token) return
+	if(!token) return
 	Map requestParams= [
 		uri:  "https://api.lifx.com",
 		path: "/v1/scenes",
@@ -2875,7 +2873,7 @@ void updateRunTimeData(Map data){
 		String t='updateGlobal'
 		Boolean didw=getTheLock(t)
 
-		am=atomicState.store
+		def am=atomicState.store
 		Map<String,Object> store= am? (Map<String,Object>)am : [:]
 		Boolean modified=false
 		for(var in (Map<String,Object>)data.gvStoreCache){
@@ -3024,7 +3022,7 @@ def webCoREHandler(event){
 			vars=vars ?: [:]
 			Map oldVar= vars[vN] ?: [(sT):sBLK, (sV):sBLK]
 			if(((String)oldVar.t!=vType) || (oldVar.v!=vV)){ // only notify if it is a change for us.
-				if (vV==null){
+				if(vV==null){
 					vars.remove(vN)
 				}else{
 					vars[vN]=[(sT): vType, (sV): vV]
@@ -3033,7 +3031,7 @@ def webCoREHandler(event){
 				releaseTheLock(t)
 				clearGlobalPistonCache("variable event")
 // notify my child instances
-				if (vV!=null) sendVariableEvent([(sNM): vN, (sVAL): vV, type: vType], true)
+				if(vV!=null) sendVariableEvent([(sNM): vN, (sVAL): vV, type: vType], true)
 			}else releaseTheLock(t) // no change
 		}else warn "no variable name $data"
 		return
@@ -4387,8 +4385,8 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 						Long t0=getMidnightTime()
 						Long aa=t0+aaa
 						TimeZone tz=(TimeZone)location.timeZone
-						myv=Math.round(aa+(tz.getOffset(t0)-tz.getOffset(aa)))
-						if(eric())log.warn "extended midnight time by $aaa"
+						myv=aa+(tz.getOffset(t0)-tz.getOffset(aa))
+						if(eric())log.warn "extended midnight time by $aaa  +($t0) $myv"
 					} else {
 						Date t1=new Date(aaa)
 						Long t2=Math.round((t1.hours*3600+t1.minutes*60+t1.seconds)*1000.0D)
@@ -4412,19 +4410,19 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				if(eric())log.warn "found time tt is $tt"
 				String[] t1=tt.split('T')
 
-				if (typ==sDATE) {
+				if(typ==sDATE) {
 					// comes in long format should be string -> 2021-10-13T99:99:99:999-9999
 					String t2=t1[0]+'T99:99:99:999-9999'
 					ret=[(sDTIME): t2]
 					break
 				}
-				if (typ==sTIME) {
+				if(typ==sTIME) {
 					//comes in long format should be string -> 9999-99-99T14:25:09.009-0700
 					String t2='9999-99-99T'+t1[1]
 					ret=[(sDTIME): t2]
 					break
 				}
-				//	if (typ==sDTIME) {
+				//	if(typ==sDTIME) {
 				// this comes in as a long, needs to be string -> 2021-10-13T14:25:09.009-0700
 				ret=[(sDTIME): tt]
 				break
@@ -4443,7 +4441,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				ret=[(sDEC):v]
 				break
 			case sSTR:
-				// if (dtyp==sDEV)
+				// if(dtyp==sDEV)
 				List<String> dvL=[]
 				Boolean ok=true
 				String[] t1=((String)v).split(sSPC)
