@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 15, 2021 for Hubitat
+ * Last update November 16, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -5472,7 +5472,7 @@ private static Boolean matchDeviceInteraction(String option,Map rtD){
 
 private List<Map> listPreviousStates(device,String attribute,Long threshold,Boolean excludeLast){
 	List<Map> result=[]
-	List<Map> events=(List<Map>)device.events([all: true,max: 100]).findAll{ Map it -> (String)it.name==attribute}
+	List events=device.events([all: true,max: 100]).findAll{ it -> (String)it.name==attribute}
 	//if we got any events,let's go through them
 	//if we need to exclude last event, we start at the second event, as the first one is the event that triggered this function. The attribute's value has to be different from the current one to qualify for quiet
 	Integer sz=events.size()
@@ -9143,7 +9143,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 		cnt=13
 		result=lZERO
 	}
-	if(eric())log.warn "stringToTime ${dateOrTimeOrString} result: ${result} cnt: ${cnt}"
+	//if(eric())log.warn "stringToTime ${dateOrTimeOrString} result: ${result} cnt: ${cnt}"
 	return result
 }
 
