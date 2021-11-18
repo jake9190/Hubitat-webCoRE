@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 16, 2021 for Hubitat
+ * Last update November 17, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -7340,7 +7340,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 						}else if(t2n){
 							t=t1
 						}else{
-							t= t1==sDATE && t2==sDATE ? sDATE:(t1==sTIME && t2==sTIME ? sTIME:sDTIME)
+							t= sLONG //t1==sDATE && t2==sDATE ? sDATE:(t1==sTIME && t2==sTIME ? sTIME:sDTIME)
 						}
 					}else{
 						if(o in lPLSMIN){
@@ -9540,7 +9540,7 @@ private void getLocalVariables(Map rtD,List<Map> vars,Map atomState){
 		def v=values[n]
 		Map<String,Object> variable=[
 			(sT):t,
-			(sV):var.v!=null ? var.v:(t.endsWith(sRB) ? (v instanceof Map ? v:[:]) : cast(rtD,v,t)),
+			(sV):var.v!=null ? var.v: (t.endsWith(sRB) ? (v instanceof Map ? v:[:]) : (matchCast(rtD,v,t) ? v:cast(rtD,v,t)) ),
 			//f means fixed value - we won't save this to the state
 			f: !!var.v
 		]
