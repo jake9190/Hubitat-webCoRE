@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update November 15, 2021 for Hubitat
+ * Last update November 20, 2021 for Hubitat
 */
 
 //file:noinspection unused
@@ -27,7 +27,7 @@
 //file:noinspection GrDeprecatedAPIUsage
 
 @Field static final String sVER='v0.3.113.20210203'
-@Field static final String sHVER='v0.3.113.20211005_HE'
+@Field static final String sHVER='v0.3.113.20211120_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -3544,6 +3544,8 @@ Map getChildAttributes(){
 	trackData			: [ (sN): "track data",			(sT): "object",											],
 	trackDescription	: [ (sN): "track description",		(sT): sSTR,											],
 	ultravioletIndex	: [ (sN): "UV index",			(sT): sINT,		(sR): [0, null],									],
+// custom for Leak sensor
+	underHeat			: [ (sN): "under heat",			(sT): sENUM,		(sO): ["clear", "detected"],						],
 	valve				: [ (sN): "valve",				(sT): sENUM,		(sO): ["closed", sOPEN],							],
 //	variable			: [ (sN): "variable value",	(sT): sSTR,											],
 	voltage				: [ (sN): "voltage",			(sT): sDEC,		(sR): [null, null],	u: "V",							],
