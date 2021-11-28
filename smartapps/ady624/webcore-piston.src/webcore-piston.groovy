@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 24, 2021 for Hubitat
+ * Last update November 28, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -1820,12 +1820,11 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	Long t2=(Long)rtD.generatedIn
 	Long t3=(Long)rtD.pEnd-(Long)rtD.pStart
 	Long missing=t0-t1-t2
-	Long t4=(Long)rtD.lended-startTime
-	Long t5=theend-(Long)rtD.lended
 	rtD.curStat=[(sI):t0,(sL):t1,(sR):t2,(sP):t3,(sS):stAccess]
-	String myId=(String)rtD.id
 	Integer lg=(Integer)rtD.logging
 	if(lg>1){
+		Long t4=(Long)rtD.lended-startTime
+		Long t5=theend-(Long)rtD.lended
 		if(lg>2)debug "RunTime initialize > ${t0} LockT > ${t1}ms > rtDT > ${t2}ms > pistonT > ${t3}ms (first state access ${missing} $t4 $t5)".toString(),rtD
 		String adMsg=sBLK
 		if(eric())adMsg=" (Init:$t0, Lock: $t1, pistonT $t3 first state access $missing ($t4 $t5) $stAccess".toString()
@@ -1868,6 +1867,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 		Boolean a
 		String semaName=sAppId()
 		Map sch=null
+		String myId=(String)rtD.id
 		while(success && (Long)getPistonLimits.executionTime+(Long)rtD.timestamp-(Long)now() >(Long)getPistonLimits.scheduleRemain){
 			// if no queued events
 			if(!firstTime && serializationOn){
@@ -2117,9 +2117,8 @@ private Boolean executeEvent(Map rtD,event){
 		if(event.jsonData!=null){
 			Map attribute=Attributes()[evntName]
 			String attrI=attribute!=null ? (String)attribute.i:sNULL
-			if(attrI!=sNULL && event.jsonData[attrI]){ // .i is the attribute to lookup
+			if(attrI!=sNULL && event.jsonData[attrI]) // .i is the attribute to lookup
 				index=((String)((Map)event.jsonData)[attrI]).toInteger()
-			}
 			if(!index)index=1
 		}
 
@@ -2179,8 +2178,8 @@ private Boolean executeEvent(Map rtD,event){
 		rtD.currentEvent=myEvt
 		state.lastEvent=myEvt
 
-		rtD.conditionStateChanged=false
-		rtD.pistonStateChanged=false
+		rtD.cndtnStChgd=false
+		rtD.pstnStChgd=false
 		rtD.ffTo=0
 		rtD.statementLevel=0
 		rtD.break=false
@@ -2260,7 +2259,7 @@ private Boolean executeEvent(Map rtD,event){
 	return false
 }
 
-@Field static final List<String> cleanData=['allDevices','cachePersist','mem','break','powerSource','oldLocationId','incidents','lstarted','lended','pStart','pEnd','generatedIn','ended','semaphoreDelay','vars','stateAccess','author','bin','build','newCache','mediaData','weather','logs','trace','systemVars','localVars','currentAction','previousEvent','json','response','cache','store','settings','locationModeId','locationId','coreVersion','hcoreVersion','cancelations','conditionStateChanged','pistonStateChanged','ffTo','resumed','terminated','instanceId','wakingUp','statementLevel','args','nfl','temp']
+@Field static final List<String> cleanData=['allDevices','cachePersist','mem','break','powerSource','oldLocationId','incidents','lstarted','lended','pStart','pEnd','generatedIn','ended','semaphoreDelay','vars','stateAccess','author','bin','build','newCache','mediaData','weather','logs','trace','systemVars','localVars','currentAction','previousEvent','json','response','cache','store','settings','locationModeId','locationId','coreVersion','hcoreVersion','cancelations','cndtnStChgd','pstnStChgd','ffTo','resumed','terminated','instanceId','wakingUp','statementLevel','args','nfl','temp']
 
 private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 	Long startTime=(Long)now()
@@ -2423,7 +2422,7 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 		a=schedules.removeAll{ Map it -> cid in (List)it.cs }
 
 	//cancel on piston state change
-	if((Boolean)rtD.pistonStateChanged)
+	if((Boolean)rtD.pstnStChgd)
 		a=schedules.removeAll{ Map it -> (Integer)it.ps!=0 }
 
 	rtD.cancelations=[statements:[],conditions:[],all:false]
@@ -2560,19 +2559,19 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 		String sMsg="Skipping execution for statement #${stateNum} because "
 		switch((String)statement.tep){ // Task Execution Policy - only execute on "" - always (def), c-condition state change only, p - piston state change only, b-condition or piston change only
 			case sC:
-				if(!(Boolean)rtD.conditionStateChanged){
+				if(!(Boolean)rtD.cndtnStChgd){
 					if(lg>2)debug sMsg+'condition state did not change',rtD
 					return true
 				}
 				break
 			case sP:
-				if(!(Boolean)rtD.pistonStateChanged){
+				if(!(Boolean)rtD.pstnStChgd){
 					if(lg>2)debug sMsg+'piston state did not change',rtD
 					return true
 				}
 				break
 			case sB:
-				if( !(Boolean)rtD.conditionStateChanged && !(Boolean)rtD.pistonStateChanged){
+				if( !(Boolean)rtD.cndtnStChgd && !(Boolean)rtD.pstnStChgd){
 					if(lg>2)debug sMsg+'neither condition state nor piston state changed',rtD
 					return true
 				}
@@ -2592,13 +2591,15 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 	Integer c=(Integer)rtD.stack.c
 	Boolean stacked=true /* cancelable on condition change */
 	if(stacked)a=((List<Integer>)rtD.stack.cs).push(c)
-	Boolean svCSC=(Boolean)rtD.conditionStateChanged
+	Boolean svCSC=(Boolean)rtD.cndtnStChgd
 	//def parentAsync=asynch
 	Double svIndex=(Double)rtD.systemVars[sDLLRINDX].v
 	List svDevice=(List)rtD.systemVars[sDLLRDEVICE].v
 
-	if(!s0) s0=[sEVERY,sON]
-	if(!s1) s1=[sWHILE,sREPEAT,sFOR,sEACH]
+	if(!s0){
+		s0=[sEVERY,sON]
+		if(!s1) s1=[sWHILE,sREPEAT,sFOR,sEACH]
+	}
 
 	Boolean selfAsync= (String)statement.a==sONE || (stateType in s0) // execution method (async)
 	Boolean async= asynch||selfAsync
@@ -2607,19 +2608,23 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 	Boolean repeat=true
 	Double index=null
 	Boolean allowed=!(List)statement.r || ((List)statement.r).size()==0 || evaluateConditions(rtD,statement,sR,async)
+	Boolean isIf=false
+	Boolean isEach=false
 	if(allowed || (Integer)rtD.ffTo!=0){
 		while(repeat){
+			//noinspection GroovyFallthrough
 			switch(stateType){
 				case sACTION:
 					value=executeAction(rtD,statement,async)
 					break
 				case sIF:
+					isIf=true
 				case sWHILE:
 					//check conditions for if and while
 					perform=evaluateConditions(rtD,statement,sC,async)
 					//override current condition so child statements can cancel on it
 					rtD.stack.c=stateNum
-					if((Integer)rtD.ffTo==0 && perform && !rtD.piston.o?.mps && stateType==sIF && (Integer)rtD.statementLevel==1){
+					if(isIf && perform && (Integer)rtD.ffTo==0 && !rtD.piston.o?.mps && (Integer)rtD.statementLevel==1){
 						//automatic piston state
 						rtD.state.autoNew=sTRUE
 					}
@@ -2633,7 +2638,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 						if((Integer)rtD.ffTo==0)break
 					}
 					if(!perform || (Integer)rtD.ffTo!=0){
-						if(stateType==sIF){
+						if(isIf){
 							//look for else-ifs
 							for(Map elseIf in (List<Map>)statement.ei){
 								perform=evaluateConditions(rtD,elseIf,sC,async)
@@ -2724,14 +2729,15 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 					}
 					value= (Integer)rtD.ffTo!=0 || perform ? executeStatements(rtD,(List)statement.s,async):true
 					break
-				case sFOR:
 				case sEACH:
+					isEach=true
+				case sFOR:
 					List devices=[]
 					Double startValue=dZERO
 					Double endValue
 					Double stepValue=dONE
 					Integer dsiz=devices.size()
-					if(stateType==sEACH){
+					if(isEach){
 						List t0=(List)((Map)evaluateOperand(rtD,null,(Map)statement.lo)).v
 						devices=t0 ?: []
 						dsiz=devices.size()
@@ -2753,8 +2759,8 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 							rtD.cache[sidx]=index
 						}
 						rtD.systemVars[sDLLRINDX].v=index
-						if(stateType==sEACH && ((Integer)rtD.ffTo==0||(Integer)rtD.ffTo==-9))setSystemVariableValue(rtD,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
-						if(counterVariable!=sNULL && (Integer)rtD.ffTo==0)def m=setVariable(rtD,counterVariable,stateType==sEACH ? (index<dsiz ? [devices[index.toInteger()]]:[]):index)
+						if(isEach && ((Integer)rtD.ffTo==0||(Integer)rtD.ffTo==-9))setSystemVariableValue(rtD,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
+						if(counterVariable!=sNULL && (Integer)rtD.ffTo==0)Map m=setVariable(rtD,counterVariable, isEach ? (index<dsiz ? [devices[index.toInteger()]]:[]):index)
 						//do the loop
 						perform=executeStatements(rtD,(List)statement.s,async)
 						if(!perform){
@@ -2772,8 +2778,8 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 						if((Integer)rtD.ffTo!=0)break
 						index=index+stepValue
 						rtD.systemVars[sDLLRINDX].v=index
-						if(stateType==sEACH && (Integer)rtD.ffTo==0)setSystemVariableValue(rtD,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
-						if(counterVariable!=sNULL && (Integer)rtD.ffTo==0)def n=setVariable(rtD,counterVariable,stateType==sEACH ? (index<dsiz ? [devices[index.toInteger()]]:[]):index)
+						if(isEach && (Integer)rtD.ffTo==0)setSystemVariableValue(rtD,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
+						if(counterVariable!=sNULL && (Integer)rtD.ffTo==0)Map n=setVariable(rtD,counterVariable, isEach ? (index<dsiz ? [devices[index.toInteger()]]:[]):index)
 						rtD.cache[sidx]=index
 						if((stepValue>dZERO && index>endValue) || (stepValue<dZERO && index<endValue)){
 							perform=false
@@ -2791,9 +2797,9 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 					if(lg>2)debug "Evaluating switch with values $lo.values",rtD
 					for(Map _case in (List<Map>)statement.cs){
 						Map ro=[operand: (Map)_case.ro,values: (List)evaluateOperand(rtD,_case,(Map)_case.ro)]
-						// _case.t - r - range, s - single value
-						Map ro2= (String)_case.t==sR ? [operand: (Map)_case.ro2,values: (List)evaluateOperand(rtD,_case,(Map)_case.ro2,null,false,true)]:null
-						perform=perform || evaluateComparison(rtD,((String)_case.t==sR ? 'is_inside_of_range' : 'is'),lo,ro,ro2)
+						Boolean isR=(String)_case.t==sR // _case.t - r - range, s - single value
+						Map ro2= isR ? [operand: (Map)_case.ro2,values: (List)evaluateOperand(rtD,_case,(Map)_case.ro2,null,false,true)]:null
+						perform=perform || evaluateComparison(rtD,(isR ? 'is_inside_of_range' : 'is'),lo,ro,ro2)
 						found=found || perform
 						if(perform || (found && fallThrough)|| (Integer)rtD.ffTo!=0){
 							Integer ffTo=(Integer)rtD.ffTo
@@ -2842,14 +2848,14 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 					break
 				case sEXIT:
 					if((Integer)rtD.ffTo==0){
-						vcmd_setState(rtD,null,[(String)cast(rtD,((Map)evaluateOperand(rtD,null,(Map)statement.lo)).v,sSTR)])
+						Long l=vcmd_setState(rtD,null,[(String)cast(rtD,((Map)evaluateOperand(rtD,null,(Map)statement.lo)).v,sSTR)])
 						rtD.terminated=true
 					}
 					value=false
 					break
 			}
 			//break the loop
-			if((Integer)rtD.ffTo!=0 || stateType==sIF)perform=false
+			if((Integer)rtD.ffTo!=0 || isIf)perform=false
 
 			//is this statement a loop
 			Boolean loop=(stateType in s1)
@@ -2878,7 +2884,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 	if((Integer)rtD.ffTo==0){
 		Map schedule
 		if(stateType==sEVERY){
-			Map t0=((List<Map>)rtD.schedules).find{ (Integer)it.s==stateNum}
+			Map t0=((List<Map>)rtD.schedules).find{ Map it -> (Integer)it.s==stateNum}
 			if(t0==null){
 				List<Map> schedules
 				Map t1=getCachedMaps(str+sONE)
@@ -2889,10 +2895,11 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 		}
 		String myS="s:${stateNum}".toString()
 		Long myL=elapseT(t)
-		if(schedule!=null){
-			//timers need to show the remaining time
-			tracePoint(rtD,myS,myL,elapseT((Long)schedule.t))
-		}else tracePoint(rtD,myS,myL,value)
+		def v
+		if(schedule!=null) //timers need to show the remaining time
+			v=elapseT((Long)schedule.t)
+		else v=value
+		tracePoint(rtD,myS,myL,v)
 	}
 	//if(statement.a==sONE){
 	//when an async action requests the thread termination, we continue to execute the parent
@@ -2911,7 +2918,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 	rtD.stack.s=(Integer)((List<Integer>)rtD.stack.ss).pop()
 	rtD.systemVars[sDLLRINDX].v=svIndex
 	rtD.systemVars[sDLLRDEVICE].v=svDevice
-	rtD.conditionStateChanged=svCSC
+	rtD.cndtnStChgd=svCSC
 	Boolean ret=value || (Integer)rtD.ffTo!=0
 	if((Boolean)rtD.eric) myDetail rtD,mySt+" result:"+ret.toString(),-1
 	return ret
@@ -3715,7 +3722,7 @@ private Long vcmd_setState(Map rtD,device,List params){
 	String value=params[0]
 	if(rtD.piston.o?.mps){
 		rtD.state.new=value
-		rtD.pistonStateChanged=(Boolean)rtD.pistonStateChanged || ((String)rtD.state.old!=(String)rtD.state.new)
+		rtD.pstnStChgd=(Boolean)rtD.pstnStChgd || ((String)rtD.state.old!=(String)rtD.state.new)
 	}else error "Cannot set the piston state while in automatic mode. Please edit the piston settings to disable the automatic piston state if you want to manually control the state.",rtD
 	return lZERO
 }
@@ -4874,8 +4881,8 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 		String mC="c:${myC}".toString()
 		if((Integer)rtD.ffTo==0)tracePoint(rtD,mC,elapseT(t),result)
 		Boolean oldResult=!!(Boolean)((Map)rtD.cache)[mC]
-		rtD.conditionStateChanged=(oldResult!=result)
-		if((Boolean)rtD.conditionStateChanged) //condition change, perform Task Cancellation Policy TCP
+		rtD.cndtnStChgd=(oldResult!=result)
+		if((Boolean)rtD.cndtnStChgd) //condition change, perform Task Cancellation Policy TCP
 			cancelConditionSchedules(rtD,myC)
 		rtD.cache[mC]=result
 		//true/false actions
@@ -4884,7 +4891,7 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 			if((!result || (Integer)rtD.ffTo!=0) && conditions.fs!=null && ((List)conditions.fs).size())Boolean a=executeStatements(rtD,(List)conditions.fs,async)
 		}
 		if((Integer)rtD.ffTo==0 && lg>2){
-			msg.m="Condition group #${myC} evaluated $result (state ${(Boolean)rtD.conditionStateChanged ? 'changed' : 'did not change'})".toString()
+			msg.m="Condition group #${myC} evaluated $result (state ${(Boolean)rtD.cndtnStChgd ? 'changed' : 'did not change'})".toString()
 			debug msg,rtD
 		}
 	}
@@ -5143,8 +5150,8 @@ private Boolean evaluateCondition(Map rtD,Map condition,String collection,Boolea
 			if(lo)for(Map value in (List<Map>)lo.values)updateCache(rtD,value)
 			if(ro)for(Map value in (List<Map>)ro.values)updateCache(rtD,value)
 			if(ro2)for(Map value in (List<Map>)ro2.values)updateCache(rtD,value)
-			if(lo.operand.dm!=null && options.devices!=null)def m=setVariable(rtD,(String)lo.operand.dm,options.devices.matched!=null ? (List)options.devices.matched:[])
-			if(lo.operand.dn!=null && options.devices!=null)def n=setVariable(rtD,(String)lo.operand.dn,options.devices.unmatched!=null ? (List)options.devices.unmatched:[])
+			if(lo.operand.dm!=null && options.devices!=null)Map m=setVariable(rtD,(String)lo.operand.dm,options.devices.matched!=null ? (List)options.devices.matched:[])
+			if(lo.operand.dn!=null && options.devices!=null)Map n=setVariable(rtD,(String)lo.operand.dn,options.devices.unmatched!=null ? (List)options.devices.unmatched:[])
 
 			//do the stays logic here
 			if(t_and_compt && (Integer)rtD.ffTo==0){
@@ -5189,8 +5196,8 @@ private Boolean evaluateCondition(Map rtD,Map condition,String collection,Boolea
 	if((Integer)rtD.ffTo==0)tracePoint(rtD,sIndx,elapseT(t),result)
 
 	rtD.wakingUp=false
-	rtD.conditionStateChanged=oldResult!=result
-	if((Boolean)rtD.conditionStateChanged) //condition change, perform Task Cancellation Policy TCP
+	rtD.cndtnStChgd=oldResult!=result
+	if((Boolean)rtD.cndtnStChgd) //condition change, perform Task Cancellation Policy TCP
 		cancelConditionSchedules(rtD,conditionNum)
 	((Map)rtD.cache)[sIndx]=result
 	//true/false actions
@@ -6730,7 +6737,7 @@ private Map setVariable(Map rtD,String name,value){
 				def v=(value instanceof GString)? "$value".toString():value
 				variable.v=matchCast(rtD,v,t) ? v:cast(rtD,v,t)
 			}
-			if(!variable.f){
+			if(!variable.f){ // fixed
 				Map<String,Object> vars
 				Map t0=getCachedMaps('setVariable')
 				if(t0!=null)vars=(Map<String,Object>)t0.vars
@@ -7440,8 +7447,9 @@ private static String buildList(List list,String suffix=sAND){
 	String result=sBLK
 	Integer t0=(Integer)list.size()
 	Integer t1=t0-1
+	String a=sCOMMA+sSPC
 	for(item in list){
-		result+=item.toString()+(cnt<t0 ? (cnt==t1 ? sSPC+suffix+sSPC:sCOMMA+sSPC):sBLK)
+		result+=item.toString()+(cnt<t0 ? (cnt==t1 ? sSPC+suffix+sSPC:a):sBLK)
 		cnt++
 	}
 	return result
