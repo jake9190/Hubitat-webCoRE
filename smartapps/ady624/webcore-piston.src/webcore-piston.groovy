@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update November 28, 2021 for Hubitat
+ * Last update December 7, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -3275,6 +3275,7 @@ private void scheduleTimer(Map rtD,Map timer,Long lastRun=lZERO){
 			Integer dyDay=adate.day
 
 			//the repeating interval is not necessarily constant
+			//noinspection GroovyFallthrough
 			switch(intervalUnit){
 				case sD:
 					if(priorActivity){
@@ -4515,6 +4516,7 @@ void ahttpRequestHandler(resp,Map callbackData){
 	def t0=resp.getHeaders()
 	String t1=t0!=null ? (String)t0."Content-Type" : sNULL
 	String mediaType=t1 ? (String)(t1.toLowerCase()?.tokenize(';')[0]):sNULL
+	//noinspection GroovyFallthrough
 	switch(mediaType){
 		case 'image/jpeg':
 		case 'image/png':
@@ -4598,7 +4600,7 @@ void ahttpRequestHandler(resp,Map callbackData){
 
 private parseMyResp(aa,String mediaType=sNULL){
 	def ret=null
-	if(a instanceof String || a instanceof GString){
+	if(aa instanceof String || aa instanceof GString){
 		String a=aa.toString()
 		Boolean expectJson= mediaType ? mediaType.contains('json') : false
 		try{
@@ -4849,6 +4851,7 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 				}
 			}
 
+			//noinspection GroovyFallthrough
 			switch(value){
 				case null:
 					//we need to exit time events set to work out the timeouts...
@@ -4901,6 +4904,7 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 	return result
 }
 
+@SuppressWarnings('GroovyFallthrough')
 private evaluateOperand(Map rtD,Map node,Map oper,index=null,Boolean trigger=false,Boolean nextMidnight=false){
 	String myS=sBLK
 	Boolean ntf=(Boolean)rtD.eric
@@ -5696,6 +5700,7 @@ private void updateDeviceList(Map rtD,List deviceIdList){
 	app.updateSetting('dev',[(sTYPE):'capability',(sVAL):deviceIdList.unique()])// settings update do not happen till next execution
 }
 
+@SuppressWarnings('GroovyFallthrough')
 private void subscribeAll(Map rtD,Boolean doit=true){
 	if(eric())log.debug "subscribeAll $doit"
 	try{
@@ -6227,6 +6232,7 @@ private getDeviceAttributeValue(Map rtD,device,String attributeName){
 
 private static List<String> fill_THR(){ return [sORIENT,sAXISX,sAXISY,sAXISZ] }
 
+@SuppressWarnings('GroovyFallthrough')
 private Map getDeviceAttribute(Map rtD,String deviceId,String attributeName,subDeviceIndex=null,Boolean trigger=false){
 	if(deviceId==(String)rtD.locationId || deviceId==(String)rtD.oldLocationId){ //backwards compatibility
 		//we have the location here
@@ -6269,6 +6275,7 @@ private Map getDeviceAttribute(Map rtD,String deviceId,String attributeName,subD
 	return rtnMap(sERROR,"Device '${deviceId}' not found")
 }
 
+@SuppressWarnings('GroovyFallthrough')
 private Map getJsonData(Map rtD,data,String name,String feature=sNULL){
 	if(data!=null){
 		try{
@@ -6842,6 +6849,7 @@ private static Map simplifyExpression(Map express){
 
 private static List<String> fill_TIM(){ return [sDTIME,sTIME,sDATE] }
 
+@SuppressWarnings('GroovyFallthrough')
 private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 	//if dealing with an expression that has multiple items let's evaluate each item one by one
 	if(!LT0){
@@ -8475,7 +8483,7 @@ private Map func_random(Map rtD,List<Map> params){
 
 /** distance returns a distance measurement							**/
 /** Usage: distance((device | latitude,longitude),(device | latitude,longitude)[, unit])	**/
-@SuppressWarnings('GroovyVariableNotAssigned')
+@SuppressWarnings(['GroovyVariableNotAssigned', 'GroovyFallthrough'])
 private Map func_distance(Map rtD,List<Map> params){
 	Integer sz=params.size()
 	if(!checkParams(rtD,params,2) || sz>5) return rtnErr('distance((device | latitude,longitude),(device | latitude,longitude)[, unit])')
@@ -8634,6 +8642,7 @@ private Long getWCTimeToday(Long time){
 @Field static final List<String> trueStrings= [ '1','true', "on", "open",  "locked",  "active",  "wet",           "detected",    "present",    "occupied",    "muted",  "sleeping"]
 @Field static final List<String> falseStrings=[ '0','false',"off","closed","unlocked","inactive","dry","clear",   "not detected","not present","not occupied","unmuted","not sleeping","null"]
 
+@SuppressWarnings('GroovyFallthrough')
 private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 	if(dataT==sDYN)return ival
 
@@ -8648,16 +8657,31 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 	Boolean isfbd=false
 	value=(value instanceof GString)? "$value".toString():value //get rid of GStrings
 	if(srcDataType==sNULL || srcDataType.length()==0 || srcDataType==sBOOLN || srcDataType==sDYN){
-		if(value instanceof List){srcDataType=sDEV}else
-		if(value instanceof Boolean){srcDataType=sBOOLN}else
-		if(value instanceof String){srcDataType=sSTR}else
-		if(value instanceof Integer){srcDataType=sINT}else
-		if(value instanceof Long || value instanceof BigInteger){srcDataType=sLONG}else
-		if(value instanceof Double){srcDataType=sDEC}else
-		if(value instanceof BigDecimal || value instanceof Float){srcDataType=sDEC; isfbd=true}else
-		if(value instanceof Map && value.x!=null && value.y!=null && value.z!=null){srcDataType='vector3'}else{
-			value="$value".toString()
-			srcDataType=sSTR
+		if(value instanceof List){srcDataType=sDEV}
+		else{
+			if(value instanceof Boolean){srcDataType=sBOOLN}
+			else{
+				if(value instanceof String){srcDataType=sSTR}
+				else{
+					if(value instanceof Integer){srcDataType=sINT}
+					else{
+						if(value instanceof Long || value instanceof BigInteger){srcDataType=sLONG}
+						else{
+							if(value instanceof Double){srcDataType=sDEC}
+							else{
+								if(value instanceof BigDecimal || value instanceof Float){srcDataType=sDEC; isfbd=true}
+								else{
+									if(value instanceof Map && value.x!=null && value.y!=null && value.z!=null){srcDataType='vector3'}
+									else{
+										value="$value".toString()
+										srcDataType=sSTR
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 	//overrides
@@ -8781,7 +8805,7 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 				if(d<lMSDAY) value=getWCTimeToday(d)
 				else value=d
 			}
-			d=(srcDataType==sSTR)? stringToTime(value):(Long)value
+			d= srcDataType==sSTR ? stringToTime(value):(Long)value
 			if(dataType==sDATE){
 				Date t1= new Date(d)
 				// take ms off and first guess at midnight (could be earlier/later depending if DST change day
@@ -8863,7 +8887,8 @@ private Date localDate(){ return utcToLocalDate((Long)now())}
 //private Long localTime(){ return now()} //utcToLocalTime()}
 
 private Long stringToTime(dateOrTimeOrString){ // this is convert to time
-	Long result=null
+	Long lnull=(Long)null
+	Long result=lnull
 	Integer cnt
 	if("$dateOrTimeOrString".isNumber()){
 		Long tt=dateOrTimeOrString.toLong()
@@ -8879,41 +8904,41 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 				cnt=2
 			}
 		}
-		if(result==null){
+		if(result==lnull){
 			result=tt
 			cnt=3
 		}
 	}
 
-	else if(result==null && dateOrTimeOrString instanceof String){
+	else if(result==lnull && dateOrTimeOrString instanceof String){
 		String sdate=dateOrTimeOrString
 
 		cnt=4
 		try{
 			Date tt1=(Date)toDateTime(sdate)
 			result=tt1.getTime()
-		}catch(ignored){ result=null }
+		}catch(ignored){ result=lnull }
 
 
 		// additional ISO 8601 that Hubitat does not parse
-		if(result==null){
+		if(result==lnull){
 			cnt=5
 			try{
 				String tt=sdate
 				def regex1=/Z/
 				String tt0=tt.replaceAll(regex1," -0000")
 				result=(new Date()).parse("yyyy-MM-dd'T'HH:mm z",tt0).getTime()
-			}catch(ignored){ result=null }
+			}catch(ignored){ result=lnull }
 		}
 
-		if(result==null){
+		if(result==lnull){
 			cnt=6
 			try{
 				result=(new Date()).parse(sdate)
-			}catch(ignored){ result=null }
+			}catch(ignored){ result=lnull }
 		}
 
-		if(result==null){
+		if(result==lnull){
 			cnt=7
 			try{
 				//get unix time
@@ -8922,10 +8947,10 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 					Long newDate=(new Date()).parse(sdate + sSPC + formatLocalTime((Long)now(),'Z'))
 					result=newDate
 				}
-			}catch(ignored){ result=null }
+			}catch(ignored){ result=lnull }
 		}
 
-		if(result==null){
+		if(result==lnull){
 			cnt=8
 			try{
 				TimeZone tz=(TimeZone) location.timeZone
@@ -8956,7 +8981,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 					hasMeridian=true
 					hasPM=true
 				}
-				Long time=null
+				Long time=lnull
 				if(hasMeridian)t0=t0[0..-3].trim()
 
 				try{
@@ -8990,17 +9015,17 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 					if(sec!=0)time+=sec*1000
 				}
 				result=time ?: lZERO
-			}catch(ignored){ result=null }
+			}catch(ignored){ result=lnull }
 		}
 	}
 
-	if(result==null){
+	if(result==lnull){
 		if(dateOrTimeOrString instanceof Date){
 			cnt=12
 			result=((Date)dateOrTimeOrString).getTime()
 		}
 	}
-	if(result==null){
+	if(result==lnull){
 		cnt=13
 		result=lZERO
 	}
@@ -9132,6 +9157,7 @@ private void myDetail(Map rtD,String msg,Integer shift=-2){
 	Map a=log(msg,rtD,shift,null,sWARN,true,false)
 }
 
+@SuppressWarnings('GroovyFallthrough')
 private Map log(message,Map rtD,Integer shift=-2,err=null,String cmd=sNULL,Boolean force=false,Boolean svLog=true){
 	if(cmd=='timer'){
 		return [(sM):message.toString(),(sT):(Long)now(),(sS):shift,(sE):err]
@@ -9524,6 +9550,7 @@ private static LinkedHashMap<String,LinkedHashMap> getSystemVariables(){
 	] as LinkedHashMap<String,LinkedHashMap>
 }
 
+@SuppressWarnings('GroovyFallthrough')
 private getSystemVariableValue(Map rtD,String name){
 	String shsm=sDLR+sHSMSTS
 	switch(name){
