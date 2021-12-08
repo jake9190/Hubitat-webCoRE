@@ -1737,6 +1737,7 @@ void executeHandler(event){
 	maxLogs: 50,
 ]
 
+@SuppressWarnings(['GroovyFallthrough', 'GroovyFallthrough'])
 void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	def event=evt
 	Long startTime=(Long)now()
@@ -1887,11 +1888,11 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 			else schedules=myPep ? (List<Map>)atomicState.schedules:(List<Map>)state.schedules
 
 			if(schedules==null || schedules==(List<Map>)[] || schedules.size()==0)break
+			Long t=(Long)now()
 
 			if(evntName==sASYNCREP)
 				event.schedule=schedules.sort{ Map it -> (Long)it.t }.find{ Map it -> (String)it.d==evntVal }
 			else{
-				Long t=(Long)now()
 				//anything less than scheduleVariance (270ms) in the future is considered due, we'll do some pause to sync with it
 				//we're doing this because many times, the scheduler will run a job early
 				sch=schedules.sort{ Map it -> (Long)it.t }.find{ Map it -> (Long)it.t<t+(Long)getPistonLimits.scheduleVariance }
@@ -1940,7 +1941,6 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 				if((Boolean)rtD.eric) myDetail rtD,"async event $event"
 				Integer rCode=(Integer)event.responseCode
 				Boolean sOk=rCode>=200 && rCode<=299
-				//noinspection GroovyFallthrough
 				switch(evntVal){
 					case sHTTPR:
 						if(event.schedule.stack!=null){
@@ -1978,7 +1978,6 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 					syncTime=false
 					Integer rCode=408
 					Boolean sOk=false
-					//noinspection GroovyFallthrough
 					switch(ttyp){
 						case sHTTPR:
 							setSystemVariableValue(rtD,sHTTPCONTENT,sBLK)
@@ -2943,11 +2942,11 @@ private void doPause(String mstr,Long delay,Map rtD,Boolean ign=false){
 		Long t1=(Long)now()
 		actDelay=t1-t0
 		Long t2=(Long)rtD.tPause
-		t2=t2!=null ? t2: lZERO
+		t2=t2!=null ? t2:lZERO
 		rtD.tPause=t2+actDelay
 		rtD.lastPause=t1
 		t2=(Long)state.pauses
-		t2=t2!=null ? t2 : lZERO
+		t2=t2!=null ? t2:lZERO
 		state.pauses=t2+1L
 	}
 	//return actDelay
@@ -3164,7 +3163,7 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 			}else{
 				String tailStr=sNULL
 				Long t1=(Long)getPistonLimits.deviceMaxDelay
-				delay=delay>t1 ? t1 : delay
+				delay=delay>t1 ? t1:delay
 				if(delay>lZERO){
 					doPause("wait before device command: Waiting for ${delay}ms",delay,rtD,true)
 					if(doL) tailStr="[delay: $delay])".toString()
@@ -3185,7 +3184,7 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 		Long t0=rtD.piston.o?.ced ? ((Integer)rtD.piston.o.ced).toLong():lZERO
 		if(t0!=lZERO){
 			Long t1=(Long)getPistonLimits.deviceMaxDelay
-			t0=t0>t1 ? t1 : t0
+			t0=t0>t1 ? t1:t0
 			doPause("Injected command execution delay ${t0}ms after [$device].$command(${nparams ? "$nparams":sBLK})",t0,rtD,true)
 		}
 	}
@@ -4920,7 +4919,6 @@ private evaluateOperand(Map rtD,Map node,Map oper,index=null,Boolean trigger=fal
 	Map movt=ovt ? [(sVT):ovt] : [:]
 	String nodeI="${node?.$}:$index:0".toString()
 	Map mv=null
-	//noinspection GroovyFallthrough
 	switch((String)operand.t){
 		case sBLK: //optional, nothing selected
 			mv=rtnMap(ovt,null)
@@ -5003,7 +5001,6 @@ private evaluateOperand(Map rtD,Map node,Map oper,index=null,Boolean trigger=fal
 			break
 		case sS: //preset
 			Boolean time=false
-			//noinspection GroovyFallthrough
 			switch(ovt){
 				case sTIME:
 					time=true
@@ -5959,7 +5956,6 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 					rawDevices[deviceId]=getDevice(rtD,deviceId)
 				}
 			}
-			//noinspection GroovyFallthrough
 			switch((String)node.t){
 				case sACTION:
 					if(node.k){
@@ -6890,7 +6886,6 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 	Map result=expression
 	String exprType=(String)expression.t
 	def exprV=expression.v
-	//noinspection GroovyFallthrough
 	switch(exprType){
 		case sINT:
 		case sLONG:
@@ -7232,7 +7227,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 				if(t1==sDEV && t2==sDEV && (o in lPLSMIN)){
 					List lv1=(v1 instanceof List)? (List)v1:[v1]
 					List lv2=(v2 instanceof List)? (List)v2:[v2]
-					v= o==sPLUS ? lv1+lv2 : lv1-lv2
+					v= o==sPLUS ? lv1+lv2:lv1-lv2
 					//set the results
 					items[idxPlus].t=sDEV
 					items[idxPlus].v=v
@@ -7264,7 +7259,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 						}
 						//integer with decimal gives decimal, also *,/ require decimals
 						if(o in pn1){
-							t= t1i && t2i ? (t1==sLONG || t2==sLONG ? sLONG:sINT) : sDEC
+							t= t1i && t2i ? (t1==sLONG || t2==sLONG ? sLONG:sINT):sDEC
 							t1=t
 							t2=t
 						}
@@ -7306,7 +7301,6 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 
 					v1=v1==sSNULL ? null:v1
 					v2=v2==sSNULL ? null:v2
-					//noinspection GroovyFallthrough
 					switch(o){
 						case sQM:
 						case sCOLON:
@@ -7320,13 +7314,13 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 							v=v1 * v2
 							break
 						case sDIV:
-							v=(v2!=0 ? v1/v2 : 0)
+							v=(v2!=0 ? v1/v2:0)
 							break
 						case sMOD1:
-							v=(Integer)Math.floor(v2!=0 ? v1/v2 : 0)
+							v=(Integer)Math.floor(v2!=0 ? v1/v2:0)
 							break
 						case sMOD:
-							v=(Integer)(v2!=0 ? v1%v2 : 0)
+							v=(Integer)(v2!=0 ? v1%v2:0)
 							break
 						case sPWR:
 							v=v1 ** v2
@@ -8260,7 +8254,7 @@ private Map func_not(Map rtD,List<Map> params){
 private Map func_if(Map rtD,List<Map> params){
 	if(!checkParams(rtD,params,3)) return rtnErr('if(condition, valueIfTrue,valueIfFalse)')
 	Boolean value=(Boolean)evaluateExpression(rtD,params[0],sBOOLN).v
-	return value ? evaluateExpression(rtD,params[1]) : evaluateExpression(rtD,params[2])
+	return value ? evaluateExpression(rtD,params[1]):evaluateExpression(rtD,params[2])
 }
 
 /** isEmpty returns true if the value is empty					**/
@@ -8424,7 +8418,7 @@ private Map func_formatduration(Map rtD,List<Map> params){
 		sz=p.size()
 		switch(sz){
 			case 0:
-				result=showAdverbs ? 'now' : '0 '+partName+sS
+				result=showAdverbs ? 'now':'0 '+partName+sS
 				break
 			case 1:
 				result=p[0]
@@ -8450,7 +8444,7 @@ private Map func_formatdatetime(Map rtD,List<Map> params){
 	if(!checkParams(rtD,params,1) || sz>2) return rtnErr('formatDateTime(value[, format])')
 	Long value=(Long)evaluateExpression(rtD,params[0],sDTIME).v
 	String format=sz>1 ? (String)evaluateExpression(rtD,params[1],sSTR).v:sNULL
-	rtnMap(sSTR,(format ? formatLocalTime(value,format) : formatLocalTime(value)))
+	rtnMap(sSTR,(format ? formatLocalTime(value,format):formatLocalTime(value)))
 }
 
 /** random returns a random value						**/
@@ -8576,7 +8570,7 @@ private Map func_distance(Map rtD,List<Map> params){
 private static Map func_json(Map rtD,List<Map> params){
 	if(!checkParams(rtD,params,1) || params.size()>2) return rtnErr('json(value[, format])')
 	JsonBuilder builder=new JsonBuilder([((Map)params[0]).v])
-	String op=params[1] ? 'toPrettyString' : 'toString'
+	String op=params[1] ? 'toPrettyString':'toString'
 	String json=builder."${op}"()
 	rtnMap(sSTR,json[1..-2].trim())
 }
@@ -8658,31 +8652,17 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 	value=(value instanceof GString)? "$value".toString():value //get rid of GStrings
 	if(srcDataType==sNULL || srcDataType.length()==0 || srcDataType==sBOOLN || srcDataType==sDYN){
 		if(value instanceof List){srcDataType=sDEV}
-		else{
-			if(value instanceof Boolean){srcDataType=sBOOLN}
-			else{
-				if(value instanceof String){srcDataType=sSTR}
-				else{
-					if(value instanceof Integer){srcDataType=sINT}
-					else{
-						if(value instanceof Long || value instanceof BigInteger){srcDataType=sLONG}
-						else{
-							if(value instanceof Double){srcDataType=sDEC}
-							else{
-								if(value instanceof BigDecimal || value instanceof Float){srcDataType=sDEC; isfbd=true}
-								else{
-									if(value instanceof Map && value.x!=null && value.y!=null && value.z!=null){srcDataType='vector3'}
+		else if(value instanceof Boolean){srcDataType=sBOOLN}
+			else if(value instanceof String){srcDataType=sSTR}
+				else if(value instanceof Integer){srcDataType=sINT}
+					else if(value instanceof Long || value instanceof BigInteger){srcDataType=sLONG}
+						else if(value instanceof Double){srcDataType=sDEC}
+							else if(value instanceof BigDecimal || value instanceof Float){srcDataType=sDEC; isfbd=true}
+								else if(value instanceof Map && value.x!=null && value.y!=null && value.z!=null){srcDataType='vector3'}
 									else{
 										value="$value".toString()
 										srcDataType=sSTR
 									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 	//overrides
 	switch(srcDataType){
@@ -8695,7 +8675,7 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 		case sNUMBER: dataType=sDEC; break
 		case sENUM: dataType=sSTR; break
 	}
-	if((Boolean)rtD.eric)myDetail rtD,"cast $srcDataType ${isfbd ? sBLK:'bigDF'} $value as $dataType"
+	if((Boolean)rtD.eric)myDetail rtD,"cast $srcDataType ${isfbd ? 'bigDF':sBLK} $value as $dataType"
 	switch(dataType){
 		case sSTR:
 		case sTEXT:
@@ -8815,7 +8795,7 @@ private cast(Map rtD,ival,String dataT,String isrcDT=sNULL){
 		case 'vector3':
 			return value instanceof Map && value.x!=null && value.y!=null && value.z!=null ? value : [x:0,y:0,z:0]
 		case sORIENT:
-			return value instanceof Map ? getThreeAxisOrientation(value) : value
+			return value instanceof Map ? getThreeAxisOrientation(value):value
 		case 'ms':
 		case sS:
 		case 'm':
@@ -8912,7 +8892,6 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 
 	else if(result==lnull && dateOrTimeOrString instanceof String){
 		String sdate=dateOrTimeOrString
-
 		cnt=4
 		try{
 			Date tt1=(Date)toDateTime(sdate)
@@ -9091,7 +9070,7 @@ private static String hslToHex(hue,saturation,level){
 	if(s==dZERO){
 		r=g=b=l // achromatic
 	}else{
-		Double q=l<0.5D ? l*(dONE+s) : l+s-(l*s)
+		Double q=l<0.5D ? l*(dONE+s):l+s-(l*s)
 		Double p=2.0D*l-q
 		r=_hue2rgb(p,q,h+dONE/3.0D)
 		g=_hue2rgb(p,q,h)
@@ -9129,7 +9108,7 @@ private static List<Integer> hexToHsl(String hex){
 		h=s=dZERO // achromatic
 	}else{
 		Double d=max-min
-		s=l>0.5D ? d/(2.0D-max-min) : d/(max+min)
+		s=l>0.5D ? d/(2.0D-max-min):d/(max+min)
 		switch(max){
 			case r: h=(g-b)/d+(g<b ? 6.0D:dZERO); break
 			case g: h=(b-r)/d+2.0D; break
@@ -9181,7 +9160,6 @@ private Map log(message,Map rtD,Integer shift=-2,err=null,String cmd=sNULL,Boole
 	String prefix="║"
 	String prefix2="║"
 //	String pad=sBLK //"░"
-	//noinspection GroovyFallthrough
 	switch(mshift){
 		case 0:
 			level=0
@@ -9214,7 +9192,7 @@ private Map log(message,Map rtD,Integer shift=-2,err=null,String cmd=sNULL,Boole
 		}
 		List msgs=!hasErr ? myMsg.tokenize("\r"):[myMsg]
 		for(msg in msgs){
-			Boolean a=((List)rtD.logs).push([(sO):elapseT((Long)rtD.timestamp),(sP):prefix2,(sM):msg+(hasErr ? " $merr".toString() : sBLK),(sC):mcmd])
+			Boolean a=((List)rtD.logs).push([(sO):elapseT((Long)rtD.timestamp),(sP):prefix2,(sM):msg+(hasErr ? " $merr".toString():sBLK),(sC):mcmd])
 		}
 	}
 	String myPad=sSPC
@@ -9325,8 +9303,8 @@ private void initSunriseAndSunset(Map rtD){
 			Boolean bgtr= b>nmnght
 			Long srSkew= getSkew(a,'Sunrise')
 			Long ssSkew= getSkew(b,'Sunset')
-			a1= agtr ? Math.round(a-dMSDAY-srSkew) : a
-			b1= bgtr ? Math.round(b-dMSDAY-ssSkew) : b
+			a1= agtr ? Math.round(a-dMSDAY-srSkew):a
+			b1= bgtr ? Math.round(b-dMSDAY-ssSkew):b
 			c= agtr ? a : Math.round(a+dMSDAY+srSkew)
 			d= bgtr ? b : Math.round(b+dMSDAY+ssSkew)
 		}
@@ -9336,9 +9314,9 @@ private void initSunriseAndSunset(Map rtD){
 			sunrise: a,
 			sunset:b,
 			todayssunrise: a1,
-			calcsunrise: (a>c1 ? a : c1),
+			calcsunrise: (a>c1 ? a:c1),
 			todayssunset:b1,
-			calcsunset:(b>d1 ? b : d1),
+			calcsunset:(b>d1 ? b:d1),
 			tomorrowssunrise: c,
 			tomorrowssunset:d,
 			updated: t,
@@ -9379,7 +9357,7 @@ private Long getNextSunsetTime(Map rtD){
 Long getSkew(Long t4,String ttyp){
 	Date t1=new Date(t4)
 	Integer curMon=t1.month
-	curMon=(BigDecimal)location.latitude>0.0 ? curMon: ((curMon+6)%12) // normalize for southern hemisphere
+	curMon=(BigDecimal)location.latitude>0.0 ? curMon:((curMon+6)%12) // normalize for southern hemisphere
 	Integer day=t1.date
 
 	Integer addr
@@ -9584,8 +9562,8 @@ private getSystemVariableValue(Map rtD,String name){
 	case '$zipCode': return location.zipCode
 	case '$latitude': return ((BigDecimal)location.latitude).toString()
 	case '$longitude': return ((BigDecimal)location.longitude).toString()
-	case '$meridian': Integer h=localDate().hours; return (h<12 ? 'AM' : 'PM')
-	case '$meridianWithDots': Integer h=localDate().hours; return (h<12 ? 'A.M.' : 'P.M.')
+	case '$meridian': Integer h=localDate().hours; return (h<12 ? 'AM':'PM')
+	case '$meridianWithDots': Integer h=localDate().hours; return (h<12 ? 'A.M.':'P.M.')
 	case '$day': return localDate().date
 	case '$dayOfWeek': return localDate().day
 	case '$dayOfWeekName': return weekDaysFLD[localDate().day]
@@ -9600,7 +9578,7 @@ private getSystemVariableValue(Map rtD,String name){
 	case '$nextNoon': return getNextNoonTime()
 	case '$nextSunrise': return getNextSunriseTime(rtD)
 	case '$nextSunset': return getNextSunsetTime(rtD)
-	case '$time': Date t=localDate(); Integer h=t.hours; Integer m=t.minutes; return ((h==0 ? 12:(h>12 ? h-12:h))+sCOLON+(m<10 ? "0$m":"$m")+sSPC+(h <12 ? 'A.M.' : 'P.M.')).toString()
+	case '$time': Date t=localDate(); Integer h=t.hours; Integer m=t.minutes; return ((h==0 ? 12:(h>12 ? h-12:h))+sCOLON+(m<10 ? "0$m":"$m")+sSPC+(h <12 ? 'A.M.':'P.M.')).toString()
 	case '$time24': Date t=localDate(); Integer h=t.hours; Integer m=t.minutes; return (h+sCOLON+(m<10 ? "0$m":"$m")).toString()
 	case '$random':
 		def tresult=getRandomValue(rtD,name)
@@ -9834,12 +9812,12 @@ Map<String,Object> fixHeGType(Boolean toHubV,String typ,v,String dtyp){
 				break
 			case sDEV:
 				// HE this is a List<String> -> String of words separated by a space (can split())
-				List<String> dL= v instanceof List ? (List<String>)v : (v ? (List<String>)[v]:[])
+				List<String> dL= v instanceof List ? (List<String>)v:(v ? (List<String>)[v]:[])
 				String res=sNULL
 				Boolean ok=true
 				dL.each{ String it->
 					if(ok && isWcDev(it)){
-						res= res ? res+sSPC+it : it
+						res= res ? res+sSPC+it:it
 					} else ok=false
 				}
 				if(ok){
@@ -9852,7 +9830,7 @@ Map<String,Object> fixHeGType(Boolean toHubV,String typ,v,String dtyp){
 				break
 			case sTIME:
 				if(eric())log.warn "got time $v"
-				Long aaa= ("$v".isNumber()) ? v as Long : null
+				Long aaa= ("$v".isNumber()) ? v as Long:null
 				if(aaa!=null){
 					if(aaa<lMSDAY && aaa>=0L){
 						Long t0=getMidnightTime()
@@ -9980,10 +9958,10 @@ private static String md5(String md5){
 	return result
 }
 
-@Field volatile static Map<String,Map> theHashMapVFLD=[:]
+@Field volatile static Map<String,Map<String,String>> theHashMapVFLD=[:]
 
 static void clearHashMap(String wName){
-	theHashMapVFLD[wName]=[:]
+	theHashMapVFLD[wName]=[:] as Map<String,String>
 	theHashMapVFLD=theHashMapVFLD
 }
 
@@ -9995,9 +9973,9 @@ private String hashId(id,Boolean updateCache=true){
 	//enabled hash caching for faster processing
 	String result
 	String myId=id.toString()
-	String wName= parent ? ((Long)parent.id).toString() : sAppId()
+	String wName= parent ? ((Long)parent.id).toString():sAppId()
 	if(theHashMapVFLD[wName]==null) clearHashMap(wName)
-	result=(String)theHashMapVFLD[wName][myId]
+	result=theHashMapVFLD[wName][myId]
 	if(result==sNULL){
 		result=sCOLON+md5('core.' + myId)+sCOLON
 		theHashMapVFLD[wName][myId]=result
