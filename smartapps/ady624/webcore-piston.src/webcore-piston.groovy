@@ -2360,8 +2360,9 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 		a=tlist.push(lastST)
 	}
 	a=tlist.push(newMap)
-	Integer t1=settings.maxStats!=null ? (Integer)settings.maxStats: (Integer)getPistonLimits.maxStats
-	if(t1<=0)t1=(Integer)getPistonLimits.maxStats
+	Integer mS=(Integer)getPistonLimits.maxStats
+	Integer t1=settings.maxStats!=null ? (Integer)settings.maxStats: mS
+	if(t1<=0)t1=mS
 	if(t1<2)t1=2
 	Integer t2=tlist.size()
 	if(t2>t1)tlist=tlist[t2-t1..t2-1]
@@ -2449,15 +2450,15 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 		a=schedules.removeAll{ Map it -> (Integer)it.ps!=0 }
 
 	rtD.cancelations=[statements:[],conditions:[],all:false]
-	schedules=(schedules+(List<Map>)rtD.schedules)//.sort{ (Long)it.t }
 
+	schedules=(schedules+(List<Map>)rtD.schedules)//.sort{ (Long)it.t }
 	updateSchCache(rtD, schedules, str+sONE, sT, myPep)
 
 	if(scheduleJob){
 		Long nextT=lZ
 		Integer ssz=schedules.size()
 		if(ssz>0){
-			Map tnext=((List<Map>)schedules).sort{ Map it -> (Long)it.t }[0]
+			Map tnext=schedules.sort{ Map it -> (Long)it.t }[0]
 			nextT=(Long)tnext.t
 			Long t=(nextT-(Long)now())+30L
 			t=(t<250L ? 250L:t)
@@ -2513,8 +2514,9 @@ private void updateLogs(Map rtD,Long lastExecute=null){
 
 	if(((List)rtD.logs).size()>1){
 		Boolean myPep=(Boolean)rtD.pep
-		Integer lim=settings.maxLogs!=null ? (Integer)settings.maxLogs:(Integer)getPistonLimits.maxLogs
-		if(lim<0)lim=(Integer)getPistonLimits.maxLogs
+		Integer myL=(Integer)getPistonLimits.maxLogs
+		Integer lim=settings.maxLogs!=null ? (Integer)settings.maxLogs:myL
+		if(lim<0)lim=myL
 
 		List t0
 		cacheMap=getCachedMaps(str+sONE)
@@ -2783,7 +2785,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 							rtD.cache[sidx]=index
 						}
 						rtD.systemVars[sDLLRINDX].v=index
-						if(isEach && ((Integer)rtD.ffTo==0||(Integer)rtD.ffTo==-9))setSystemVariableValue(rtD,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
+						if(isEach && (Integer)rtD.ffTo in [0,-9])setSystemVariableValue(rtD,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
 						if(counterVariable!=sNULL && (Integer)rtD.ffTo==0)Map m=setVariable(rtD,counterVariable, isEach ? (index<dsiz ? [devices[index.toInteger()]]:[]):index)
 						//do the loop
 						perform=executeStatements(rtD,(List)statement.s,async)
@@ -3409,22 +3411,20 @@ private void scheduleTimeCondition(Map rtD,Map condition){
 	Integer pCnt=comparison.p!=null ? (Integer)comparison.p:0
 	if(!pCnt)return
 
-	Long lnow=(Long)now()
 	Map tv1=condition.ro!=null && (String)condition.ro.t!=sC ? (Map)evaluateOperand(rtD,null,(Map)condition.to):null
 	Long v1=(Long)evaluateExpression(rtD,(Map)evaluateOperand(rtD,null,(Map)condition.ro),sDTIME).v + (tv1!=null ? (Long)evaluateExpression(rtD,rtnMap1(sDURATION,tv1.v,(String)tv1.vt),sLONG).v : lZ)
 	Map tv2=condition.ro2!=null && (String)condition.ro2.t!=sC && pCnt>1 ? (Map)evaluateOperand(rtD,null,(Map)condition.to2):null
 	Long v2=trigger ? v1 : (pCnt>1 ? ((Long)evaluateExpression(rtD,(Map)evaluateOperand(rtD,null,(Map)condition.ro2,null,false,true),sDTIME).v + (tv2!=null ? (Long)evaluateExpression(rtD,rtnMap1(sDURATION,tv2.v,(String)tv2.vt)).v : lZ)) : (String)condition.lo.v==sTIME ? getMidnightTime():v1 )
-	Long n=Math.round(dONE*lnow+2000L)
+	Long n=Math.round(dONE*(Long)now()+2000L)
 	if((String)condition.lo.v==sTIME){
 		v1=pushTimeAhead(v1,n)
 		v2=pushTimeAhead(v2,n)
 	}
 	//figure out the next time
-	v1=(v1<n)? v2:v1
-	v2=(v2<n)? v1:v2
+	v1=v1<n ? v2:v1
+	v2=v2<n ? v1:v2
 	n=v1<v2 ? v1:v2
-	lnow=(Long)now()
-	if(n>lnow){
+	if(n>(Long)now()){
 		if((Integer)rtD.logging>2)debug "Requesting time schedule wake up at ${formatLocalTime(n)}",rtD
 		requestWakeUp(rtD,condition,[(sDLR):0],n)
 	}
@@ -5313,7 +5313,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 			try{
 				//physical support
 				//value.p=lo.operand.p
-				if(value && ((String)value.v.t==sDEV))value.v=evaluateExpression(rtD,(Map)value.v,sDYN)
+				if(value && (String)value.v.t==sDEV)value.v=evaluateExpression(rtD,(Map)value.v,sDYN)
 				if(!ro){
 					Map msg=[:]
 					if(lg>2)msg=timer sBLK,rtD
@@ -5340,7 +5340,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 					res= roG!=sANY
 					//if multiple right values go through each
 					for(Map<String,Map> rvalue in (List<Map>)ro.values){
-						if(rvalue && ((String)rvalue.v.t==sDEV))rvalue.v=evaluateExpression(rtD,(Map)rvalue.v,sDYN)
+						if(rvalue && (String)rvalue.v.t==sDEV)rvalue.v=evaluateExpression(rtD,(Map)rvalue.v,sDYN)
 						if(!ro2){
 							Map msg=[:]
 							if(lg>2)msg=timer sBLK,rtD
@@ -5354,7 +5354,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 							rres=ro2G!=sANY
 							//if multiple right2 values go through each
 							for(Map<String,Map> r2value in (List<Map>)ro2.values){
-								if(r2value && ((String)r2value.v.t==sDEV))r2value.v=evaluateExpression(rtD,(Map)r2value.v,sDYN)
+								if(r2value && (String)r2value.v.t==sDEV)r2value.v=evaluateExpression(rtD,(Map)r2value.v,sDYN)
 								Map msg=[:]
 								if(lg>2)msg=timer sBLK,rtD
 //if((Boolean)rtD.eric) myDetail rtD,"$fn $value   $rvalue    $r2value    $tvalue   $tvalue2",1
@@ -5524,7 +5524,7 @@ private static Map valueCacheChanged(Map rtD,Map comparisonValue){
 	}
 
 	//comparison low level functions
-	private Boolean comp_is					(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return ((String)evaluateExpression(rtD,(Map)lv.v,sSTR).v==(String)evaluateExpression(rtD,(Map)rv.v,sSTR).v)|| (lv.v.n && ((String)cast(rtD,lv.v.n,sSTR)==(String)cast(rtD,rv.v.v,sSTR)))}
+	private Boolean comp_is					(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return ((String)evaluateExpression(rtD,(Map)lv.v,sSTR).v==(String)evaluateExpression(rtD,(Map)rv.v,sSTR).v)|| (lv.v.n && (String)cast(rtD,lv.v.n,sSTR)==(String)cast(rtD,rv.v.v,sSTR))}
 	private Boolean comp_is_not				(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is(rtD,lv,rv,rv2,tv,tv2)}
 	private Boolean comp_is_equal_to		(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ String dt=(((String)lv?.v?.t==sDEC)|| ((String)rv?.v?.t==sDEC)? sDEC:(((String)lv?.v?.t==sINT)|| ((String)rv?.v?.t==sINT)? sINT:sDYN)); return evaluateExpression(rtD,(Map)lv.v,dt).v==evaluateExpression(rtD,(Map)rv.v,dt).v }
 	private Boolean comp_is_not_equal_to	(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is_equal_to(rtD,lv,rv,rv2,tv,tv2)}
@@ -5591,7 +5591,7 @@ private static Boolean comp_changes		(Map rtD,Map lv,Map rv=null,Map rv2=null,Ma
 private static Boolean comp_changes_to	(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return valueCacheChanged(rtD,lv)!=null && ("${lv.v.v}"=="${rv.v.v}") && matchDeviceInteraction((String)lv.v.p,rtD)}
 private static Boolean comp_receives	(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return ("${lv.v.v}"=="${rv.v.v}") && matchDeviceInteraction((String)lv.v.p,rtD)}
 private static Boolean comp_changes_away_from		(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Map oldValue=valueCacheChanged(rtD,lv); return oldValue!=null && ("${oldValue.v.v}"=="${rv.v.v}") && matchDeviceInteraction((String)lv.v.p,rtD)}
-private Boolean comp_drops				(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Map oldValue=valueCacheChanged(rtD,lv); return oldValue!=null && ((Double)cast(rtD,oldValue.v.v,sDEC)>(Double)cast(rtD,lv.v.v,sDEC))}
+private Boolean comp_drops				(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Map oldValue=valueCacheChanged(rtD,lv); return oldValue!=null && (Double)cast(rtD,oldValue.v.v,sDEC)>(Double)cast(rtD,lv.v.v,sDEC)}
 private Boolean comp_does_not_drop		(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_drops(rtD,lv,rv,rv2,tv,tv2)}
 private Boolean comp_drops_below		(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Map oldValue=valueCacheChanged(rtD,lv); return oldValue!=null && ((Double)cast(rtD,oldValue.v.v,sDEC)>=(Double)cast(rtD,rv.v.v,sDEC)) && ((Double)cast(rtD,lv.v.v,sDEC)<(Double)cast(rtD,rv.v.v,sDEC))}
 private Boolean comp_drops_to_or_below	(Map rtD,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Map oldValue=valueCacheChanged(rtD,lv); return oldValue!=null && ((Double)cast(rtD,oldValue.v.v,sDEC)>(Double)cast(rtD,rv.v.v,sDEC)) && ((Double)cast(rtD,lv.v.v,sDEC)<=(Double)cast(rtD,rv.v.v,sDEC))}
@@ -5642,7 +5642,7 @@ private void traverseStatements(node,Closure closure,parentNode=null,Map data=nu
 		for(item in (List<Map>)node)
 			if(!item.di){
 				Boolean lastTimer=(data!=null && (Boolean)data.timer)
-				if(data!=null && ((String)item.t==sEVERY)) data.timer=true
+				if(data!=null && (String)item.t==sEVERY) data.timer=true
 				traverseStatements(item,closure,parentNode,data)
 				if(data!=null) data.timer=lastTimer
 			}
@@ -5809,7 +5809,7 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 
 							allowAval= subscriptions[subsId]?.allowA==null ? true : (Boolean)subscriptions[subsId].allowA
 							String attrVal=sNULL
-							if(allowAval && ((String)node.co=='receives' || (String)node.co=='gets') && value && (String)value.t==sC && value.c){
+							if(allowAval && ((String)node.co in ['receives','gets']) && value && (String)value.t==sC && value.c){
 								attrVal=(String)value.c
 								//msgVal='Attempting Attribute value'
 								avals=(List)subscriptions[subsId]?.avals ?: []
@@ -6030,10 +6030,12 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 			String devStr=(String)subscription.value.d
 			String altSub=never
 			String always='always'
-			for(condition in (List<Map>)subscription.value.c)if(condition){
-				condition.s=false // this modifies the code
-				String tt0=(String)condition.sm
-				altSub= tt0==always ? tt0 : (altSub!=always && tt0!=never ? tt0 : altSub)
+			for(condition in (List<Map>)subscription.value.c){
+				if(condition){
+					condition.s=false // this modifies the code
+					String tt0=(String)condition.sm
+					altSub= tt0==always ? tt0 : (altSub!=always && tt0!=never ? tt0 : altSub)
+				}
 			}
 			// check for disabled event subscriptions
 			if(!rtD.piston.o?.des && (String)subscription.value.t && !!subscription.value.c && altSub!=never && ((String)subscription.value.t==sTRIG || altSub==always || !hasTriggers)){
@@ -6045,12 +6047,15 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 					allowA=false
 				}
 				if(device!=null){
-					for(condition in (List<Map>)subscription.value.c) if(condition){
-						String t1=(String)condition.sm
-						condition.s= t1!=never && ((String)condition.ct==sT || t1==always || !hasTriggers) // modifies the code
+					for(condition in (List<Map>)subscription.value.c){
+						if(condition){
+							String t1=(String)condition.sm
+							condition.s= t1!=never && ((String)condition.ct==sT || t1==always || !hasTriggers) // modifies the code
+						}
 					}
-					if(a in LT1) break
-					else{
+					if(a in LT1){
+						;
+					}else{
 						Integer cnt=ss.events
 						List avals=(List)subscription.value.avals
 						if(allowA && avals.size()<9){
@@ -6080,7 +6085,9 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 					error "Failed subscribing to $devStr.${a}, device not found",rtD
 				}
 			}else{
-				for(condition in (List<Map>)subscription.value.c)if(condition){ condition.s=false } // modifies the code
+				for(condition in (List<Map>)subscription.value.c){
+					if(condition){ condition.s=false } // modifies the code
+				}
 				if(devices[devStr]) devices[devStr].c=(Integer)devices[devStr].c-1
 			}
 		}
