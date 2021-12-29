@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update December 26, 2021 for Hubitat
+ * Last update December 28, 2021 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -290,6 +290,7 @@ static Boolean eric1(){ return false }
 @Field static final Integer iN1=-1
 @Field static final Integer iN2=-2
 @Field static final Integer iN3=-3
+@Field static final Integer iN5=-5
 @Field static final Integer iN9=-9
 @Field static final Integer iZ=0
 @Field static final Integer i1=1
@@ -605,7 +606,7 @@ void uninstalled(){
 }
 
 void initialize(){
-	svSunTFLD=null
+	svSunTFLD=null; mb()
 	String tt1=(String)settings.logging
 	Integer tt2=(Integer)state.logging
 	String tt3=tt2.toString()
@@ -727,14 +728,10 @@ private void clearMyPiston(String meth=sNULL){
 	if(pData!=null){
 		LinkedHashMap<String,Object> t0=(LinkedHashMap<String,Object>)pData.pis
 		if(t0){
-			List<String> data=t0.collect{ (String)it.key }
-			def a
-			for(item in data)a=t0.remove((String)item)
 			thePistonCacheFLD[pisName].pis=null
 			mb()
 			cleared=true
 		}
-		pData=null
 	}
 	if(cleared && eric()){
 		log.debug 'clearing piston-code-cache '+meth
@@ -933,6 +930,7 @@ private void cleanCode(item){
 		ListC2=[sC,sS,sX,sV,sE]	//sD device, sP phys, u arg
 		ListC3=[sS,sX,sV,sE]	// sD, sP, sC (const), u
 		if(!LT1){ LT1=fill_TIM() }
+		mb()
 	}
 	String av='avg'
 	def a
@@ -1892,11 +1890,11 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	}else{
 		startTime=(Long)now()
 		Map msg2=null
-		if(lg>iZ)msg2=timer "Execution stage complete.",rtD,iN1
+		if(lg>i1)msg2=timer "Execution stage complete.",rtD,iN1
 		Boolean success=true
 		Boolean firstTime=true
 		if(!(evntName in [sTIME,sASYNCREP])){
-			if(lg>iZ)info "Execution stage started",rtD,i1
+			if(lg>i1)trace "Execution stage started",rtD,i1
 			success=executeEvent(rtD,event)
 			firstTime=false
 		}
@@ -2039,9 +2037,9 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 					doPause("Synchronizing scheduled event, waiting for ${delay}ms".toString(),delay,rtD,true)
 				}
 			}
-			if(lg>iZ && firstTime){
+			if(lg>i1 && firstTime){
 				msg2=timer "Execution stage complete.",rtD,iN1
-				info "Execution stage started",rtD,i1
+				trace "Execution stage started",rtD,i1
 			}
 			success=executeEvent(rtD,event)
 			firstTime=false
@@ -2230,21 +2228,35 @@ private Boolean executeEvent(Map rtD,event){
 			Boolean allowed=!rtD.piston.r || ((List)rtD.piston.r).size()==iZ || evaluateConditions(rtD,(Map)rtD.piston,sR,true)
 			rtD.restricted=!(Integer)rtD.piston.o?.aps && !allowed //allowPreScheduled tasks to execute during restrictions
 			if(allowed || (Integer)rtD.ffTo!=iZ){
-				if((Integer)rtD.ffTo==iN3){
-					//device related time schedules
-					def data=event.schedule.d
-					if(data!=null && (String)data.d && (String)data.c){
-						//we have a device schedule, execute it
-						def device=getDevice(rtD,(String)data.d)
-						if(device!=null){
-							if(!(Boolean)rtD.restricted || (Boolean)data.ig){
-								//executing scheduled physical command
-								//used by command execution delay, fades, flashes,etc.
-								Boolean dco= data.dc!=null ? (Boolean)data.dc : true
-								executePhysicalCommand(rtD,device,(String)data.c,data.p,lZ,sNULL,dco,true)
-							}else{
-								if(lg)debug 'Piston device timer execution aborted due to restrictions in effect',rtD
+				if((Integer)rtD.ffTo in [iN3,iN5]){
+					if((Integer)rtD.ffTo==iN3){
+						//device related time schedules
+						def data=event.schedule.d
+						if(data!=null && (String)data.d && (String)data.c){
+							//we have a device schedule, execute it
+							def device=getDevice(rtD,(String)data.d)
+							if(device!=null){
+								if(!(Boolean)rtD.restricted || (Boolean)data.ig){
+									//executing scheduled physical command
+									//used by command execution delay, fades, flashes,etc.
+									Boolean dco= data.dc!=null ? (Boolean)data.dc : true
+									executePhysicalCommand(rtD,device,(String)data.c,data.p,lZ,sNULL,dco,false,false)
+								}else{
+									if(lg)debug 'Piston device timer execution aborted due to restrictions in effect',rtD
+								}
 							}
+						}
+					}else{ // iN5
+						if(!(Boolean)rtD.restricted){
+							Map jq=event.schedule.jq
+							if(jq!=null) {
+								Map statement=[tcp:jq.tcp, $:jq.$]
+								rtD.currentAction=statement
+								runRepeat(rtD, jq)
+								rtD.remove('currentAction')
+							}
+						}else{
+							if(lg)debug 'Piston repeat task timer execution aborted due to restrictions in effect',rtD
 						}
 					}
 				}else{
@@ -2465,7 +2477,7 @@ private void processSchedules(Map rtD,Boolean scheduleJob=false){
 	if((Boolean)rtD.cancelations.all){
 		//a=schedules.removeAll{ (Integer)it.i>iZ }
 		//if we have any other pending -3 events (device schedules) we cancel them all
-		a=schedules.removeAll{ Map it -> (Integer)it.i>iZ || (Integer)it.i==iN3 }
+		a=schedules.removeAll{ Map it -> (Integer)it.i>iZ || (Integer)it.i in [iN3,iN5] }
 	}
 
 	//cancel statements
@@ -3171,15 +3183,18 @@ private Long executeVirtualCommand(Map rtD,devices,String command,List params){
 	return delay
 }
 
-private void executePhysicalCommand(Map rtD,device,String command,params=[],Long idel=lZ,String isched=sNULL,Boolean dco=false,Boolean irun=false){
+private void executePhysicalCommand(Map rtD,device,String command,params=[],Long idel=lZ,String isched=sNULL,Boolean dco=false,Boolean doced=true, Boolean canq=true){
 	Long delay=idel
 	String scheduleDevice=isched
 	Boolean willQ=delay!=lZ && scheduleDevice!=sNULL
 
+	Boolean elg=(Boolean)rtD.eric
 	//delay on device commands is not supported in hubitat; using schedules instead
 	String s=sBLK
-	Boolean ignRes=false
-	if(!irun){
+	String s1=sBLK
+	if(elg)s1="wait before command delay: $delay "
+	Boolean ignRest=false
+	if(doced){
 		Long t0=(Integer)rtD.piston.o?.ced ? ((Integer)rtD.piston.o.ced).toLong():lZ
 		if(t0>lZ){
 			Long t1=(Long)getPistonLimits.deviceMaxDelay
@@ -3188,21 +3203,22 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 			Long cmdsnt=(Long)rtD.lastPCmdSnt ?: lZ
 			Long lastcmdSent= cmdqt&&cmdsnt ? Math.max(cmdqt,cmdsnt) : (cmdqt ?: cmdsnt)
 			Long waitT= t0+lastcmdSent-(Long)now()
-			String sst="cmdqt: $cmdqt cmdsnt: $cmdsnt delay: $delay waitT: $waitT lastcmdSent: $lastcmdSent ced: $t0 "
-			s="No command execution delay required "
+			String sst=sBLK
+			if(elg)sst=s1+"cmdqt: $cmdqt cmdsnt: $cmdsnt waitT: $waitT lastcmdSent: $lastcmdSent ced: $t0 "
+			s="No command execution delay required "+s1
 			if(waitT>t0/i4){
 				t1=delay
-				ignRes= !willQ
+				ignRest= !willQ
 				delay= waitT>delay ? waitT:delay
 				scheduleDevice= scheduleDevice ?: hashId(device.id)
 				willQ=true
-				if(waitT>t1) s="Injecting command execution delay of ${waitT-t1}ms before [$device].$command() added schedule: $ignRes "
+				if(waitT>t1) s="Injecting command execution delay of ${waitT-t1}ms before [$device].$command() added schedule "
 			}
-			s+=sst+"updated delay: $delay "
+			if(elg)s+=sst+"updated delay: $delay ignore restrictions: $ignRest"
 		}
 	}
 
-	if(willQ){
+	if(willQ && canq){
 		Map statement=(Map)rtD.currentAction
 		// cancel on c- condition state change (def), p- piston state change, b- condition or piston state change, ""- never cancel
 		List<Integer> cs=[]+ ((String)statement.tcp in [sB,sC] ? (rtD.stack?.cs!=null ? (List<Integer>)rtD.stack.cs:[]):[]) // task cancelation policy
@@ -3222,11 +3238,11 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 				(sP):params
 			]
 		]
-		if(ignRes){
+		if(ignRest){
 			schedule.d.dc=dco
-			schedule.d.ig=ignRes
+			schedule.d.ig=ignRest
 		}
-		if((Boolean)rtD.eric)trace s+"Requesting a physical command wake up for ${formatLocalTime(ttt)}",rtD
+		if(elg)trace s+"Requesting a physical command wake up for ${formatLocalTime(ttt)}",rtD
 		a=((List<Map>)rtD.schedules).push(schedule)
 	}else{
 		try{
@@ -3235,8 +3251,15 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 			Integer psz=nparams.size()
 			def a
 			while (psz>iZ && nparams[psz-i1]==null){ a=nparams.pop(); psz=nparams.size() }
-			Map msg=null
 			Boolean doL=(Integer)rtD.logging>i2
+			String tailStr=sNULL
+			if(!canq && delay>lZ){
+				Long t1=(Long)getPistonLimits.deviceMaxDelay
+				delay=delay>t1 ? t1:delay
+				doPause("PAUSE wait before device command: Waiting for ${delay}ms",delay,rtD,true)
+				if(doL) tailStr="[delay: $delay])".toString()
+			}
+			Map msg=null
 			if(doL)msg=timer sBLK,rtD
 			Boolean skip=false
 			// disableCommandOptimization
@@ -3258,13 +3281,6 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 			if(skip){
 				if(doL) msg.m='Skipped execution of'+tstr+"$nparams".toString()+') because it would make no change to the device.'+s
 			}else{
-				String tailStr=sNULL
-				Long t1=(Long)getPistonLimits.deviceMaxDelay
-				delay=delay>t1 ? t1:delay
-				if(delay>lZ){
-					doPause("wait before device command: Waiting for ${delay}ms",delay,rtD,true)
-					if(doL) tailStr="[delay: $delay])".toString()
-				}
 				if(doL) tstr='Executed'+tstr
 				rtD.lastPCmdSnt=(Long)now()
 				if(psz>iZ){
@@ -3705,7 +3721,7 @@ private Long cmd_setInfraredLevel(Map rtD,device,List params){
 }
 
 private Long cmd_setHue(Map rtD,device,List params){
-	Integer hue=(Integer)cast(rtD,Math.round((Integer)params[iZ]/d3d6),sINT)
+	Integer hue= Math.round((Integer)params[iZ]/d3d6).toInteger()
 	return do_setLevel(rtD,device,params,sSHUE,hue)
 }
 
@@ -3722,7 +3738,7 @@ private Map getColor(Map rtD,String colorValue){
 	if(color!=null){
 		color=[
 			hex:(String)color.rgb,
-			(sHUE):Math.round((Integer)color.h/d3d6),
+			(sHUE):Math.round((Integer)color.h/d3d6).toInteger(),
 			(sSATUR):(Integer)color.s,
 			(sLVL):(Integer)color.l
 		]
@@ -3731,7 +3747,7 @@ private Map getColor(Map rtD,String colorValue){
 		if(color!=null){
 			color=[
 				hex:(String)color.hex,
-				(sHUE):Math.round((Integer)color.hue/d3d6),
+				(sHUE):Math.round((Integer)color.hue/d3d6).toInteger(),
 				(sSATUR):(Integer)color.saturation,
 				(sLVL):(Integer)color.level
 			]
@@ -3763,7 +3779,7 @@ private Long cmd_setAdjustedColor(Map rtD,device,List params){
 	Integer psz=params.size()
 	String mat=psz>i2 ? (String)params[i2]:sNULL
 	if(mat!=sNULL && (String)getDeviceAttributeValue(rtD,device,sSWITCH)!=mat) return lZ
-	Long duration=(Long)cast(rtD,params[i1],sLONG)
+	Long duration=matchCastL(rtD,params[i1])
 	Long delay=psz>i3 ? (Long)params[i3]:lZ
 	executePhysicalCommand(rtD,device,'setAdjustedColor',[color,duration],delay)
 	return lZ
@@ -3774,8 +3790,8 @@ private Long cmd_setAdjustedHSLColor(Map rtD,device,List params){
 	String mat=psz>i4 ? (String)params[i4]:sNULL
 	if(mat!=sNULL && (String)getDeviceAttributeValue(rtD,device,sSWITCH)!=mat) return lZ
 
-	Long duration=(Long)cast(rtD,params[i3],sLONG)
-	Integer hue=(Integer)cast(rtD,Math.round((Integer)params[iZ]/d3d6),sINT,sLONG)
+	Long duration=matchCastL(rtD,params[i3])
+	Integer hue= Math.round((Integer)params[iZ]/d3d6).toInteger()
 	Integer saturation=(Integer)params[i1]
 	Integer level=(Integer)params[i2]
 	def color=[
@@ -3789,13 +3805,13 @@ private Long cmd_setAdjustedHSLColor(Map rtD,device,List params){
 }
 
 private Long cmd_setLoopDuration(Map rtD,device,List params){
-	Integer duration=Math.round((Long)cast(rtD,params[iZ],sLONG)/d1000).toInteger()
+	Integer duration=Math.round(matchCastL(rtD,params[iZ])/d1000).toInteger()
 	executePhysicalCommand(rtD,device,'setLoopDuration',duration)
 	return lZ
 }
 
 private Long cmd_setVideoLength(Map rtD,device,List params){
-	Integer duration=Math.round((Long)cast(rtD,params[iZ],sLONG)/d1000).toInteger()
+	Integer duration=Math.round(matchCastL(rtD,params[iZ])/d1000).toInteger()
 	executePhysicalCommand(rtD,device,'setVideoLength',duration)
 	return lZ
 }
@@ -3823,7 +3839,7 @@ private Long vcmd_setState(Map rtD,device,List params){
 }
 
 private Long vcmd_setTileColor(Map rtD,device,List params){
-	Integer index=(Integer)cast(rtD,params[iZ],sINT)
+	Integer index=matchCastI(rtD,params[iZ])
 	if(index<i1 || index>16)return lZ
 	String sIdx=index.toString()
 	rtD.state[sC+sIdx]=(String)getColor(rtD,(String)params[i1])?.hex
@@ -3849,14 +3865,14 @@ private Long vcmd_setTileOTitle(Map rtD,device,List params){
 }
 
 private Long helper_setTile(Map rtD,String typ,List params){
-	Integer index=(Integer)cast(rtD,params[iZ],sINT)
+	Integer index=matchCastI(rtD,params[iZ])
 	if(index<i1 || index>16)return lZ
 	rtD.state["${typ}$index".toString()]=(String)params[i1]
 	return lZ
 }
 
 private Long vcmd_setTile(Map rtD,device,List params){
-	Integer index=(Integer)cast(rtD,params[iZ],sINT)
+	Integer index=matchCastI(rtD,params[iZ])
 	if(index<i1 || index>16)return lZ
 	String sIdx=index.toString()
 	rtD.state[sI+sIdx]=(String)params[i1]
@@ -3869,7 +3885,7 @@ private Long vcmd_setTile(Map rtD,device,List params){
 }
 
 private Long vcmd_clearTile(Map rtD,device,List params){
-	Integer index=(Integer)cast(rtD,params[iZ],sINT)
+	Integer index=matchCastI(rtD,params[iZ])
 	if(index<i1 || index>16)return lZ
 	String sIdx=index.toString()
 	Map t0=(Map)rtD.state
@@ -3936,15 +3952,12 @@ private static Long vcmd_noop(Map rtD,device,List params){
 }
 
 private Long vcmd_wait(Map rtD,device,List params){
-	def v=params[iZ]
-	return matchCast(rtD,v,sLONG) ? (Long)v:(Long)cast(rtD,v,sLONG)
+	return matchCastL(rtD,params[iZ])
 }
 
 private Long vcmd_waitRandom(Map rtD,device,List params){
-	def v=params[iZ]
-	Long min=matchCast(rtD,v,sLONG) ? (Long)v:(Long)cast(rtD,v,sLONG)
-	v=params[i1]
-	Long max=matchCast(rtD,v,sLONG) ? (Long)v:(Long)cast(rtD,v,sLONG)
+	Long min=matchCastL(rtD,params[iZ])
+	Long max=matchCastL(rtD,params[i1])
 	if(max<min){
 		Long t=max
 		max=min
@@ -3979,7 +3992,7 @@ private Long vcmd_toggle(Map rtD,device,List params){
 }
 
 private Long vcmd_toggleRandom(Map rtD,device,List params){
-	Integer probability=(Integer)cast(rtD,params.size()==i1 ? params[iZ]:50,sINT)
+	Integer probability=matchCastI(rtD,params.size()==1 ? params[iZ]:50)
 	if(probability<=iZ)probability=50
 	executePhysicalCommand(rtD,device,(Integer)Math.round(d100*Math.random()).toInteger()<=probability ? sON : sOFF)
 	return lZ
@@ -3992,12 +4005,12 @@ private Long vcmd_toggleLevel(Map rtD,device,List params){
 }
 
 private Long do_adjustLevel(Map rtD,device,List params,String attr,String attr1,Integer val=null,Boolean big=false){
-	Integer arg=val!=null ? val : (Integer)cast(rtD,params[iZ],sINT)
+	Integer arg=val!=null ? val : matchCastI(rtD,params[iZ])
 	Integer psz=params.size()
 	String mat=psz>i1 ? (String)params[i1]:sNULL
 	if(mat!=sNULL && (String)getDeviceAttributeValue(rtD,device,sSWITCH)!=mat) return lZ
 	Long delay=psz>i2 ? (Long)params[i2]:lZ
-	arg=arg+(Integer)cast(rtD,getDeviceAttributeValue(rtD,device,attr),sINT)
+	arg=arg+matchCastI(rtD,getDeviceAttributeValue(rtD,device,attr))
 	Integer low=big ? 1000:iZ
 	Integer hi=big ? 30000:100
 	arg=(arg<low)? low:((arg>hi)? hi:arg)
@@ -4018,7 +4031,7 @@ private Long vcmd_adjustSaturation(Map rtD,device,List params){
 }
 
 private Long vcmd_adjustHue(Map rtD,device,List params){
-	Integer hue=(Integer)cast(rtD,Math.round((Integer)params[iZ]/d3d6),sINT,sLONG)
+	Integer hue= Math.round((Integer)params[iZ]/d3d6).toInteger()
 	return do_adjustLevel(rtD,device,params,sHUE,sSHUE,hue)
 }
 
@@ -4030,15 +4043,17 @@ private Long do_fadeLevel(Map rtD,device,List params,String attr,String attr1,In
 	Integer startLevel
 	Integer endLevel
 	if(val==null){
-		startLevel=(params[iZ]!=null)? (Integer)cast(rtD,params[iZ],sINT):(Integer)cast(rtD,getDeviceAttributeValue(rtD,device,attr),sINT)
-		endLevel=(Integer)cast(rtD,params[i1],sINT)
+		def d=params[iZ]
+		def d1= d!=null ? d:getDeviceAttributeValue(rtD,device,attr)
+		startLevel= matchCastI(rtD,d1)
+		endLevel=matchCastI(rtD,params[i1])
 	}else{
 		startLevel=val
 		endLevel=val1
 	}
 	String mat=params.size()>i3 ? (String)params[i3]:sNULL
 	if(mat!=sNULL && (String)getDeviceAttributeValue(rtD,device,sSWITCH)!=mat) return lZ
-	Long duration=(Long)cast(rtD,params[i2],sLONG)
+	Long duration=matchCastL(rtD,params[i2])
 	Integer low=big ? 1000:iZ
 	Integer hi=big ? 30000:100
 	startLevel=(startLevel<low)? low:((startLevel>hi)? hi:startLevel)
@@ -4059,8 +4074,8 @@ private Long vcmd_fadeSaturation(Map rtD,device,List params){
 }
 
 private Long vcmd_fadeHue(Map rtD,device,List params){
-	Integer startLevel=(params[iZ]!=null)? (Integer)cast(rtD,Math.round((Integer)params[iZ]/d3d6),sINT,sLONG):(Integer)cast(rtD,getDeviceAttributeValue(rtD,device,sHUE),sINT)
-	Integer endLevel=(Integer)cast(rtD,Math.round((Integer)params[i1]/d3d6),sINT,sLONG)
+	Integer startLevel= params[iZ]!=null ? Math.round((Integer)params[iZ]/d3d6).toInteger() : matchCastI(rtD,getDeviceAttributeValue(rtD,device,sHUE))
+	Integer endLevel= Math.round((Integer)params[i1]/d3d6).toInteger()
 	return do_fadeLevel(rtD,device,params,sHUE,sSHUE,startLevel,endLevel)
 }
 
@@ -4068,7 +4083,8 @@ private Long vcmd_fadeColorTemperature(Map rtD,device,List params){
 	return do_fadeLevel(rtD,device,params,sCLRTEMP,sSCLRTEMP,null,null,true)
 }
 
-private Long vcmd_internal_fade(Map rtD,device,String command,Integer startLevel,Integer endLevel,Long duration){
+private Long vcmd_internal_fade(Map rtD,device,String command,Integer startLevel,Integer endLevel,Long idur){
+	Long duration=idur
 	Long minInterval
 	if(duration<=5000L){
 		minInterval=500L
@@ -4077,7 +4093,7 @@ private Long vcmd_internal_fade(Map rtD,device,String command,Integer startLevel
 	}else if(duration<=30000L){
 		minInterval=3000L
 	}else minInterval=5000L
-	if(startLevel==endLevel || duration<=500L){
+	if(startLevel==endLevel || duration<500L){
 		//if the fade is too fast, or not changing anything, go to the end level directly
 		executePhysicalCommand(rtD,device,command,endLevel)
 		return lZ
@@ -4095,16 +4111,27 @@ private Long vcmd_internal_fade(Map rtD,device,String command,Integer startLevel
 	String scheduleDevice=hashId(device.id)
 	Integer oldLevel=startLevel
 	executePhysicalCommand(rtD,device,command,startLevel)
-	for(Integer i=i1; i<=steps; i++){
-		Integer newLevel=Math.round(startLevel+delta*i/steps*d1).toInteger()
-		if(oldLevel!=newLevel){
-			executePhysicalCommand(rtD,device,command,newLevel,i*interval,scheduleDevice,true)
-		}
-		oldLevel=newLevel
-	}
-	//for good measure send a last command 100ms after the end of the interval
-	executePhysicalCommand(rtD,device,command,endLevel,duration+99L,scheduleDevice,true)
-	return duration+105L
+	Map jq=[
+		s:i1,
+		cy:steps,
+		f1C:command,
+		f1P: startLevel,
+		f1Padd: delta*d1/steps,
+		f1ID:interval,
+		f1D:interval,
+		s2C:sNULL,
+		s2P: null,
+		s2D:lZ,
+		sDev:scheduleDevice,
+		l1C:command,
+		l1P: endLevel,
+		l1D:500L,
+		l2C:sNULL,
+		l2P: null,
+		l2D:lZ
+	]
+	Long wt=stRepeat(rtD,jq)
+	return wt+750L
 }
 
 private Long vcmd_emulatedFlash(Map rtD,device,List params){
@@ -4112,83 +4139,216 @@ private Long vcmd_emulatedFlash(Map rtD,device,List params){
 }
 
 private Long vcmd_flash(Map rtD,device,List params){
-	Long onDuration=(Long)cast(rtD,params[iZ],sLONG)
-	Long offDuration=(Long)cast(rtD,params[i1],sLONG)
-	Integer cycles=(Integer)cast(rtD,params[i2],sINT)
+	Long onDuration=matchCastL(rtD,params[iZ])
+	Long offDuration=matchCastL(rtD,params[i1])
+	Integer cycles=matchCastI(rtD,params[i2])
 	String mat=params.size()>i3 ? (String)params[i3]:sNULL
 	String currentState=(String)getDeviceAttributeValue(rtD,device,sSWITCH)
 	if(mat!=sNULL && currentState!=mat) return lZ
-	Long duration=Math.round((onDuration+offDuration)*cycles*d1)
 	//if the flash is too fast, ignore it
-	if(duration<=500L) return lZ
-	//initialize parameters
+	if((onDuration+offDuration)<500L) return lZ
 	String firstCommand=currentState==sON ? sOFF:sON
 	Long firstDuration=firstCommand==sON ? onDuration:offDuration
 	String secondCommand=firstCommand==sON ? sOFF:sON
 	Long secondDuration=firstCommand==sON ? offDuration:onDuration
 	String scheduleDevice=hashId(device.id)
-	Long dur=lZ
-	for(Integer i=i1; i<=cycles; i++){
-		executePhysicalCommand(rtD,device,firstCommand,[],dur,scheduleDevice,true)
-		dur+= firstDuration
-		executePhysicalCommand(rtD,device,secondCommand,[],dur,scheduleDevice,true)
-		dur+= secondDuration
+	Map jq=[
+		s:i1,
+		cy:cycles,
+		f1C:firstCommand,
+		f1P: null,
+		f1ID:lZ,
+		f1D:firstDuration,
+		s2C:secondCommand,
+		s2P: null,
+		s2D:secondDuration,
+		sDev:scheduleDevice,
+		l1C:currentState,
+		l1P: [],
+		l1D:500L,
+		l2C:sNULL,
+		l2P: null,
+		l2D:lZ
+	]
+	Long wt=stRepeat(rtD,jq)
+	return wt+750L
+}
+
+// return an estimate of how long
+private Long stRepeat(Map rtD,Map jq){
+	Integer start=(Integer)jq.s
+	Integer cycles=(Integer)jq.cy
+	String fCmd=(String)jq.f1C
+	Long firstDuration=(Long)jq.f1D
+	String sCmd=(String)jq.s2C
+	Long secondDuration= (Long)jq.s2D
+
+	// this attempts to add command delays ced
+	Long t0=(Integer)rtD.piston.o?.ced ? ((Integer)rtD.piston.o.ced).toLong():lZ
+	if(t0>lZ) {
+		Long t1= (Long)getPistonLimits.deviceMaxDelay
+		t0= t0>t1 ? t1:t0
+		firstDuration= t0>firstDuration ? t0:firstDuration
+		if(sCmd)secondDuration= t0>secondDuration ? t0:secondDuration
 	}
-	//for good measure send a last command 100ms after the end of the interval
-	executePhysicalCommand(rtD,device,currentState,[],dur+100L,scheduleDevice,true)
-	return dur+105L
+
+	Long dur=(Long)jq.f1ID
+	for(Integer i=start;i<=cycles;i++){
+		dur+= firstDuration
+		if(sCmd)dur+= secondDuration
+	}
+	dur += (Long)jq.l1D+(Long)jq.l2D+20L
+	runRepeat(rtD,jq)
+	return dur
+}
+
+void runRepeat(Map rtD,Map ijq){
+	Map jq=[:]+ijq
+
+	String scheduleDevice=(String)jq.sDev
+	def device=getDevice(rtD,scheduleDevice)
+	if(device!=null){
+		Integer start=(Integer)jq.s
+		Integer cycles=(Integer)jq.cy
+		String fCmd=(String)jq.f1C
+
+		def p1=jq.f1P
+		Boolean doNotSend=false
+		Double i=(Double)jq.f1Padd
+		if(i!=null){
+			Integer p=(Integer)p1
+			Integer oldL= Math.round(p+i*(start-i1)).toInteger()
+			Integer newL= Math.round(p+i*start).toInteger()
+			p1= newL
+			if(oldL==newL) doNotSend=true
+		}
+
+		Long firstDuration=(Long)jq.f1D
+		String sCmd=(String)jq.s2C
+		def p2=jq.s2P
+		Long secondDuration=(Long)jq.s2D
+
+		Long dur= start==1 ? (Long)jq.f1ID:lZ
+		if(start<=cycles){
+			if(!doNotSend) {
+				executePhysicalCommand(rtD,device,fCmd,p1,dur,scheduleDevice,true)
+				dur+= firstDuration
+			}
+			if(sCmd){
+				executePhysicalCommand(rtD,device,sCmd,p2,dur,scheduleDevice,true)
+				dur+= secondDuration
+			}
+			start++
+		}
+		if(start>cycles){
+			Long d=(Long)jq.l1D
+			String c=(String)jq.l1C
+			if(c){
+				executePhysicalCommand(rtD,device,c,jq.l1P,dur,scheduleDevice,true)
+				dur+= d
+			}
+			c=(String)jq.l2C
+			if(c){
+				executePhysicalCommand(rtD,device,c,jq.l2P,dur,scheduleDevice,true)
+			}
+		}else{
+			jq.s=start
+			qrunRepeat(rtD,dur,jq)
+		}
+	}
+}
+
+void qrunRepeat(Map rtD,Long dur,Map jq){
+	//void executePhysicalCo iN3
+	Map statement=(Map)rtD.currentAction
+	jq=[
+		tcp:(String)statement.tcp,
+		$:(Integer)statement.$
+	]+jq
+	// cancel on c- condition state change (def), p- piston state change, b- condition or piston state change, ""- never cancel
+	List<Integer> cs=[]+ ((String)statement.tcp in [sB,sC] ? (rtD.stack?.cs!=null ? (List<Integer>)rtD.stack.cs:[]):[]) // task cancelation policy
+	Integer ps= (String)statement.tcp in [sB,sP] ? i1:iZ
+	Boolean a=cs.removeAll{ Integer it -> it==iZ }
+	Long ttt=Math.round((Long)now()*d1+dur)
+	Map schedule=[
+		(sT):ttt,
+		(sS):(Integer)statement.$,
+		(sI):iN5,
+		cs:cs,
+		ps:ps,
+		jq:jq,
+	]
+	if((Boolean)rtD.eric)trace "Requesting a repeat task wake up for ${formatLocalTime(ttt)}",rtD
+	a=((List<Map>)rtD.schedules).push(schedule)
 }
 
 private Long vcmd_flashLevel(Map rtD,device,List params){
-	Integer level1=(Integer)cast(rtD,params[iZ],sINT)
-	Long duration1=(Long)cast(rtD,params[i1],sLONG)
-	Integer level2=(Integer)cast(rtD,params[i2],sINT)
-	Long duration2=(Long)cast(rtD,params[i3],sLONG)
-	Integer cycles=(Integer)cast(rtD,params[i4],sINT)
+	Integer level1=matchCastI(rtD,params[iZ])
+	Long duration1=matchCastL(rtD,params[i1])
+	Integer level2=matchCastI(rtD,params[i2])
+	Long duration2=matchCastL(rtD,params[i3])
+	Integer cycles=matchCastI(rtD,params[i4])
 	String mat=params.size()>i5 ? (String)params[i5]:sNULL
 	String currentState=(String)getDeviceAttributeValue(rtD,device,sSWITCH)
 	if(mat!=sNULL && currentState!=mat) return lZ
-	Integer currentLevel=(Integer)getDeviceAttributeValue(rtD,device,sLVL)
-	Long duration=Math.round((duration1+duration2)*cycles*d1)
 	//if the flash is too fast, ignore it
-	if(duration<=500L) return lZ
+	if((duration1+duration2)<500L) return lZ
+	Integer currentLevel=(Integer)getDeviceAttributeValue(rtD,device,sLVL)
 	String scheduleDevice=hashId(device.id)
-	Long dur=lZ
-	for(Integer i=i1; i<=cycles; i++){
-		executePhysicalCommand(rtD,device,sSTLVL,[level1],dur,scheduleDevice,true)
-		dur+= duration1
-		executePhysicalCommand(rtD,device,sSTLVL,[level2],dur,scheduleDevice,true)
-		dur+= duration2
-	}
-	//for good measure send a last command 100ms after the end of the interval
-	executePhysicalCommand(rtD,device,sSTLVL,[currentLevel],dur+100L,scheduleDevice,true)
-	executePhysicalCommand(rtD,device,currentState,[],dur+101L,scheduleDevice,true)
-	return dur+105L
+	Map jq=[
+		s:i1,
+		cy:cycles,
+		f1C:sSTLVL,
+		f1P: [level1],
+		f1ID:lZ,
+		f1D:duration1,
+		s2C:sSTLVL,
+		s2P: [level2],
+		s2D:duration2,
+		sDev:scheduleDevice,
+		l1C:sSTLVL,
+		l1P: [currentLevel],
+		l1D:500L,
+		l2C:currentState,
+		l2P: [],
+		l2D:200L
+	]
+	Long wt=stRepeat(rtD,jq)
+	return wt+750L
 }
 
 private Long vcmd_flashColor(Map rtD,device,List params){
 	Map color1=getColor(rtD,(String)params[iZ])
-	Long duration1=(Long)cast(rtD,params[i1],sLONG)
+	Long duration1=matchCastL(rtD,params[i1])
 	Map color2=getColor(rtD,(String)params[i2])
-	Long duration2=(Long)cast(rtD,params[i3],sLONG)
-	Integer cycles=(Integer)cast(rtD,params[i4],sINT)
+	Long duration2=matchCastL(rtD,params[i3])
+	Integer cycles=matchCastI(rtD,params[i4])
 	String mat=params.size()>i5 ? (String)params[i5]:sNULL
 	String currentState=(String)getDeviceAttributeValue(rtD,device,sSWITCH)
 	if(mat!=sNULL && currentState!=mat) return lZ
-	Long duration=Math.round((duration1+duration2)*cycles*d1)
 	//if the flash is too fast, ignore it
-	if(duration<=500L) return lZ
+	if((duration1+duration2)<500L) return lZ
 	String scheduleDevice=hashId(device.id)
-	Long dur=lZ
-	for(Integer i=i1; i<=cycles; i++){
-		executePhysicalCommand(rtD,device,sSCLR,[color1],dur,scheduleDevice,true)
-		dur+= duration1
-		executePhysicalCommand(rtD,device,sSCLR,[color2],dur,scheduleDevice,true)
-		dur+= duration2
-	}
-	//for good measure send a last command 100ms after the end of the interval
-	executePhysicalCommand(rtD,device,currentState,[],dur+99L,scheduleDevice,true)
-	return dur+105L
+	Map jq=[
+		s:i1,
+		cy:cycles,
+		f1C:sSCLR,
+		f1P: [color1],
+		f1ID:lZ,
+		f1D:duration1,
+		s2C:sSCLR,
+		s2P: [color2],
+		s2D:duration2,
+		sDev:scheduleDevice,
+		l1C:currentState,
+		l1P: [],
+		l1D:500L,
+		l2C:sNULL,
+		l2P: [],
+		l2D:lZ
+	]
+	Long wt=stRepeat(rtD,jq)
+	return wt+750L
 }
 
 private Long vcmd_sendNotification(Map rtD,device,List params){
@@ -4330,7 +4490,7 @@ private Long vcmd_executeRule(Map rtD,device,List params){
 }
 
 private Long vcmd_setHSLColor(Map rtD,device,List params){
-	Integer hue=(Integer)cast(rtD,Math.round((Integer)params[iZ]/d3d6),sINT,sLONG)
+	Integer hue= Math.round((Integer)params[iZ]/d3d6).toInteger()
 	Integer saturation=(Integer)params[i1]
 	Integer level=(Integer)params[i2]
 	def color=[
@@ -4428,7 +4588,7 @@ private Long do_lifx(Map rtD,String cmd,String path,Map body,duration,String c){
 
 private Long vcmd_lifxScene(Map rtD,device,List params){
 	String sceneId=(String)params[iZ]
-	Long duration=params.size()>i1 ? Math.round( ((Long)cast(rtD,params[i1],sLONG) / d1000)) : lZ
+	Long duration=params.size()>i1 ? Math.round( matchCastL(rtD,params[i1]) / d1000) : lZ
 	Map scn=(Map)rtD.lifx?.scenes
 	if(!scn){
 		error "Sorry, there seems to be no available LIFX scenes, please ensure the LIFX integration is working.",rtD
@@ -4469,7 +4629,7 @@ private Long vcmd_lifxState(Map rtD,device,List params){
 	Map color=getColor(rtD,(String)params[i2])
 	Integer level=(Integer)params[i3]
 	Integer infrared=(Integer)params[i4]
-	Long duration=Math.round( ((Long)cast(rtD,params[i5],sLONG) / d1000) )
+	Long duration=Math.round( matchCastL(rtD,params[i5]) / d1000 )
 	String path= "/v1/lights/${selector}/state"
 	Map body= [:]+(power ? ([power: power]) : [:])+(color ? ([color: color.hex]) : [:])+(level != null ? ([brightness: level / 100.0]) : [:])+(infrared != null ? [infrared: infrared] : [:])+(duration ? [duration: duration] : [:])
 	return do_lifx(rtD,'Put',path,body,duration,'state')
@@ -4478,7 +4638,7 @@ private Long vcmd_lifxState(Map rtD,device,List params){
 private Long vcmd_lifxToggle(Map rtD,device,List params){
 	String selector=getLifxSelector(rtD,(String)params[iZ])
 	if(!selector)return lifxErr(rtD)
-	Long duration=Math.round( ((Long)cast(rtD,params[i1],sLONG) / d1000) )
+	Long duration=Math.round( matchCastL(rtD,params[i1]) / d1000 )
 	String path= "/v1/lights/${selector}/toggle"
 	Map body= [:]+(duration ? [duration: duration] : [:])
 	return do_lifx(rtD,'Post',path,body,duration,'toggle')
@@ -4489,7 +4649,7 @@ private Long vcmd_lifxBreathe(Map rtD,device,List params){
 	if(!selector)return lifxErr(rtD)
 	Map color=getColor(rtD,(String)params[i1])
 	Map fromColor= (params[i2]==null) ? null:getColor(rtD,(String)params[i2])
-	Long period= (params[i3]==null) ? null:Math.round( ((Long)cast(rtD,params[i3],sLONG) / d1000))
+	Long period= (params[i3]==null) ? null:Math.round( matchCastL(rtD,params[i3]) / d1000)
 	Integer cycles=(Integer)params[i4]
 	Integer peak=(Integer)params[i5]
 	Boolean powerOn=(params[i6]==null) ? null:cast(rtD,params[i6],sBOOLN)
@@ -4505,7 +4665,7 @@ private Long vcmd_lifxPulse(Map rtD,device,List params){
 	if(!selector)return lifxErr(rtD)
 	Map color=getColor(rtD,(String)params[i1])
 	Map fromColor=(params[i2]==null) ? null:getColor(rtD,(String)params[i2])
-	Long period=(params[i3]==null) ? null:Math.round( ((Long)cast(rtD,params[i3],sLONG) / d1000))
+	Long period=(params[i3]==null) ? null:Math.round( matchCastL(rtD,params[i3]) / d1000)
 	Integer cycles=(Integer)params[i4]
 	Boolean powerOn=(params[i5]==null)? null:cast(rtD,params[i5],sBOOLN)
 	Boolean persist=(params[i6]==null) ? null:cast(rtD,params[i6],sBOOLN)
@@ -4903,7 +5063,7 @@ private Boolean evaluateConditions(Map rtD,Map conditions,String collection,Bool
 		if((Integer)rtD.ffTo==iZ || (Integer)rtD.ffTo==myC){
 			//dealing with a followed by condition
 			String sidx='c:fbi:'+myC.toString()
-			Integer ladderIndex=(Integer)cast(rtD,((Map<String,Object>)rtD.cache)[sidx],sINT)
+			Integer ladderIndex=matchCastI(rtD,((Map<String,Object>)rtD.cache)[sidx])
 			String sldt='c:fbt:'+myC.toString()
 			Long ladderUpdated=(Long)cast(rtD,((Map<String,Object>)rtD.cache)[sldt],sDTIME)
 			Integer steps=conditions[collection] ? ((List)conditions[collection]).size():iZ
@@ -5303,7 +5463,7 @@ private Boolean evaluateCondition(Map rtD,Map condition,String collection,Boolea
 		debug msg,rtD
 	}
 	if((Integer)rtD.ffTo<=iZ && (Boolean)condition.s && (String)condition.t==sCONDITION && condition.lo!=null && (String)condition.lo.t==sV){
-		if(!LT1){ LT1=fill_TIM() }
+		if(!LT1){ LT1=fill_TIM(); mb() }
 		if((String)condition.lo.v in LT1){ scheduleTimeCondition(rtD,condition) }
 	}
 	if((Boolean)rtD.eric)myDetail rtD,myS+" result:$result"
@@ -5381,7 +5541,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 	//if multiple left values go through each
 	Map tvalue=to && to.operand && to.values ? (Map)to.values+[f: to.operand.f]:null
 	Map tvalue2=to2 && to2.operand && to2.values ? (Map)to2.values:null
-	if(!LT1){ LT1=fill_TIM() }
+	if(!LT1){ LT1=fill_TIM(); mb() }
 	for(Map<String,Map> value in (List<Map>)lo.values){
 		Boolean res=false
 		//x=eXclude- if a momentary attribute is looked for and the device does not match the current device, then we must ignore this during comparisons
@@ -6099,8 +6259,8 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 				}
 			}
 		}
-		if(!LT1){ LT1=fill_TIM() }
-		if(!LTHR){ LTHR=fill_THR() }
+		if(!LT1){ LT1=fill_TIM(); mb() }
+		if(!LTHR){ LTHR=fill_THR(); mb() }
 		Map<String,Integer> dds=[:]
 		String always='always'
 		for(subscription in subscriptions){
@@ -6292,6 +6452,7 @@ private getDeviceAttributeValue(Map rtD,device,String attr){
 		if(!LDAV){
 			if(!LTHR){ LTHR=fill_THR() }
 			LDAV=[sSTS]+LTHR
+			mb()
 		}
 		if(attr in LDAV){
 			switch(attr){
@@ -6378,7 +6539,7 @@ private Map getDeviceAttribute(Map rtD,String deviceId,String attr,subDeviceInde
 		def tt0=rtD.event?.device!=null ? rtD.event.device:location
 		Boolean deviceMatch=device?.id==tt0.id && isDeviceLocation(device)==isDeviceLocation(tt0)
 		//x=eXclude- if a momentary attribute is looked for and the device does not match the current device, then we must ignore this during comparisons
-		if(!LTHR){ LTHR=fill_THR() }
+		if(!LTHR){ LTHR=fill_THR(); mb() }
 		return [
 			(sT):atT,
 			(sV):value,
@@ -6868,6 +7029,7 @@ private Map setVariable(Map rtD,String name,value){
 
 				rtD.localVars[tn]=variable
 				vars[tn]=variable.v
+				mb()
 
 				if((Boolean)rtD.pep)atomicState.vars=vars
 				else state.vars=vars
@@ -6893,6 +7055,9 @@ private Map setVariable(Map rtD,String name,value){
 
 @Field static List<String> mL=[]
 @Field static List<String> mL1=[]
+
+private Integer matchCastI(Map rtD, v){ Integer res=matchCast(rtD,v,sINT) ? (Integer)v : (Integer)cast(rtD,v,sINT); return res }
+private Long matchCastL(Map rtD, v){ Long res=matchCast(rtD,v,sLONG) ? (Long)v : (Long)cast(rtD,v,sLONG); return res }
 
 private static Boolean matchCast(Map rtD, v, String t){
 	if(!mL){
@@ -6997,6 +7162,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 		pn2=[sMOD1,sMOD,sAMP,sBOR,sBXOR,sBNAND,sBNOR,sBNXOR,sSBL,sSBR] // int fixes
 		pn3=[sLAND,sLOR,sLXOR,sLNAND,sLNOR,sLNXOR,sNEG,sDNEG] // bool fixes
 		pn4=[sEQ,sNEQ,sLTH,sGTH,sLTHE,sGTHE,sNEQA]
+		mb()
 	}
 	if(!express)return rtnMap(sERROR,'Null expression')
 	//not sure what it was needed for- need to comment more
@@ -9414,7 +9580,7 @@ private void initSunriseAndSunset(Map rtD){
 	if(t0!=null){
 		if(t<(Long)t0.nextM){
 			rtD.sunTimes=[:]+t0
-		}else{ t0=null; svSunTFLD=null }
+		}else{ t0=null; svSunTFLD=null; mb() }
 	}
 	if(t0==null){
 		Map sunTimes=app.getSunriseAndSunset()
@@ -9834,6 +10000,7 @@ private Map<String,Map<String,Object>> Attributes(){
 	Map result=theAttributesFLD
 	if(result==null){
 		theAttributesFLD=(Map)parent.getChildAttributes()
+		mb()
 	}
 	return theAttributesFLD
 }
@@ -9845,6 +10012,7 @@ private Map<String,Map<String,Map<String,Object>>> Comparisons(){
 	Map result=theComparisonsFLD
 	if(result==null){
 		theComparisonsFLD=(Map)parent.getChildComparisons()
+		mb()
 	}
 	return theComparisonsFLD
 }
@@ -9856,6 +10024,7 @@ private Map<String,Map<String,Object>> VirtualCommands(){
 	Map result=theVirtCommandsFLD
 	if(result==null){
 		theVirtCommandsFLD=(Map)parent.getChildVirtCommands()
+		mb()
 	}
 	return theVirtCommandsFLD
 }
@@ -9875,6 +10044,7 @@ private Map<String,Map<String,Object>> VirtualDevices(){
 	Map result=theVirtDevicesFLD
 	if(result==null){
 		theVirtDevicesFLD=(Map)parent.getChildVirtDevices()
+		mb()
 	}
 	return theVirtDevicesFLD
 }
@@ -9886,6 +10056,7 @@ private Map<String,Map<String,Object>> PhysicalCommands(){
 	Map result=thePhysCommandsFLD
 	if(result==null){
 		thePhysCommandsFLD=(Map)parent.getChildCommands()
+		mb()
 	}
 	return thePhysCommandsFLD
 }
@@ -9896,6 +10067,7 @@ private List<Map<String,Object>> getColors(){
 	List result=theColorsFLD
 	if(result==null){
 		theColorsFLD=(List)parent.getColors()
+		mb()
 	}
 	return theColorsFLD
 }
