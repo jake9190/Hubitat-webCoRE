@@ -987,8 +987,6 @@ private void cleanCode(item){
 	if(item.data instanceof Map && !item.data)a=item.remove('data')
 	// defaults
 	if((String)item.f==sL)a=item.remove(sF)
-	if(!item.tcp) item.tcp=sN
-	if(item.tcp==sC) a=item.remove('tcp')
 
 	if(item.cs instanceof List){
 		if(!item.cs)a=item.remove('cs')
@@ -3299,14 +3297,14 @@ private Long executeVirtualCommand(Map rtD,devices,String command,List params){
 
 private static List<Integer> svCS(Map rtD, Map statement){
 	// cancel on c- condition state change (def), p- piston state change, b- condition or piston state change, ""- never cancel
-	String tcp= (String)statement.tcp ?: sC
+	String tcp= (String)statement.tcp
 	List<Integer> cs=[]+ (tcp in [sB,sC] ? (List<Integer>)rtD.stack.cs:[] ) // task cancelation policy
 	Boolean a=cs.removeAll{ Integer it -> it==iZ }
 	return cs
 }
 
 private static Integer svPS(Map statement){
-	String tcp= (String)statement.tcp ?: sC
+	String tcp= (String)statement.tcp
 	return tcp in [sB,sP] ? i1:iZ
 }
 
@@ -4388,7 +4386,7 @@ void qrunRepeat(Map rtD,Long dur,Map jq){
 	Map statement=(Map)rtD.currentAction
 
 	List<Integer> cs=svCS(rtD,statement)
-	String tcp= (String)statement.tcp ?: sC
+	String tcp= (String)statement.tcp
 	Map jq1=[ // items to save for later requeues
 		tcp:tcp,
 		$:stmtNum(statement),
