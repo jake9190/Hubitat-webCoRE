@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update January 5, 2022 for Hubitat
+ * Last update January 6, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -987,6 +987,7 @@ private void cleanCode(item){
 	if(item.data instanceof Map && !item.data)a=item.remove('data')
 	// defaults
 	if((String)item.f==sL)a=item.remove(sF)
+	if(!item.tcp) item.tcp=sN
 	if(item.tcp==sC) a=item.remove('tcp')
 
 	if(item.cs instanceof List){
@@ -5797,8 +5798,9 @@ private void cancelStatementSchedules(Map rtD,Integer statementId,String data=sN
 		fnd=(statementId==(Integer)item.id && (!data || data==(String)item.data))
 		if(fnd)break
 	}
-	if(isDbg(rtD))debug "Cancelling statement #${statementId}'s schedules...",rtD
-	if(!fnd)Boolean a=((List<Map>)rtD.cancelations.statements).push([(sID): statementId,data: data])
+	String s= eric() ? " d: $data fnd: $fnd":sNULL
+	if(isDbg(rtD))debug "Cancelling statement #${statementId}'s schedules..."+s,rtD
+	if(!fnd) Boolean a=((List<Map>)rtD.cancelations.statements).push([(sID): statementId,data: data])
 }
 
 private void cancelConditionSchedules(Map rtD,Integer cndtnId){
