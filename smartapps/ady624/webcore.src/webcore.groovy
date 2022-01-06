@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update November 20, 2021 for Hubitat
+ * Last update January 5, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -27,7 +27,7 @@
 //file:noinspection GrDeprecatedAPIUsage
 
 @Field static final String sVER='v0.3.113.20210203'
-@Field static final String sHVER='v0.3.113.20211120_HE'
+@Field static final String sHVER='v0.3.113.20220105_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -588,6 +588,29 @@ def pageResetEndpoint(){
 }
 
 def pageCleanups(){
+	String t = 'cleanup old super'
+	Boolean didw = getTheLock(t)
+
+	Map<String,Map> vars=(Map<String,Map>)atomicState.vars
+	vars=vars ?: [:]
+	Boolean fnd=false
+	if(vars){ // clear out obsolete superglobals
+		List<String> b=vars.collect { (String)it.key }
+		for (String c in b) {
+			if(c.startsWith('@@')){
+				a=vars.remove(c) // @@
+				fnd=true
+			}
+		}
+		if(fnd)atomicState.vars=vars
+	}
+
+	releaseTheLock(t)
+	if(fnd){
+		clearGlobalPistonCache(t)
+		clearBaseResult(t)
+	}
+
 	clearChldCaches(true)
 	return dynamicPage((sNM):'pageCleanups', install: false, uninstall:false){
 		section('Clear'){
@@ -1161,6 +1184,7 @@ Boolean useLocalFuelStreams(){
 	return (Boolean)settings.localFuelStreams!=null ? (Boolean)settings.localFuelStreams : true
 }
 
+@SuppressWarnings('GroovyFallthrough')
 private static String transformHsmStatus(String status){
 	if(status==sNULL) return "unconfigured"
 	switch(status){
@@ -1767,7 +1791,9 @@ private api_intf_variable_set(){
 					vn=name.substring(2)
 					chgd=deleteGlobalVar(vn)
 					meth1=meth+"DELETE HE global $vn "
-					if(!chgd) warn meth1+"FAILED"
+					if(!chgd) {
+						warn meth1+"FAILED"
+					}
 					else trace meth1
 					chgd=true
 					//result=[(sNM): name, (sVAL): null, type: null]
@@ -3574,7 +3600,7 @@ Map getChildAttributes(){
 	closestPlaceDistanceMetric	: [ (sN): "distance to closest place (metric)",	(sT): sDEC,	(sR): [null, null],	u: "km",					],
 //don't confuse with fanspeed
 	speedUSC			: [ (sN): "speed (usc)",		(sT): sDEC,	(sR): [null, null],	u: "ft/s",						],
-	speedMetric			: [ (sN): "speed (metric)",	(sT): sDEC,	(sR): [null, null],	u: "m/s",						],
+	speedMetric			: [ (sN): "speed (metric)",		(sT): sDEC,	(sR): [null, null],	u: "m/s",						],
 	bearing				: [ (sN): "bearing",			(sT): sDEC,	(sR): [0, 360],		u: "°",							],
 	doubleTapped		: [ (sN): "double tapped button",	(sT): sINT,	(sR): [null, null],	(sM): true,	/*s: "numberOfButtons",	(sI): "buttonNumber"*/			],
 	held				: [ (sN): "held button",		(sT): sINT,	(sR): [null, null],	(sM): true,	/*s: "numberOfButtons",	(sI): "buttonNumber"*/			],
@@ -3699,8 +3725,8 @@ Map getChildCommands(){
 	take				: [ (sN): "Take a picture",																					],
 	unlock				: [ (sN): "Unlock",		(sI): 'unlock-alt',							(sA): "lock",				(sV): "unlocked",					],
 	unmute				: [ (sN): "Unmute",		(sI): 'volume-up',								(sA): "mute",				(sV): "unmuted",					],
-	volumeDown			: [ (sN): "Raise volume",																					],
-	volumeUp			: [ (sN): "Lower volume",																					],
+	volumeDown			: [ (sN): "Lower volume",																					],
+	volumeUp			: [ (sN): "Raise volume",																					],
 
 // these are device virtual commands
 	doubleTap			: [ (sN): "Double Tap",			(sD): "Double tap button {0}",			(sA): "doubleTapped",			(sP):[[(sN): "Button #", (sT): sINT]]	],
@@ -4224,8 +4250,15 @@ private Map<String,Map> virtualDevices(Boolean updateCache=false){
 		ifttt:			[ (sN): 'IFTTT',			(sT): sSTR,						(sM): true	],
 		mode:			[ (sN): 'Location mode',	(sT): sENUM,	(sO): getLocationModeOptions(updateCache),	x: true],
 		tile:			[ (sN): 'Piston tile',		(sT): sENUM,	(sO): ['1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','10':'10','11':'11','12':'12','13':'13','14':'14','15':'15','16':'16'],		(sM): true	],
+// HE specific events
 		rule:			[ (sN): 'Rule',				(sT): sENUM,	(sO): getRuleOptions(updateCache),		(sM): true ],
 		systemStart:	[ (sN): 'System Start',		(sT): sSTR,		x: true],
+		severeLoad:		[ (sN): 'Severe Load',		(sT): sSTR,		x: true],
+		zigbeeOff:		[ (sN): 'Zibee Off',		(sT): sSTR,		x: true],
+		zigbeeOn:		[ (sN): 'Zigbee On',		(sT): sSTR,		x: true],
+		zwaveCrashed:	[ (sN): 'Z-Wave crashed',	(sT): sSTR,		x: true],
+		sunriseTime:	[ (sN): 'Sunrise Time',		(sT): sSTR,		x: true],
+		sunsetTime:		[ (sN): 'Sunset Time',		(sT): sSTR,		x: true],
 //ac - actions. hubitat doesn't reuse the status for actions
 		alarmSystemStatus:	[ (sN): 'Hubitat Safety Monitor status',	(sT): sENUM,		(sO): getHubitatAlarmSystemStatusOptions(), ac: getAlarmSystemStatusActions(),		x: true],
 		alarmSystemEvent:	[ (sN): 'Hubitat Safety Monitor event',		(sT): sENUM,		(sO): getAlarmSystemStatusActions(),	(sM): true],
