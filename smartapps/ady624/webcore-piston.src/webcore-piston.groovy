@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update January 6, 2022 for Hubitat
+ * Last update January 7, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -52,9 +52,9 @@ definition(
 	description:'Do not install this directly, use webCoRE instead',
 	category:'Convenience',
 	parent:'ady624:'+handle(),
-	iconUrl:'https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE.png',
-	iconX2Url:'https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE@2x.png',
-	iconX3Url:'https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE@3x.png',
+	iconUrl:gimg('app-CoRE.png'),
+	iconX2Url:gimg('app-CoRE@2x.png'),
+	iconX3Url:gimg('app-CoRE@3x.png'),
 	importUrl:'https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/smartapps/ady624/webcore-piston.src/webcore-piston.groovy'
 )
 
@@ -123,6 +123,7 @@ static Boolean eric1(){ return false }
 @Field static final String sCOMMA=','
 @Field static final String sSPC=' '
 @Field static final String sA='a'
+@Field static final String sU='u'
 @Field static final String sV='v'
 @Field static final String sVT='vt'
 @Field static final String sP='p'
@@ -218,6 +219,7 @@ static Boolean eric1(){ return false }
 @Field static final String sOPER='operator'
 @Field static final String sOPERAND='operand'
 @Field static final String sFUNC='function'
+@Field static final String s0='0'
 @Field static final String s1='1'
 @Field static final String s2='2'
 @Field static final String sPLUS='+'
@@ -321,7 +323,7 @@ def pageMain(){
 	return dynamicPage((sNM):sPMAIN,(sTIT):sBLK,install:true,uninstall:(Integer)state.build!=null){
 		if(parent==null || !(Boolean)parent.isInstalled()){
 			section(){
-				paragraph 'Sorry you cannot install a piston directly from the HE console; please use the webCoRE dashboard (dashboard.webcore.co) instead.'
+				paragraph 'Sorry you cannot install a piston directly from HE console; please use the webCoRE dashboard (dashboard.webcore.co) instead.'
 			}
 			section(sectionTitleStr('Installing webCoRE')){
 				paragraph 'If you are trying to install webCoRE please go back one step and choose webCoRE, not webCoRE Piston. You can also visit wiki.webcore.co for more information on how to install and use webCoRE'
@@ -365,7 +367,7 @@ def pageMain(){
 
 			section(){
 				input 'dev',"capability.*",(sTIT):'Devices',description:'Piston devices',multiple:true
-				input sLOGNG,sENUM,(sTIT):'Logging Level',options:["0":"None","1":"Minimal","2":"Medium","3":"Full"],description:'Piston logging',defaultValue:state.logging? state.logging.toString() : '0'
+				input sLOGNG,sENUM,(sTIT):'Logging Level',options:[(s0):"None",(s1):"Minimal",(s2):"Medium","3":"Full"],description:'Piston logging',defaultValue:state.logging? state.logging.toString() : s0
 				input 'logsToHE',sBOOL,(sTIT):'Piston logs are also displayed in HE console logs?',description:"Logs are available in webCoRE console; also display in HE console 'Logs'?",defaultValue:false
 				input 'maxStats',sNUMBER,(sTIT):'Max number of timing history stats',description:'Max number of stats',range:'2..300',defaultValue:50
 				input 'maxLogs',sNUMBER,(sTIT):'Max number of history logs',description:'Max number of logs',range:'0..300',defaultValue:50
@@ -424,7 +426,7 @@ void clear1(Boolean ccache=false,Boolean some=true,Boolean most=false,Boolean al
 		theSemaphoresVFLD[semaName]=lZ
 		theSemaphoresVFLD=theSemaphoresVFLD
 		theQueuesVFLD[semaName]=[]
-		theQueuesVFLD=theQueuesVFLD // this forces volatile cache flush
+		theQueuesVFLD=theQueuesVFLD // forces volatile cache flush
 		releaseTheLock(semaName)
 
 		if(act && !dis){
@@ -613,7 +615,7 @@ void initialize(){
 	Integer tt2=(Integer)state.logging
 	String tt3=tt2.toString()
 	Map a
-	if(tt1==sNULL)a=setLoggingLevel(tt2 ? tt3:'0',false)
+	if(tt1==sNULL)a=setLoggingLevel(tt2 ? tt3:s0,false)
 	else if(tt1!=tt3)a=setLoggingLevel(tt1,false)
 	if((Boolean)state.active)a=resume()
 	else{
@@ -751,7 +753,6 @@ private LinkedHashMap recreatePiston(Boolean shorten=false,Boolean useCache=true
 			thePistonCacheFLD[pisName]=pData
 			mb()
 		}
-		//pData.cnt+=i1
 		if(pData.pis!=null)return (LinkedHashMap)(pData.pis+[cached:true])
 	}
 
@@ -852,13 +853,14 @@ private void clearMsetIds(node){
 }
 
 @Field static List<String> ListCmd=[]
+private static List<String> fill_CMD(){ return [sIF,sACTION,sCONDITION,sWHILE,sREPEAT,sFOR,sEACH,sSWITCH,sEVERY,sRESTRIC,sGROUP,sDO,sON,sEVENT,sEXIT,sBREAK] }
 
 private Integer msetIds(Boolean shorten,node,Integer mId=0,Map<String,Integer> existingIds=[:],List<Map> requiringIds=[],Integer level=iZ){
 	List<Map> nodeE=node?.ei
 	String nodeT=node?.t
 	Integer maxId=mId
 	//Boolean lg= eric() && settings.logging?.toInteger()>i2
-	if(!ListCmd) ListCmd=[sIF,sACTION,sCONDITION,sWHILE,sREPEAT,sFOR,sEACH,sSWITCH,sEVERY,sRESTRIC,sGROUP,sDO,sON,sEVENT,sEXIT,sBREAK]
+	if(!ListCmd) ListCmd=fill_CMD()
 	if(nodeT in ListCmd){
 		Integer id=node[sDLR]!=null ? (Integer)node[sDLR] :iZ
 		if(id==iZ || existingIds[id.toString()]!=null){
@@ -926,6 +928,10 @@ private Integer msetIds(Boolean shorten,node,Integer mId=0,Map<String,Integer> e
 @Field static List<String> ListC3=[]
 @Field static List<String> ListC4=[]
 
+@Field static List<String> ListStmt=[]
+private static List<String> fill_STMT(){ return [sIF,sACTION,sWHILE,sREPEAT,sFOR,sEACH,sSWITCH,sEVERY,sDO,sON,sEXIT,sBREAK] }
+
+// to reduce memory code size
 private void cleanCode(item){
 	if (item==null || !(item instanceof Map)) return
 
@@ -933,16 +939,16 @@ private void cleanCode(item){
 		// sP phys/avg (uses a, d, g, p, i, f?)
 		// sD devices  (uses d)
 		// sV virt (uses v)
-		// sS preset (uses s)
+		// sS preset (uses s) (operand)   OR it is for switch case 's', 'r' ('r' for range)
 		// sX variable (uses x, xi)
 		// sC constant (uses c)
 		// sE expr (uses exp)
-		// 'u' argument (uses u)
-		ListAL=[sP, sD, sV, sS, sX, sC, sE, 'u']    //  don't need
-		ListC1=[        sV, sS,     sC, sE, 'u']    //     g,a
-		ListC2=[        sV, sS, sX, sC, sE, 'u']    //     d
-		ListC3=[sP, sD, sV, sS, sX,     sE, 'u']    //     c
-		ListC4=[sP, sD, sV, sS,     sC, sE, 'u']    //     x, xi
+		// sU argument (uses u)
+		ListAL=[sP, sD, sV, sS, sX, sC, sE, sU]    //  don't need
+		ListC1=[        sV, sS,     sC, sE, sU]    //     g,a
+		ListC2=[        sV, sS, sX, sC, sE, sU]    //     d
+		ListC3=[sP, sD, sV, sS, sX,     sE, sU]    //     c
+		ListC4=[sP, sD, sV, sS,     sC, sE, sU]    //     x, xi
 		mb()
 	}
 	def a
@@ -987,6 +993,23 @@ private void cleanCode(item){
 	if(item.data instanceof Map && !item.data)a=item.remove('data')
 	// defaults
 	if((String)item.f==sL)a=item.remove(sF)
+	if((String)item.sm=='auto')a=item.remove('sm') // subscription method
+	if((String)item.ctp==sI)a=item.remove('ctp') // switch stmt
+
+	// from IDE: cancel on c- condition state change (def), p- piston state change, b- condition or piston state change, ""- never cancel
+	if(!ListStmt) ListStmt=fill_STMT()
+	if(ty in ListStmt){
+		if(!item.tcp) item.tcp=sN
+		else if(item.tcp==sC) item.remove('tcp')
+		if(item.a instanceof String && (String)item.a==s0) item.remove(sA) // async
+	}
+	if(item.tcp==sC) log.warn "found tcp in $ty"
+
+	if(item.rop && (!item.r || ((List)item.r).size()==iZ)){ item.remove('rop'); item.remove('rn') }
+	if(item.r instanceof List){
+		if(!item.r)a=item.remove(sR)
+		else for (Map eI in (List<Map>)item.r) cleanCode(eI)
+	}
 
 	if(item.cs instanceof List){
 		if(!item.cs)a=item.remove('cs')
@@ -1012,10 +1035,6 @@ private void cleanCode(item){
 		if(!item.s)a=item.remove(sS)
 		else for (Map eI in (List<Map>)item.s) cleanCode(eI)
 	}
-	if(item.r instanceof List){
-		if(!item.r)a=item.remove(sR)
-		else for (Map eI in (List<Map>)item.r) cleanCode(eI)
-	}
 	if(item.d instanceof List){
 		if(!item.d)a=item.remove(sD)
 		else for(eI in (List)item.d) cleanCode(eI)
@@ -1030,7 +1049,10 @@ private void cleanCode(item){
 	}
 	if(item.i instanceof List){
 		if(!item.i)a=item.remove(sI)
-		else for(Map eI in (List<Map>)item.i) cleanCode(eI)
+		else{
+			if(((List)item.i)[0] instanceof Map) for(Map eI in (List<Map>)item.i) cleanCode(eI)
+			else item.remove(sI)
+		}
 	}
 	if(item.v instanceof List){
 		if(!item.v)a=item.remove(sV)
@@ -1040,7 +1062,7 @@ private void cleanCode(item){
 		if(!item.c)a=item.remove(sC)
 		else for(eI in (List)item.c) cleanCode(eI)
 	}
-
+	// comments
 	if(item.z!=null)a=item.remove(sZ)
 	if(item.zc!=null)a=item.remove('zc')
 	// debug strings
@@ -1289,7 +1311,7 @@ Boolean getTheLockW(String qname,String meth=sNULL,Boolean longWait=false){
 	String semaSNum=semaNum.toString()
 	Semaphore sema=getSema(semaNum)
 	while(!(sema.tryAcquire())){
-		// did not get the lock
+		// did not get lock
 		Long t=lockTimesVFLD[semaSNum]
 		if(t==null){
 			t=(Long)now()
@@ -1676,7 +1698,7 @@ void clearParentCache(String meth=sNULL){
 	theParentCacheVFLD=theParentCacheVFLD
 
 	getCacheLock(lockTyp)
-	theCacheVFLD=[:] // all pistons reset their cache
+	theCacheVFLD=[:] // reset all pistons cache
 	clearHashMap(wName)
 	theVirtDevicesFLD=null
 	releaseCacheLock()
@@ -1840,7 +1862,7 @@ private void checkVersion(Map rtD){
 		warn "WARNING: Results may be unreliable because the "+msg+". Please update both apps to the same version.",rtD
 	}
 	if(location.timeZone==null)
-		error 'Your location is not setup correctly - timezone information is missing. Please select your location by placing the pin and radius on the map, then tap Save, and then tap Done. You may encounter error or incorrect timing until this is fixed.',rtD
+		error 'Your location is not setup correctly - timezone information is missing. Please select your location by placing the pin and radius on the map, then tap Save, and then tap Done. You may encounter error or incorrect timing until fixed.',rtD
 }
 
 /** EVENT HANDLING								**/
@@ -1862,9 +1884,9 @@ void executeHandler(event){
 }
 
 @Field static final Map getPistonLimits=[
-	scheduleRemain: 35000L, // need this or longer remaining executionTime to process additional schedules
+	scheduleRemain: 35000L, // this or longer remaining executionTime to process additional schedules
 	scheduleVariance: 63L,
-	executionTime: 40000L, // time we stop this execution
+	executionTime: 40000L, // time we stop execution run
 	slTime: 6300L, // time before we start inserting pauses
 	useBigDelay: 20000L, // transition from short delay to Long delay
 	taskShortDelay: 150L,
@@ -1899,8 +1921,8 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	Boolean dis=!(Boolean)tmpRtD.enabled
 	if(!act || dis){
 		if((Integer)tmpRtD.logging!=iZ){
-			String tstr=' active,aborting piston execution.'
-			if(!act) msg.m='Piston is not'+tstr+' (Paused)' // this is pause/resume piston
+			String tstr=' active, aborting piston execution.'
+			if(!act) msg.m='Piston is not'+tstr+' (Paused)' // pause/resume piston
 			if(dis) msg.m='Kill switch is'+tstr
 			info msg,tmpRtD
 		}
@@ -1913,7 +1935,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	Boolean myPep=(Boolean)tmpRtD.pep
 	String appId=(String)tmpRtD.id
 	Boolean serializationOn=true // on / off switch
-	Boolean strictSync=true // this could be a setting
+	Boolean strictSync=true // could be a setting
 	serializationOn=!myPep && serializationOn
 	Boolean doSerialization=serializationOn && !callMySelf
 
@@ -2030,7 +2052,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 				event.schedule=schedules.sort{ Map it -> (Long)it.t }.find{ Map it -> (String)it.d==evntVal }
 			else{
 				//anything less than scheduleVariance (63ms) in the future is considered due; do some pause to sync with it
-				//doing this because many times the scheduler will run a job early
+				//because many times scheduler will run a job early
 				sch=schedules.sort{ Map it -> (Long)it.t }.find{ Map it -> (Long)it.t<t+sVariance }
 				if(!sch) break
 
@@ -2137,7 +2159,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 			success=executeEvent(rtD,event)
 			firstTime=false
 			syncTime=sv_syncTime
-		} // end while
+		}
 
 		rtD.stats.timing.e=elapseT(startTime)
 		if(lg>iZ)info msg2,rtD
@@ -2342,7 +2364,8 @@ private Boolean executeEvent(Map rtD,event){
 						if(!(Boolean)rtD.restricted){
 							Map jq=event.schedule.jq
 							if(jq!=null){
-								Map statement=[tcp:jq.tcp, $:jq.$]
+								Map statement=[$:jq.$]
+								if(jq.tcp) statement += [tcp:jq.tcp]
 								rtD.currentAction=statement
 								def a=rtD.stack.cs
 								rtD.stack.cs=jq.cs
@@ -2372,7 +2395,7 @@ private Boolean executeEvent(Map rtD,event){
 			}
 			if(!ended){ ended=true; tracePoint(rtD,sBREAK,lZ,iZ) }
 		}catch(all){
-			error 'An error occurred while executing the event:',rtD,iN2,all
+			error 'An error occurred while executing event:',rtD,iN2,all
 		}
 		if((Boolean)rtD.eric)myDetail rtD,myS+' Result:TRUE'
 		return true
@@ -2403,7 +2426,7 @@ private void finalizeEvent(Map rtD,Map initialMsg,Boolean success=true){
 
 	rtD.trace.d=elapseT((Long)rtD.trace.t)
 
-	//flush the new cache value
+	//save / update changed cache values
 	for(item in (Map<String,Map>)rtD.newCache) ((Map<String,Object>)rtD.cache)[(String)item.key]=item.value
 
 	//overwrite state might have changed meanwhile
@@ -2733,7 +2756,7 @@ private static Integer stmtNum(Map stmt){ return stmt.$!=null ? (Integer)stmt.$:
 private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 	String str='executeStatement '
 	//if rtD.ffTo is a positive non-zero number, we need to fast forward through all branches
-	//until we locate the statement with a matching id, then we continue
+	//until we locate statement with a matching id, then we continue
 	if(statement==null)return false
 	Boolean lg=isDbg(rtD)
 	Integer stmtNm=stmtNum(statement)
@@ -2774,7 +2797,6 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 	Boolean stacked=true /* cancelable on condition change */
 	if(stacked)a=((List<Integer>)rtD.stack.cs).push(c)
 	Boolean svCSC=(Boolean)rtD.cndtnStChgd
-	//def parentAsync=asynch
 	Map<String,Map>sysV=(Map<String,Map>)rtD.systemVars
 	Double svIndex=(Double)sysV[sDLLRINDX].v
 	List svDevice=(List)sysV[sDLLRDEVICE].v
@@ -2852,7 +2874,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 
 					List<Map> schedules=sgetSchedules(str,myPep)
 					if(ownEvent || !schedules.find{ Map it -> (Integer)it.s==stmtNm }){
-						//if the time has come for our timer schedule the next timer
+						//if time has come for our timer schedule the next timer
 						// NOT VALID: if no next time is found quick enough a new schedule with i=-2 will be setup so that a new attempt can be made at a later time
 						if(ownEvent)chgRun(rtD,iZ)
 						scheduleTimer(rtD,statement, ownEvent ? (Long)rtD.event.schedule.t:lZ)
@@ -2860,11 +2882,11 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 					//override current condition so child statements can cancel on it
 					rtD.stack.c=stmtNm
 					if(ownEvent)chgRun(rtD,iZ)
-					//don't want to run this if there are piston or statement restrictions in effect
+					//don't want to run if piston or statement restrictions in effect
 					if(!prun(rtD) || (ownEvent && allowed && !(Boolean)rtD.restricted)){
 						//only execute the every if i=-1 (for rapid timers with large restrictions i.e. every second, but only on Mondays)
 						if(!prun(rtD) || (Integer)rtD.event.schedule.i==iN1)a=executeStatements(rtD,(List)statement.s,true)
-						//we exit a timer; only runs the scheduled code block and nothing else
+						//we exit a timer; only run scheduled code block and nothing else
 						if(ownEvent){
 							rtD.terminated=true
 							if(lg)debug "Exiting piston on completion of Every timer block",rtD
@@ -2888,7 +2910,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 				case sON:
 					perform=false
 					if(prun(rtD)){
-						//look to see if any of the event matches
+						//look to see if any of the events match
 						String deviceId= rtD.event.device!=null ? hashId(rtD.event.device.id):sNULL
 						for(Map event in (List<Map>)statement.c){
 							Map operand=event?.lo
@@ -2972,7 +2994,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 				case sSWITCH:
 					Map lo=[operand: (Map)statement.lo,values: (List)evaluateOperand(rtD,statement,(Map)statement.lo)]
 					Boolean fnd=false
-					Boolean implctBr= (String)statement.ctp==sI // case traversal policy, i- autobreak (def), e- fall thru
+					Boolean implctBr= (String)statement.ctp!=sE // case traversal policy, i- autobreak (def), e- fall thru
 					Boolean fallThru=!implctBr
 					perform=false
 					if(lg)debug "Evaluating switch with values $lo.values",rtD
@@ -2991,7 +3013,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 								//stop processing
 								value=false
 								if((Boolean)rtD.break){
-									//reached a break continue execution outside of the switch
+									//reached a break continue execution outside of switch
 									value=true
 									fnd=true
 									fallThru=false
@@ -2999,7 +3021,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 								}
 								if(prun(rtD)) break
 							}
-							//if the fast forwarding ended during this execution, assume fnd is true
+							//if fast forwarding ended during execution, assume fnd is true
 							fnd=fnd || ffTo!=currun(rtD)
 							value=true
 							//if implicit breaks
@@ -3015,7 +3037,7 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 							//stop processing
 							value=false
 							if((Boolean)rtD.break){
-								//reached a break, want to continue execution outside of the switch
+								//reached a break, want to continue execution outside of switch
 								value=true
 								rtD.break=false
 							}
@@ -3041,32 +3063,33 @@ private Boolean executeStatement(Map rtD,Map statement,Boolean asynch=false){
 					value=false
 					break
 			}
-			//break the loop
 			if(!prun(rtD) || isIf)perform=false
 
-			//is this statement a loop
 			Boolean loop=(stateType in ls1)
+			//break the loop
 			if(loop && !value && (Boolean)rtD.break){
-				//someone requested a break from the loop
+				//someone requested a break from loop
 				rtD.break=false
-				//allowing the rest to continue
+				//allowing rest to continue
 				value=true
 				perform=false
 			}
 			//repeat the loop?
 			repeat=perform && value && loop && prun(rtD)
 
-			Long overBy=checkForSlowdown(rtD)
-			if(overBy>lZ){
-				Long delay= overBy>(Long)getPistonLimits.useBigDelay ? (Long)getPistonLimits.taskLongDelay : (Long)getPistonLimits.taskShortDelay
-				String mstr=str+":Execution time exceeded by ${overBy}ms, ".toString()
-				if(repeat && overBy>(Long)getPistonLimits.executionTime){
-					error mstr+'Terminating',rtD
-					rtD.terminated=true
-					repeat=false
-				}else doPause(mstr+'Waiting for '+delay+sMS,delay,rtD)
+			if(prun(rtD)){
+				Long overBy=checkForSlowdown(rtD)
+				if(overBy>lZ){
+					Long delay= overBy>(Long)getPistonLimits.useBigDelay ? (Long)getPistonLimits.taskLongDelay : (Long)getPistonLimits.taskShortDelay
+					String mstr=str+":Execution time exceeded by ${overBy}ms, ".toString()
+					if(repeat && overBy>(Long)getPistonLimits.executionTime){
+						error mstr+'Terminating',rtD
+						rtD.terminated=true
+						repeat=false
+					}else doPause(mstr+'Waiting for '+delay+sMS,delay,rtD)
+				}
 			}
-		} // end while
+		}
 	}
 	if(prun(rtD)){
 		Map schedule
@@ -3295,16 +3318,18 @@ private Long executeVirtualCommand(Map rtD,devices,String command,List params){
 	return delay
 }
 
+private static String gTCP(Map statement){ return (String)statement.tcp ?: sC }
+
 private static List<Integer> svCS(Map rtD, Map statement){
-	// cancel on c- condition state change (def), p- piston state change, b- condition or piston state change, ""- never cancel
-	String tcp= (String)statement.tcp
+	// cancel on "" == c-> condition state change (def), p- piston state change, b- condition or piston state change, sN- never cancel
+	String tcp= gTCP(statement)
 	List<Integer> cs=[]+ (tcp in [sB,sC] ? (List<Integer>)rtD.stack.cs:[] ) // task cancelation policy
 	Boolean a=cs.removeAll{ Integer it -> it==iZ }
 	return cs
 }
 
 private static Integer svPS(Map statement){
-	String tcp= (String)statement.tcp
+	String tcp= gTCP(statement)
 	return tcp in [sB,sP] ? i1:iZ
 }
 
@@ -3422,7 +3447,7 @@ private void executePhysicalCommand(Map rtD,device,String command,params=[],Long
 }
 
 private void scheduleTimer(Map rtD,Map timer,Long lastRun=lZ){
-	//if already scheduled once during this run, don't do it again
+	//if already scheduled once during run, don't do it again
 	Integer iTD=stmtNum(timer)
 	if(((List<Map>)rtD.schedules).find{ Map it -> (Integer)it.s==iTD })return
 	String mySt=sNULL
@@ -3606,7 +3631,7 @@ private Long pushTimeAhead(Long pastTime,Long curTime){
 private void scheduleTimeCondition(Map rtD,Map cndtn){
 	if((Boolean)rtD.eric)myDetail rtD,"scheduleTimeCondition",i1
 	Integer cndNm=stmtNum(cndtn)
-	//if already scheduled once during this run, don't do it again
+	//if already scheduled once during run, don't do it again
 	if(((List<Map>)rtD.schedules).find{ Map it -> (Integer)it.s==cndNm && (Integer)it.i==iZ })return
 	String co=(String)cndtn.co
 	Map comparison=Comparisons().conditions[co]
@@ -3791,25 +3816,36 @@ private void requestWakeUp(Map rtD,Map statement,Map task,Long timeOrDelay,Strin
 	if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
 	if(fnd) debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',rtD
 	Map<String,Map>sysV=(Map<String,Map>)rtD.systemVars
+
+	fnd=false
+	Map mstk=[:]
+	def a=(Double)sysV[sDLLRINDX].v
+	if(a!=null) fnd=true
+	mstk.index=a
+	a=(List)sysV[sDLLRDEVICE].v
+	if(a!=null) fnd=true
+	mstk.device=a
+	a=(List)sysV[sDLLRDEVS].v
+	if(a!=null) fnd=true
+	mstk.devices=a
+	if(myJson) fnd=true
+	mstk.json=myJson
+	if(myResp) fnd=true
+	mstk.response=myResp
+// what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
+// currentEvent in case of httpRequest
+
 	Map mmschedule=[
 		(sT):time,
 		(sS):stmtNum(statement),
 		(sI):stmtNum(task),
 		cs:cs,
 		ps:ps,
-		(sD):data,
-		evt:(Map)rtD.currentEvent,
-		args:rtD.args,
-		stack:[
-			index:(Double)sysV[sDLLRINDX].v,
-			(sDEV):(List)sysV[sDLLRDEVICE].v,
-			devices:(List)sysV[sDLLRDEVS].v,
-			json:myJson ?: [:],
-			response:myResp ?: [:]
-// what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
-// currentEvent in case of httpRequest
-		]
+		evt:(Map)rtD.currentEvent
 	]
+	if(data!=sNULL) mmschedule.d=data
+	if(rtD.args) mmschedule.args=rtD.args
+	if(fnd) mmschedule.stack=mstk
 	a=((List<Map>)rtD.schedules).push(mmschedule)
 }
 
@@ -4306,7 +4342,7 @@ private Long stRepeat(Map rtD,Map jq){
 	String sCmd=(String)jq.s2C
 	Long secondDuration= (Long)jq.s2D
 
-	// this attempts to add command delays ced
+	//this attempts to add command delays ced
 	Long t0=(Integer)rtD.piston.o?.ced ? ((Integer)rtD.piston.o.ced).toLong():lZ
 	if(t0>lZ){
 		Long t1= (Long)getPistonLimits.deviceMaxDelay
@@ -4386,12 +4422,11 @@ void qrunRepeat(Map rtD,Long dur,Map jq){
 	Map statement=(Map)rtD.currentAction
 
 	List<Integer> cs=svCS(rtD,statement)
-	String tcp= (String)statement.tcp
 	Map jq1=[ // items to save for later requeues
-		tcp:tcp,
 		$:stmtNum(statement),
 		cs:cs
 	]+jq
+	if(statement.tcp) jq1 += [tcp:statement.tcp]
 
 	Integer ps= svPS(statement)
 	Long ttt=Math.round((Long)now()*d1+dur)
@@ -5260,8 +5295,8 @@ private Boolean evaluateConditions(Map rtD,Map cndtns,String collection,Boolean 
 					if(currun(rtD)==myC)chgRun(rtD,iZ)
 					rtD.cache[sidx]=ladderIndex
 					rtD.cache[sldt]=ladderUpdated
-				} // end else
-			} // end for
+				}
+			}
 		}
 	}else{
 		//cto == disable condition traversal optimizations
@@ -5467,7 +5502,7 @@ private evaluateOperand(Map rtD,Map node,Map oper,index=null,Boolean trigger=fal
 		case sE: //expression
 			mv=movt+evaluateExpression(rtD,(Map)operand.exp)
 			break
-		case 'u': //argument
+		case sU: //argument
 			mv=getArgument(rtD,(String)operand.u)
 			break
 	}
@@ -5694,7 +5729,7 @@ private Boolean evaluateComparison(Map rtD,String comparison,Map lo,Map ro=null,
 	if(!LT1){ LT1=fill_TIM(); mb() }
 	for(Map<String,Map> value in (List<Map>)lo.values){
 		Boolean res=false
-		//x=eXclude- if a momentary attribute is looked for and the device does not match the current device, then we must ignore this during comparisons
+		//x=eXclude- if a momentary attribute is requested and the device does not match the current device, then we must ignore this during comparisons
 		if(value && value.v && (!value.v.x || (Boolean)options.forceAll)){
 			try{
 				//physical support
@@ -5825,7 +5860,7 @@ private List<Map> listPreviousStates(device,String attr,Long threshold,Boolean e
 	List<Map> result=[]
 	List events=device.events([all: true,max: 100]).findAll{ it -> (String)it.name==attr}
 	//if we got any events let's go through them
-	//if we need to exclude last event we start at the second event as the first one is the event that triggered this function. The attribute's value has to be different from the current one to qualify for quiet
+	//if we need to exclude last event we start at the second event as the first one is the event that triggered execution. The attribute's value has to be different from the current one to qualify for quiet
 	Integer sz=events.size()
 	if(sz!=iZ){
 		Long thresholdTime=elapseT(threshold)
@@ -6377,7 +6412,9 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 					rawDevices[deviceId]=getDevice(rtD,deviceId)
 				}
 			}
-			switch((String)node.t){
+
+			String t=(String)node.t
+			switch(t){
 				case sACTION:
 					if(node.k){
 						for(Map k in (List<Map>)node.k) traverseStatements(k.p?:[],statementTraverser,k,data)
@@ -6411,6 +6448,7 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 					break
 			}
 		}
+
 		if(rtD.piston.r)traverseRestrictions((List)rtD.piston.r,restrictionTraverser)
 		if(rtD.piston.s)traverseStatements((List)rtD.piston.s,statementTraverser,null,stmtData)
 		//device variables could be device type variable, or another type using device attributes to fill in
@@ -6431,9 +6469,10 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 		for(subscription in subscriptions){
 			String devStr=(String)subscription.value.d
 			String altSub=never
+			if((Boolean)rtD.eric){ warn "evaluating sub: $subscription",rtD }
 			for(Map cndtn in (List<Map>)subscription.value.c){
 				if(cndtn){
-					cndtn.s=false // this modifies the code
+					cndtn.s=false // modifies the code
 					String tt0=(String)cndtn.sm
 					altSub= tt0==always ? tt0 : (altSub!=always && tt0!=never ? tt0 : altSub)
 				}
@@ -6450,9 +6489,12 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 				if(device!=null){
 					for(Map cndtn in (List<Map>)subscription.value.c){
 						if(cndtn){
+							String ct=(String)cndtn.ct
+							if(cndtn.t==sEVENT && ct==sNULL){ cndtn.ct=sT; ct=sT } // modifies the code
 							String t1=(String)cndtn.sm
-							cndtn.s= t1!=never && ((String)cndtn.ct==sT || t1==always || !hasTriggers) // this modifies the code
+							cndtn.s= t1!=never && (ct==sT || t1==always || !hasTriggers) // modifies the code
 						}
+						if((Boolean)rtD.eric){ warn "processed condition: $cndtn",rtD }
 					}
 					if(!(a in LT1)){ // timers don't have subscription
 						Integer cnt=ss.events
@@ -6485,8 +6527,9 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 				}
 			}else{
 				for(Map cndtn in (List<Map>)subscription.value.c){
-					if(cndtn){ cndtn.s=false } // this modifies the code
+					if(cndtn){ cndtn.s=false } // modifies the code
 				}
+				if((Boolean)rtD.eric){ warn "forced false sub: $subscription",rtD }
 				if(devices[devStr]) devices[devStr].c=(Integer)devices[devStr].c-i1
 			}
 		}
@@ -6712,14 +6755,14 @@ private Map getDeviceAttribute(Map rtD,String deviceId,String attr,subDeviceInde
 		//have to compare ids and type for hubitat since the locationid can be the same as the deviceid
 		def tt0=rtD.event?.device!=null ? rtD.event.device:location
 		Boolean deviceMatch=device?.id==tt0.id && isDeviceLocation(device)==isDeviceLocation(tt0)
-		//x=eXclude- if a momentary attribute is looked for and the device does not match the current device, then we must ignore this during comparisons
+		//x=eXclude- if a momentary attribute is looked for and the device does not match the current device, then we must ignore during comparisons
 		if(!LTHR){ LTHR=fill_THR(); mb() }
 		return [
 			(sT):atT,
 			(sV):value,
 			(sD):deviceId,
 			(sA):attr,
-			(sI):subDeviceIndex,
+//			(sI):subDeviceIndex,
 			(sX):(attribute.m!=null || trigger) && (!deviceMatch || (attr in LTHR ? sTHREAX:attr)!=(String)rtD.event.name)
 		]
 	}
@@ -7457,7 +7500,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 			break
 		case sFUNC:
 			String fn='func_'+(String)expression.n
-			//in a function, we look for device parameters,they may be lists- we need to reformat all parameters to send them to the function properly
+			//in a function, we look for device parameters,they may be lists- we need to reformat all parameters to send them to the function
 			String myStr=sNULL
 			try{
 				List params=[]
@@ -7538,7 +7581,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 					operand=items.size()-i1
 					lastOperand=operand
 				}
-			} // end for
+			}
 			//clean up operators, ensure there's one for each
 			Integer idx=iZ
 			Integer itmSz=items.size()-i1
@@ -7732,24 +7775,14 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 						t=sLONG
 						if(t1n){
 							t= o==sPLUS && t2 in [sDATE,sDTIME] ? sDTIME:t // dtime -> number+dtime number+date
-							//t= o==sMINUS || t2==sTIME ? sLONG:t // duration -> number-date number+/-time number-dtime
 						}else if(t2n){
 							t= o==sPLUS && t1 in [sDATE,sDTIME] ? sDTIME:t // dtime -> dtime+number date+number
-							//t= o==sMINUS || t1==sTIME ? sLONG:t // duration -> date-number time+/-number dtime-number
 						}else{
-							//t=sLONG //t1==sDATE && t2==sDATE ? sDATE:(t1==sTIME && t2==sTIME ? sTIME:sDTIME)
-							//Boolean sm= (t1==sDATE && t2==sDATE) || (t1==sTIME && t2==sTIME) || (t1==sDTIME && t2==sDTIME)
 							t1d= t1==sDATE
-							//t2d= t2==sDATE
-							//Boolean t1t= t1==sTIME
 							Boolean t2t= t2==sTIME
 							Boolean t1dt= t1==sDTIME
-							//Boolean t2dt= t2==sDTIME
-							//t= (o==sMINUS && (sm || (t1d && t2dt))) || (o==sPLUS && t1t && t2t) ? sLONG:t // duration -> date-date time+/-time dtime-dtime, date-dtime
 							t= (t1d||t1dt) && t2t ? sDTIME:t // dtime -> date+/-time dtime+/-time
 						}
-						// duration -> duration+number duration-anything
-						// undef -> date+date dtime+dtime dtime+date
 					}else{
 						if(o in lPLSMIN){
 							//devices and others play nice
@@ -7913,7 +7946,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 						default:
 							v=t==sSTR ? "$v1$v2".toString() : v1+v2
 							break
-					} //end switch
+					}
 
 					if(isDbg(rtD))debug "Calculating ($t1)$v1 $o ($t2)$v2 >> ($t)$v",rtD
 
@@ -7921,15 +7954,15 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 					items[idxPlus].t=t
 					v=(v instanceof GString)? "$v".toString():v
 					items[idxPlus].v=matchCast(rtD,v,t) ? v : cast(rtD,v,t)
-				} // end else
+				}
 
 				aa=items.remove(idx)
 
 				itmSz=items.size()
-			} //end while
+			}
 			result=items[iZ] ? ((String)items[iZ].t==sDEV ? (Map)items[iZ] : evaluateExpression(rtD,(Map)items[iZ])) : rtnMap(sDYN,null)
 			break
-	} //end switch
+	}
 
 	if(dataType){
 		String ra=result.a
@@ -7943,7 +7976,7 @@ private Map evaluateExpression(Map rtD,Map express,String dataType=sNULL){
 				default: result=rtnMapS(buildDeviceAttributeList(rtD,atL,ra)); break
 			}
 		}
-		//return the value either directly or via cast if certain data type is requested
+
 		String t0=(String)result.t
 		def t1=result.v
 		Boolean match=(dataType in LS && t0 in LS && t1 instanceof String)
@@ -9353,7 +9386,7 @@ private Long elapseT(Long st){
 	return Math.round(d1*(Long)now()-st)
 }
 
-private Date utcToLocalDate(dateOrTimeOrString=null){ // this is really cast to Date
+private Date utcToLocalDate(dateOrTimeOrString=null){ // cast to Date
 	def ldate=dateOrTimeOrString
 	if(!(ldate instanceof Long)){
 		if(ldate instanceof String){
@@ -9378,7 +9411,7 @@ private Date localDate(){ return utcToLocalDate((Long)now())}
 
 //private Long localTime(){ return now()} //utcToLocalTime()}
 
-private Long stringToTime(dateOrTimeOrString){ // this is convert to time
+private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 	Long lnull=(Long)null
 	Long result=lnull
 	Integer cnt=iZ
@@ -9448,7 +9481,7 @@ private Long stringToTime(dateOrTimeOrString){ // this is convert to time
 			cnt=8
 			try{
 				TimeZone tz=(TimeZone) location.timeZone
-				if(sdate =~ /\s[A-Z]{3}$/){ // this is not the timezone... strings like CET are not unique.
+				if(sdate =~ /\s[A-Z]{3}$/){ // is not the timezone... strings like CET are not unique.
 					try{
 						tz=TimeZone.getTimeZone(sdate[-3..-1])
 						///sdate=sdate.take(sdate.size()-3).trim()
@@ -9922,7 +9955,7 @@ private void getLocalVariables(Map rtD,Map atomState){
 		Map<String,Object> variable=[
 			(sT):t,
 			(sV):var.v!=null ? var.v: t.endsWith(sRB) ? (v instanceof Map ? v:[:]) : (matchCast(rtD,v,t) ? v:cast(rtD,v,t)),
-			//f means fixed value; do not save this to the state
+			//f means fixed value; do not save to state
 			(sF): !!var.v
 		]
 		if(var.v!=null && (String)var.a==sS && !t.endsWith(sRB))
@@ -10293,9 +10326,12 @@ private static String inputTitleStr(String title)	{ return '<u>'+title+'</u>' }
 //private static String pageTitleStr(String title)	{ return '<h1>'+title+'</h1>' }
 //private static String paraTitleStr(String title)	{ return '<b>'+title+'</b>' }
 
+@Field static final String sGITP='https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/'
+private static String gimg(String imgSrc){ return sGITP+imgSrc }
+
 private static String imgTitle(String imgSrc,String titleStr,String color=sNULL,Integer imgWidth=30,Integer imgHeight=iZ){
 	String imgStyle=sBLK
-	String myImgSrc='https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/'+imgSrc
+	String myImgSrc=gimg(imgSrc)
 	imgStyle+= imgWidth>iZ ? 'width: '+imgWidth.toString()+'px !important;':sBLK
 	imgStyle+= imgHeight>iZ ? imgWidth!=iZ ? sSPC:sBLK+'height:'+imgHeight.toString()+'px !important;':sBLK
 	if(color!=sNULL){ return """<div style="color: ${color}; font-weight:bold;"><img style="${imgStyle}" src="${myImgSrc}"> ${titleStr}</img></div>""".toString() }
@@ -10339,7 +10375,7 @@ Map<String,Object> fixHeGType(Boolean toHubV,String typ,v,String dtyp){
 				ret=['bigdecimal':v]
 				break
 			case sDEV:
-				// HE this is a List<String> -> String of words separated by a space (can split())
+				// HE is a List<String> -> String of words separated by a space (can split())
 				List<String> dL= v instanceof List ? (List<String>)v:(v ? (List<String>)[v]:[])
 				String res=sNULL
 				Boolean ok=true
@@ -10403,7 +10439,7 @@ Map<String,Object> fixHeGType(Boolean toHubV,String typ,v,String dtyp){
 					break
 				}
 				//	if(typ==sDTIME){
-				// this comes in long needs to be string -> 2021-10-13T14:25:09.009-0700
+				// long needs to be string -> 2021-10-13T14:25:09.009-0700
 				ret=[(sDTIME):tt]
 				break
 				//	}
@@ -10435,7 +10471,7 @@ Map<String,Object> fixHeGType(Boolean toHubV,String typ,v,String dtyp){
 				else ret=[(sSTR):v]
 				break
 				// cannot really return a string to dynamic type here res=sDYN
-			case sDTIME: // global times: everything is datetime -> these come in string and needs to be a long of appropriate type
+			case sDTIME: // global times: everything is datetime -> these come in string and needs to be a long of the type
 				String iD=v
 				String mtyp=sDTIME
 				String res=v
