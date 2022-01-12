@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 5, 2022 for Hubitat
+ * Last update January 10, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -27,7 +27,7 @@
 //file:noinspection GrDeprecatedAPIUsage
 
 @Field static final String sVER='v0.3.113.20210203'
-@Field static final String sHVER='v0.3.113.20220105_HE'
+@Field static final String sHVER='v0.3.113.20220110_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -89,6 +89,7 @@ preferences{
 	page((sNM): "pageResetEndpoint")
 	page((sNM): "pageCleanups")
 	page((sNM): "pageLogCleanups")
+	page((sNM): "pageUberCleanups")
 	page((sNM): "pageRemove")
 }
 
@@ -502,10 +503,13 @@ def pageSettings(){
 
 		if((Boolean)getLogging().debug || eric()){
 			section("Child Log Cleanups"){
-				href "pageLogCleanups", (sTIT): "Clear Logs, trace, stats & caches", (sDESC): "Tap to clear", state: "complete"
+				href "pageLogCleanups", (sTIT): "Clear Logs, trace, stats, optimization caches, reset logs, stats settings to default", (sDESC): "Tap to clear", state: "complete"
 			}
 			section("Child Cleanups"){
-				href "pageCleanups", (sTIT): "Clear piston caches", (sDESC): "Tap to clear", state: "complete"
+				href "pageCleanups", (sTIT): "Clear piston optimization cache", (sDESC): "Tap to clear", state: "complete"
+			}
+			section("Child Uber Cleanups"){
+				href "pageUberCleanups", (sTIT): "Danger: Clear Logs, variables, piston caches", (sDESC): "Tap to clear", state: "complete"
 			}
 		}
 
@@ -628,6 +632,15 @@ def pageLogCleanups(){
 	}
 }
 
+def pageUberCleanups(){
+	clearChldCaches(false,false, true)
+	return dynamicPage((sNM):'pageUberCleanups', install: false, uninstall:false){
+		section('Uber Clear'){
+			paragraph 'Everything has been cleared.'
+		}
+	}
+}
+
 def pageRemove(){
 	dynamicPage((sNM): "pageRemove", (sTIT): sBLK, install: false, uninstall: true){
 		section('CAUTION'){
@@ -666,7 +679,7 @@ void updated(){
 	initialize()
 
 	Boolean chg=false
-	Boolean forceResub=false
+	Boolean frcResub=false
 
 	if((Boolean)atomicState.disabled!=(Boolean)settings.disabled){
 		atomicState.disabled=(Boolean)settings.disabled==true
@@ -680,7 +693,7 @@ void updated(){
 		debug "Detected version change ${state.cV} ${sVER} ${state.hV} ${sHVER}"
 		atomicState.cV=sVER
 		atomicState.hV=sHVER
-		forceResub=true
+		frcResub=true
 		chg=true
 	}
 	if((Boolean)atomicState.lFS!=(Boolean)settings.localFuelStreams){
@@ -688,7 +701,7 @@ void updated(){
 		chg=true
 	}
 	if(chg){
-		clearParentPistonCache("parent updated", forceResub, chg)
+		clearParentPistonCache("parent updated", frcResub, chg)
 		cleanUp()
 		resetFuelStreamList()
 	}
@@ -744,7 +757,7 @@ private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, B
 
 @Field volatile static Map<String,Map<String, Long>> cldClearFLD=[:]
 
-void clearChldCaches(Boolean all=false, Boolean clrLogs=false){
+void clearChldCaches(Boolean all=false, Boolean clrLogs=false, Boolean uber=false){
 // clear child caches if has not run in 61 mins
 	String wName=app.id.toString()
 	String name=handlePistn()
@@ -756,9 +769,9 @@ void clearChldCaches(Boolean all=false, Boolean clrLogs=false){
 	List t0=getChildApps().findAll{ (String)it.name==name }
 	if(t0){
 		if(!cldClearFLD[wName]){ cldClearFLD[wName]=(Map)[:]; cldClearFLD=cldClearFLD }
-		if(clrLogs){
+		if(clrLogs|uber){
 			t0.sort().each{ chld ->
-				Map a=chld.clearLogsQ()
+				Map a= !uber ? chld.clearLogsQ() : chld.clearAllQ()
 				String schld=chld.id.toString()
 				cldClearFLD[wName][schld]=t1
 			}
@@ -2792,7 +2805,7 @@ private void registerInstance(Boolean force=true){
 			],
 			timeout:20
 		]
-//log.debug "params ${params}"
+		if(eric()) debug "registering instance: params: $params"
 		params << [contentType: sAPPJSON, requestContentType: sAPPJSON]
 		asynchttpPut('myDone', params, [bbb:0])
 	}
@@ -2802,7 +2815,7 @@ void myDone(resp, data){
 	String endpoint=(String)state.endpointCloud
 	String region=endpoint.contains('graph-eu') ? 'eu' : 'us'
 	String instanceId=getInstanceSid()
-	debug "register resp: ${resp?.status} using api-${region}-${instanceId[32]}.webcore.co:9247"
+	if(eric())debug "register resp: ${resp?.status} using api-${region}-${instanceId[32]}.webcore.co:9247"
 	if(resp?.status==200){
 		String wName=app.id.toString()
 		lastRegFLD[wName]=(Long)now()
@@ -3918,6 +3931,15 @@ Map getChildComparisons(){
 // m - multiple
 // p - parameter count
 // t - timed
+// used by ide
+// g types
+//      t = timed
+//      f = image
+//      s = string
+//      m = momentary
+//      v = virtual device
+//      d = decimal
+//      i = integer
 @Field final Map<String,Map> comparisonsFLD=[
 	conditions: [
 		changed				: [ (sD): "changed",									(sG):"bdfis",				(sT): 1,	],
@@ -3961,7 +3983,7 @@ Map getChildComparisons(){
 		happens_daily_at	: [ (sD): "happens daily at",								(sG):sT,		(sP): 1					],
 		arrives				: [ (sD): "arrives",									(sG):"e",		(sP): 2					],
 		event_occurs		: [ (sD): "event occurs",									(sG):sS,						],
-		executes			: [ (sD): "executes",									(sG):"v",		(sP): 1					],
+		executes			: [ (sD): "executes",									(sG):sV,		(sP): 1					],
 		changes				: [ (sD): "changes",			(sDD): "change",					(sG):"bdfis",						],
 		changes_to			: [ (sD): "changes to",			(sDD): "change to",				(sG):"bdis",	(sP): 1,					],
 		changes_away_from	: [ (sD): "changes away from",		(sDD): "change away from",				(sG):"bdis",	(sP): 1,					],
