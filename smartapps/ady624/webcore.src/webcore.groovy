@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 10, 2022 for Hubitat
+ * Last update January 18, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -27,7 +27,7 @@
 //file:noinspection GrDeprecatedAPIUsage
 
 @Field static final String sVER='v0.3.113.20210203'
-@Field static final String sHVER='v0.3.113.20220110_HE'
+@Field static final String sHVER='v0.3.113.20220117_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -45,10 +45,12 @@ private static String domain(){ return sWCD }
 @Field static final String sWEAT=' Weather'
 @Field static final String sSTOR=' Storage'
 @Field static final String sFUELS=' Fuel Stream'
+@Field static final String sPRES=' Presence Sensor'
 private static String handlePistn(){ return sWC+sPISTN }
 private static String handleWeat(){ return sWC+sWEAT }
 private static String handleStor(){ return sWC+sSTOR }
 private static String handleFuelS(){ return sWC+sFUELS }
+private static String handlePres(){ return sWC+sPRES }
 
 definition(
 	name: handle(),
@@ -84,7 +86,7 @@ preferences{
 	page((sNM): "pageFuelStreams")
 	page((sNM): "pageSettings")
 	page((sNM): "pageChangePassword")
-	page((sNM): "pageSavePassword")
+	page((sNM): "pageClearTokens")
 	page((sNM): "pageRebuildCache")
 	page((sNM): "pageResetEndpoint")
 	page((sNM): "pageCleanups")
@@ -105,6 +107,7 @@ private static Boolean eric(){ return false }
 @Field static final String sBLK=''
 @Field static final String sSPC=' '
 @Field static final String sCOLON=':'
+@Field static final String sDIV='/'
 @Field static final String sBOOL='bool'
 @Field static final String sAPPJAVA="application/javascript;charset=utf-8"
 @Field static final String sDATA='data'
@@ -124,6 +127,10 @@ private static Boolean eric(){ return false }
 @Field static final String sNM='name'
 @Field static final String sVAL='value'
 @Field static final String sVARIABLE='variable'
+@Field static final String sDISARMD='disarmed'
+@Field static final String sCANCEL='cancel'
+@Field static final String sALLDISARM='allDisarmed'
+@Field static final String sCANRULEA='cancelRuleAlerts'
 @Field static final String sRGB='rgb'
 @Field static final String sT='t'
 @Field static final String sH='h'
@@ -288,7 +295,7 @@ private pageInitializeDashboard(){
 					}
 					section(){
 						paragraph "Now, please choose a name for this webCoRE instance"
-							label( (sNM): "name", (sTIT): "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, (sREQ): false)
+						label( (sNM): "name", (sTIT): "Name", state: (name ? "complete" : sNULL), defaultValue: app.name, (sREQ): false)
 					}
 
 					pageSectionDisclaimer()
@@ -301,7 +308,7 @@ private pageInitializeDashboard(){
 						paragraph "Your location is not correctly setup."
 					}
 					pageSectionTimeZoneInstructions()
-					section (){
+					section(){
 						paragraph "Once you have finished the steps above, go back and try again", (sREQ): true
 					}
 					return
@@ -311,13 +318,14 @@ private pageInitializeDashboard(){
 					paragraph "Sorry, it looks like OAuth is not properly enabled."
 				}
 				pageSectionInstructions()
-				section (){
+				section(){
 					paragraph "Once you have finished the steps above, go back and try again", (sREQ): true
 				}
 				return
 			}
 		}
 		pageSectionPIN()
+		pageSectionAcctId(true)
 	}
 }
 
@@ -462,7 +470,7 @@ def pageSettings(){
 		}
 
 		section(sectionTitleStr("Custom Endpoints - Advanced")){
-			paragraph "Custom Endpoints allows use of a local webserver for webCoRE IDE pages and local hub API endpoint address.  webCoRE servers are still used for instance registration, non-local backup / restore / import, send email, NFL, store media, and optionally fuel streams"
+			paragraph "Custom Endpoints allows use of a local webserver for webCoRE IDE pages and local hub API endpoint address. webCoRE servers are still used for instance registration, non-local backup / restore / import, send email, NFL, store media, and optionally fuel streams"
 			input "customEndpoints", sBOOL, submitOnChange: true, (sTIT): "Use custom endpoints?", default: false, (sREQ): true
 			if((Boolean)customEndpoints){
 				Boolean req=false
@@ -527,21 +535,45 @@ private pageFuelStreams(){
 	}
 }
 
-private pageChangePassword(){
-	dynamicPage((sNM): "pageChangePassword", uninstall: false, install: false){
-		section((sTIT): "Location SID"){
+private pageSectionAcctId(Boolean ins=false){
+	section((sTIT): "Set Account/Location Identifier"){
+		paragraph "If you have multiple webCoRE instances (ie you have (or may have) multiple hubs running webCoRE), for proper IDE operations all of the hubs should be linked together with a common account identifier."
+		if(!ins)paragraph "NOTE changing these settings will require all piston references to be corrected (calling other webCoRE pistons, URL access, and access apps such as HomeBridge or Echo Speaks.)"
+		input "setACCT", sBOOL, (sTIT): "Set custom account identifier?", (sDESC): "Tap to change", defaultValue: ins, submitOnChange: true, (sREQ): false
+		if((Boolean)settings.setACCT){
+			paragraph "An email address is usually a good choice (is not used/shared)"
+			input "acctID", sTXT, (sTIT): 'Account identifier (email is usually good)', (sREQ): true
+			if(settings.acctID){
+				app.updateSetting("properSID", [type: sBOOL, (sVAL): true])
+				paragraph "All hubs in same location should have a common location identifier. This could be Boston, Vacation, or Home1, etc..."
+				input "locID", sTXT, (sTIT): 'Location identifier - no imbedded spaces', (sREQ): true
+			}
+		} else{
+			app.removeSetting("acctID")
+			app.removeSetting("locID")
 			input "properSID", sBOOL, (sTIT): "Use New SID for location?", (sDESC): "Tap to change", defaultValue: true, (sREQ): false
 		}
+		String wName=sAppId()
+		acctlocFLD[wName]=null
+		locFLD[wName]=sNULL
+		clearHashMap(wName)
+	}
+}
+
+private pageChangePassword(){
+	dynamicPage((sNM): "pageChangePassword", uninstall: false, install: false){
 		section(){
 			paragraph "Choose a security password for your dashboard. You will need to enter this password when accessing your dashboard for the first time and possibly from time to time.", (sREQ): false
 		}
 		pageSectionPIN()
+		pageSectionAcctId(false)
 		section(){
-			href "pageSavePassword", (sTIT): "Clear all Security Tokens", (sDESC): "Tap to clear all security tokens in use by browsers", state: "complete"
+			href "pageClearTokens", (sTIT): "Clear all Browser Security Tokens", (sDESC): "Tap to clear all security tokens in use by browsers", state: "complete"
 		}
 		if(settings.PIN){
 			section(){
-				paragraph "The webCoRE dashboard uses an access token to communicate with the webCoRE app on your Hubitat Hub. In some cases you may choose to invalidate it periodically for increased security.", (sREQ): false
+				paragraph "webCoRE uses an access token to allow communication with webCoRE via REST calls. You may choose to reset this token.", (sREQ): false
+				paragraph "NOTE resetting the access token will invalidate any remote access to pistons (the URLs they are using), and this will have to be re-enabled / setup once the new access token has been created.", (sREQ): true
 				paragraph "If your dashboard fails to load and no log messages appear in Hubitat console 'Logs' when you refresh the dashboard, resetting the access token may restore access to webCoRE.", (sREQ): false
 				href "pageResetEndpoint", (sTIT): "Reset access token", (sDESC): "WARNING: URLs for triggering pistons or accessing piston URLs will need to be updated", state: "complete"
 			}
@@ -556,11 +588,11 @@ private pageSectionPIN(){
 	}
 }
 
-private pageSavePassword(){
+private pageClearTokens(){
 	initTokens()
-	dynamicPage((sNM): "pageSavePassword", install: false, uninstall: false ){
+	dynamicPage((sNM): "pageClearTokens", install: false, uninstall: false ){
 		section(){
-			paragraph "Tokens have been Cleared. You will have to re-login to the webCoRE dashboards."
+			paragraph "Browser Tokens have been Cleared. You will have to re-login to the webCoRE dashboards."
 		}
 	}
 }
@@ -576,7 +608,7 @@ def pageRebuildCache(){
 
 def pageResetEndpoint(){
 	revokeAccessToken()
-	String wName=app.id.toString()
+	String wName=sAppId()
 	lastRecoveredFLD[wName]=0L
 	lastRegFLD[wName]=0L
 	lastRegTryFLD[wName]=0L
@@ -592,21 +624,22 @@ def pageResetEndpoint(){
 }
 
 def pageCleanups(){
-	String t = 'cleanup old super'
-	Boolean didw = getTheLock(t)
+	String t= 'cleanup old super'
+	Boolean didw= getTheLock(t)
 
 	Map<String,Map> vars=(Map<String,Map>)atomicState.vars
 	vars=vars ?: [:]
 	Boolean fnd=false
 	if(vars){ // clear out obsolete superglobals
-		List<String> b=vars.collect { (String)it.key }
-		for (String c in b) {
+		List<String> b=vars.collect{ (String)it.key }
+		for (String c in b){
 			if(c.startsWith('@@')){
 				a=vars.remove(c) // @@
 				fnd=true
 			}
 		}
 		if(fnd)atomicState.vars=vars
+		b=null
 	}
 
 	releaseTheLock(t)
@@ -646,6 +679,7 @@ def pageRemove(){
 		section('CAUTION'){
 			paragraph "You are about to completely remove webCoRE and all of its pistons.", (sREQ): true
 			paragraph "This action is irreversible.", (sREQ): true
+			paragraph "It is suggested save a hub backup prior to this delete", (sREQ): true
 			paragraph "If you are sure you want to do this, please tap on the Remove button below.", (sREQ): true
 		}
 	}
@@ -680,6 +714,7 @@ void updated(){
 
 	Boolean chg=false
 	Boolean frcResub=false
+	Boolean verchg=false
 
 	if((Boolean)atomicState.disabled!=(Boolean)settings.disabled){
 		atomicState.disabled=(Boolean)settings.disabled==true
@@ -689,23 +724,45 @@ void updated(){
 		atomicState.lPE=(Boolean)settings.logPistonExecutions==true
 		chg=true
 	}
+	if(atomicState.doResub){
+		chg=true
+		frcResub=true
+		verchg=true
+	}
 	if((String)atomicState.cV!=sVER || (String)atomicState.hV!=sHVER){
 		debug "Detected version change ${state.cV} ${sVER} ${state.hV} ${sHVER}"
 		atomicState.cV=sVER
 		atomicState.hV=sHVER
 		frcResub=true
 		chg=true
+		verchg=true
 	}
 	if((Boolean)atomicState.lFS!=(Boolean)settings.localFuelStreams){
 		atomicState.lFS=(Boolean)settings.localFuelStreams==true
 		chg=true
 	}
 	if(chg){
-		clearParentPistonCache("parent updated", frcResub, chg)
-		cleanUp()
-		resetFuelStreamList()
+		if(verchg){
+			runIn(150, afterRun) // try to deal with people updating this file first vs. last with HPM
+			log.info "webCoRE scheduled install/upgrade completion in 150 seconds"
+			return
+		}else{
+			clearParentPistonCache("parent updated", frcResub, chg)
+			cleanUp()
+			resetFuelStreamList()
+		}
 	}
 	clearBaseResult('updated')
+}
+
+void afterRun(){
+	atomicState.doResub=false
+	state.remove('doResub')
+	clearParentPistonCache("parent updated", true, true)
+	cleanUp()
+	resetFuelStreamList()
+	clearBaseResult('updated after')
+	log.info "webCoRE upgrade completed"
 }
 
 Map getChildPstate(){
@@ -719,7 +776,11 @@ Map getChildPstate(){
 		powerSource: state.powerSource ?: 'mains',
 		region: ((String)state.endpointCloud).contains('graph-eu') ? 'eu' : 'us',
 		instanceId: getInstanceSid(),
-		locationId: getLocationSid(),
+		accountId: accountSid(),
+		newAcctSid: acctANDloc(),
+		locationId: locationSid(),
+		oldLocations: [ hashId(((Long)location.id).toString()+sML), hashId(hubUID.toString()+location.name.toString()+sML)], //backwards compatibility
+		allLocations: [ locationSid(), hashId(((Long)location.id).toString()+sML), hashId(hubUID.toString()+location.name.toString()+sML)], //backwards compatibility
 		enabled: (Boolean)atomicState.disabled!=true,
 		logPExec: (Boolean)atomicState.lPE==true,
 		incidents: getIncidents(),
@@ -728,20 +789,23 @@ Map getChildPstate(){
 }
 
 private void clearGlobalPistonCache(String meth=null){
-	String name=handlePistn()
-	List t0=getChildApps().findAll{ (String)it.name==name }
+	String n=handlePistn()
+	List t0=getChildApps().findAll{ (String)it.name==n }
 	def t1=t0[0]
 	if(t1!=null) t1.clearGlobalCache(meth) // will cause a child to read global Vars
+	t0=null
 }
 
 private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, Boolean callAll=false){
-	String wName=app.id.toString()
+	String wName=sAppId()
 	clearHashMap(wName)
+	acctlocFLD[wName]=null
+	locFLD[wName]=sNULL
 	pStateFLD[wName]=(Map)[:]
 	pStateFLD=pStateFLD
 	mb()
-	String name=handlePistn()
-	List t0=getChildApps().findAll{ (String)it.name==name }
+	String n=handlePistn()
+	List t0=getChildApps().findAll{ (String)it.name==n }
 	if(t0){
 		def t1=t0[0]
 		if(t1!=null) t1.clearParentCache(meth) // will cause one child to read getChildPstate
@@ -753,20 +817,21 @@ private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, B
 			clearChldCaches(true)
 		}
 	}
+	t0=null
 }
 
 @Field volatile static Map<String,Map<String, Long>> cldClearFLD=[:]
 
 void clearChldCaches(Boolean all=false, Boolean clrLogs=false, Boolean uber=false){
 // clear child caches if has not run in 61 mins
-	String wName=app.id.toString()
-	String name=handlePistn()
+	String wName=sAppId()
+	String n=handlePistn()
 	if(all||clrLogs){
 		pStateFLD[wName]=(Map)[:]
 		mb()
 	}
 	Long t1=now()
-	List t0=getChildApps().findAll{ (String)it.name==name }
+	List t0=getChildApps().findAll{ (String)it.name==n }
 	if(t0){
 		if(!cldClearFLD[wName]){ cldClearFLD[wName]=(Map)[:]; cldClearFLD=cldClearFLD }
 		if(clrLogs|uber){
@@ -777,12 +842,12 @@ void clearChldCaches(Boolean all=false, Boolean clrLogs=false, Boolean uber=fals
 			}
 		}else{
 			Boolean updateCache=true
-			//Long recTime=3660000L  // 61 min in ms  (regular piston cache cleanup)
-			Long recTime=86460000L  // 24hrs + 1 min in ms  (regular piston cache cleanup)
-			if(all) recTime=1000L  // aggressive cache cleanup
+			//Long recTime=3660000L // 61 min in ms (regular piston cache cleanup)
+			Long recTime=86460000L // 24hrs + 1 min in ms (regular piston cache cleanup)
+			if(all) recTime=1000L // aggressive cache cleanup
 			Long threshold=t1 - recTime
 			t0.sort().each{ chld ->
-				String myId=hashId(chld.id, updateCache)
+				String myId=hashPID(chld.id)
 				if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 				Map meta=(Map)pStateFLD[wName][myId]
 				if(meta==null){
@@ -805,9 +870,12 @@ void clearChldCaches(Boolean all=false, Boolean clrLogs=false, Boolean uber=fals
 			}
 		}
 	}
+	t0=null
 }
 
 private void initialize(){
+	Boolean chg=false
+	Boolean initT=false
 	Boolean reSub=(Boolean)atomicState.forceResub1
 	if((Boolean)reSub==null){
 		atomicState.forceResub1=true
@@ -820,12 +888,36 @@ private void initialize(){
 		atomicState.properSID=t0
 		state.properSID=t0
 		if(settings.properSID==null) app.updateSetting("properSID", [type: sBOOL, (sVAL): true])
-		initTokens()
+		initT=true
+		chg=true
 	}
+	String wName=sAppId()
+	acctlocFLD[wName]=null
+	locFLD[wName]=sNULL
+	String a=accountSid()
+	String l=locationSid()
+	String a1=(String)atomicState.aSID
+	String l1=(String)atomicState.lSID
+	if(a1!=a || l1!=l){
+		if(a1!=null || l1!=null){
+			debug "Detected account SID change ${a1} -> ${a} ${l1} -> ${l}"
+			initT=true
+		}
+		chg=true
+		if(!acctANDloc()){
+			app.removeSetting("acctID")
+			app.removeSetting("locID")
+		}
+		atomicState.aSID=a
+		atomicState.lSID=l
+	}
+	if(chg) atomicState.doResub=true
+	if(initT)initTokens()
+
 	subscribeAll()
 	Map t0=(Map)atomicState.vars
 	if(t0==null)atomicState.vars=[:]
-	String wName=app.id.toString()
+
 	verFLD[wName]=sVER
 	HverFLD[wName]=sHVER
 
@@ -875,8 +967,8 @@ Map getWCendpoints(){
 	epl=localApiServerUrl("${app.id}".toString())
 
 	if(isCustomEndpoint()) ep=epl
-	if(ep.endsWith('/'))ep=ep.substring(0,ep.length()-1)
-	if(epl.endsWith('/'))epl=epl.substring(0,epl.length()-1)
+	if(ep.endsWith(sDIV))ep=ep.substring(0,ep.length()-1)
+	if(epl.endsWith(sDIV))epl=epl.substring(0,epl.length()-1)
 
 	t0.ep=ep
 	t0.epl=epl
@@ -893,7 +985,7 @@ private void updateEndpoint(){
 	state.endpointCloud=newEP
 	if(isCustomEndpoint()) newEP=newEPLocal
 	if(newEP!=(String)state.endpoint){
-		String wName=app.id.toString()
+		String wName=sAppId()
 		state.endpoint=newEP
 		state.endpointLocal=newEPLocal
 		lastRegFLD[wName]=0L
@@ -1012,10 +1104,10 @@ private Map api_get_error_result(String error){
 
 private Map getHubitatVersion(){
 	try{
-		return ((List)location.getHubs()).collectEntries { [it.id, it.getFirmwareVersionString()] }
+		return ((List)location.getHubs()).collectEntries{ [it.id, it.getFirmwareVersionString()] }
 	}
 	catch(ignored){
-		return ((List)location.getHubs()).collectEntries { [it.id, "< 1.1.2.112"] }
+		return ((List)location.getHubs()).collectEntries{ [it.id, "< 1.1.2.112"] }
 	}
 }
 
@@ -1060,7 +1152,7 @@ static void releaseTheLock(String meth=sNULL){
 
 private void clearBaseResult(String meth=sNULL){
 	String t='clearB'
-	String wName=app.id.toString()
+	String wName=sAppId()
 	Boolean didw=getTheLock(t)
 	base_resultFLD[wName]=null
 	releaseTheLock(t)
@@ -1071,7 +1163,7 @@ private void clearBaseResult(String meth=sNULL){
 
 private Map api_get_base_result(Boolean updateCache=false){
 	String t='baseR'
-	String wName=app.id.toString()
+	String wName=sAppId()
 
 	Boolean didw=getTheLock(t)
 
@@ -1092,13 +1184,13 @@ private Map api_get_base_result(Boolean updateCache=false){
 
 	TimeZone tz=location.getTimeZone()
 	String currentDeviceVersion=(String)state.deviceVersion
-	String name=handlePistn()
+	String n=handlePistn()
 	Long incidentThreshold=Math.round(lnow - 604800000.0D)
 	def a=state.hsmAlerts
 	List<Map> alerts= a ? (List<Map>)a : []
 
 	String instanceId=getInstanceSid()
-	String locationId=getLocationSid()
+	String locationId=locationSid()
 //log.info "alerts=${location.hsmAlert}"
 
 //	def t0=location.getHubs().collect{ [id: hashId(it.id, updateCache), (sNM): it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}
@@ -1108,9 +1200,9 @@ private Map api_get_base_result(Boolean updateCache=false){
 	Map result=[
 		(sNM): (String)location.name+ ' \\ ' +myN,
 		instance: [
-			account: [id: getAccountSid()],
-			pistons: getChildApps().findAll{ (String)it.name==name }.sort{ (String)it.label }.collect{
-				String myId=hashId(it.id, true)
+			account: [id: accountSid()],
+			pistons: getChildApps().findAll{ (String)it.name==n }.sort{ (String)it.label }.collect{
+				String myId=hashPID(it.id)
 				if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 				Map meta=(Map)pStateFLD[wName][myId]
 				if(meta==null){
@@ -1118,11 +1210,7 @@ private Map api_get_base_result(Boolean updateCache=false){
 					pStateFLD[wName][myId]=meta
 					pStateFLD=pStateFLD
 				}
-				[
-					id: myId,
-					(sNM): normalizeLabel(it),
-					meta: meta
-				]
+				[ id: myId, (sNM): normalizeLabel(it), meta: meta ]
 			},
 			id: instanceId,
 			locationId: locationId,
@@ -1144,8 +1232,8 @@ private Map api_get_base_result(Boolean updateCache=false){
 			incidents: alerts.collect{it}.findAll{ (Long)it.date >= incidentThreshold },
 			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, (sTIT): it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
 			id: locationId,
-			mode: hashId(location.getCurrentMode().id, updateCache),
-			modes: location.getModes().collect{ [id: hashId(it.id, updateCache), (sNM): (String)it.name ]},
+			mode: hashId(location.getCurrentMode().id),
+			modes: location.getModes().collect{ [id: hashId(it.id), (sNM): (String)it.name ]},
 			shm: transformHsmStatus((String)location.hsmStatus),
 			(sNM): location.name,
 			temperatureScale: location.getTemperatureScale(),
@@ -1177,19 +1265,19 @@ private Map<String,Map> getFuelStreamUrls(String iid){
 		Map headers=[ 'Auth-Token' : iid ]
 
 		return [
-			list : [(sL): false, (sM): 'POST', (sH): headers, u: baseUrl + '/list', (sD): [(sI): iid]],
-			get  : [(sL): false, (sM): 'POST', (sH): headers, u: baseUrl + '/get',  (sD): [(sI): iid ], (sP): 'f']
+			list: [(sL): false, (sM): 'POST', (sH): headers, u: baseUrl + '/list', (sD): [(sI): iid]],
+			get : [(sL): false, (sM): 'POST', (sH): headers, u: baseUrl + '/get' , (sD): [(sI): iid ], (sP): 'f']
 		]
 	}
 
 	//if((Boolean)state.installed && (Boolean)settings.agreement){
-	String baseUrl=isCustomEndpoint() && useLocalFuelStreams() ? customApiServerUrl("/") : apiServerUrl("$hubUID/apps/${app.id}/".toString())
+	String baseUrl=isCustomEndpoint() && useLocalFuelStreams() ? customApiServerUrl(sDIV) : apiServerUrl("$hubUID/apps/${app.id}/".toString())
 
 	String params=baseUrl.contains((String)state.accessToken) ? sBLK : "access_token=${state.accessToken}".toString()
 
 	return [
-		list : [(sL): true, u: baseUrl + "intf/fuelstreams/list?${params}".toString() ],
-		get  : [(sL): true, u: baseUrl + "intf/fuelstreams/get?id={fuelStreamId}${params ? "&" + params : sBLK}".toString(), (sP): 'fuelStreamId' ]
+		list: [(sL): true, u: baseUrl + "intf/fuelstreams/list?${params}".toString() ],
+		get : [(sL): true, u: baseUrl + "intf/fuelstreams/get?id={fuelStreamId}${params ? "&" + params : sBLK}".toString(), (sP): 'fuelStreamId' ]
 	]
 }
 
@@ -1201,8 +1289,8 @@ Boolean useLocalFuelStreams(){
 private static String transformHsmStatus(String status){
 	if(status==sNULL) return "unconfigured"
 	switch(status){
-		case "disarmed":
-		case "allDisarmed":
+		case sDISARMD:
+		case sALLDISARM:
 			return sOFF
 			break
 		case "armedHome":
@@ -1281,7 +1369,7 @@ private Map getDashboardData(){
 		result=storageApp.getDashboardData()
 	}else{
 		result=((Map)settings).findAll{ ((String)it.key).startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
-			[ (id): dev.getSupportedAttributes().collect{ (String)it.name }.unique().collectEntries {
+			[ (id): dev.getSupportedAttributes().collect{ (String)it.name }.unique().collectEntries{
 				def value
 				try { value=dev.currentValue(it) }catch(ignored){ value=null }
 				return [ (it) : value]
@@ -1305,11 +1393,12 @@ private api_intf_dashboard_piston_create(){
 	debug "Dashboard: Request received to create a new piston"
 	if(verifySecurityToken((String)params.token)){
 		String pname=(String)params.name!=sNULL ? (String)params.name : generatePistonName()
-		def apps=getChildApps()
+		String n=handlePistn()
+		List apps=getChildApps().findAll{ (String)it.name==n }
 		Boolean found=false
 		while(!found){
-			for(app in apps){
-				String myN= (String)app.label ?: (String)app.name
+			for(mapp in apps){
+				String myN= (String)mapp.label ?: (String)mapp.name
 				if(myN==pname){
 					found=true
 					break
@@ -1317,15 +1406,16 @@ private api_intf_dashboard_piston_create(){
 			}
 			break
 		}
+		apps=null
 		if(!found){
 			try{
 				def piston=addChildApp("ady624", handlePistn(), pname)
-				debug "created piston $piston.id   params $params"
+				debug "created piston $piston.id  params $params"
 				if((String)params.author!=sNULL || (String)params.bin!=sNULL){
 					piston.config([bin: (String)params.bin, author: (String)params.author, initialVersion: sVER])
 				}
 				debug "Created Piston "+pname
-				result=[(sSTS): sSUCC, id: hashId(piston.id)]
+				result=[(sSTS): sSUCC, id: hashPID(piston.id)]
 			}catch(ignored){
 				error "Please install the webCoRE Piston app"
 				result=[(sSTS): sERROR, (sERR): sERRUNK]
@@ -1338,13 +1428,29 @@ private api_intf_dashboard_piston_create(){
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
+private findPiston(String id, String nm=sNULL){
+	def piston=null
+	if(id!=sNULL || nm!=sNULL){
+		String n=handlePistn()
+		List t0=getChildApps().findAll{ (String)it.name==n }
+		if(id!=sNULL){
+			piston=t0.find{ hashPID(it.id)==id }
+			if (!piston)piston=t0.find{ hashId(it.id)==id }
+		}
+		if(nm!=sNULL && !piston){
+			piston=t0.find{ (String)it.label==nm }
+		}
+		t0=null
+	}
+	return piston
+}
+
 private api_intf_dashboard_piston_get(){
 	Map result=[:]
-	def piston
 	Boolean requireDb
 	if(verifySecurityToken((String)params.token)){
 		String pistonId=(String)params.id
-		if(pistonId!=sNULL) piston=getChildApps().find{ hashId(it.id)==pistonId }
+		def piston=findPiston(pistonId)
 		if(piston!=null){
 			debug "Dashboard: Request received to get piston ${pistonId} ${(String)piston.label}"
 
@@ -1391,7 +1497,7 @@ private void checkResultSize(Map result, Boolean requireDb=false, String caller=
 		//data saver for Hubitat ~100K limit
 		Integer responseLength=jsonData.getBytes("UTF-8").length
 		Integer resl= (Integer)(responseLength / 1024)
-		debug "Check size found  ${resl}KB response requireDb: (${requireDb}) caller: ${caller}"
+		debug "Check size found ${resl}KB response requireDb: (${requireDb}) caller: ${caller}"
 		if(resl > 105){ //these are loaded anyway right after loading the piston
 			warn "Trimming ${resl}KB response to smaller size (${requireDb}) caller: ${caller}"
 
@@ -1435,20 +1541,18 @@ private api_intf_dashboard_piston_backup(){
 	if(verifySecurityToken((String)params.token)){
 		List pistonIds=((String)params.ids ?: sBLK).tokenize(',')
 		for(String pistonId in pistonIds){
-			if(pistonId){
-				def piston=getChildApps().find{ hashId(it.id)==pistonId }
-				if(piston){
-					Map pd=(Map)piston.get(true)
-					if(pd){
-						String myN= (String)app.label ?: (String)app.name
-						pd.instance=[id: getInstanceSid(), (sNM): myN]
-						Boolean a=result.pistons.push(pd)
-						if(!isCustomEndpoint() || !(Boolean)localHubUrl){
-							String jsonData= JsonOutput.toJson(result)
-							Integer responseLength=jsonData.getBytes("UTF-8").length
-							if(responseLength > 110 * 1024){
-								warn "Backup too big ${ (Integer)(responseLength/1024) }KB response"
-							}
+			def piston=findPiston(pistonId)
+			if(piston){
+				Map pd=(Map)piston.get(true)
+				if(pd){
+					String myN= (String)app.label ?: (String)app.name
+					pd.instance=[id: getInstanceSid(), (sNM): myN]
+					Boolean a=result.pistons.push(pd)
+					if(!isCustomEndpoint() || !(Boolean)localHubUrl){
+						String jsonData= JsonOutput.toJson(result)
+						Integer responseLength=jsonData.getBytes("UTF-8").length
+						if(responseLength > 110 * 1024){
+							warn "Backup too big ${ (Integer)(responseLength/1024) }KB response"
 						}
 					}
 				}
@@ -1466,7 +1570,7 @@ private String decodeEmoji(String value){
 }
 
 private Map api_intf_dashboard_piston_set_save(String id, String data, Map<String,String>chunks){
-	def piston=getChildApps().find{ hashId(it.id)==id }
+	def piston=findPiston(id)
 	String myS="Dashboard: Request received to set_save"
 	if(piston){
 		debug myS
@@ -1515,7 +1619,7 @@ private api_intf_dashboard_piston_set_start(){
 	if(verifySecurityToken((String)params.token)){
 		String chunkstr="${params?.chunks}".toString()
 		Integer chunks=chunkstr.isInteger() ? chunkstr.toInteger() : 0
-		String wName=app.id.toString()
+		String wName=sAppId()
 		if((chunks > 0) && (chunks < 100)){
 			clearHashMap(wName)
 			//atomicState.chunks=[id: params?.id, count: chunks]
@@ -1530,7 +1634,7 @@ private api_intf_dashboard_piston_set_start(){
 
 private api_intf_dashboard_piston_set_chunk(){
 	Map result
-	String wName=app.id.toString()
+	String wName=sAppId()
 	String mchunk="${params?.chunk}".toString()
 	Integer chunk=mchunk.isInteger() ? mchunk.toInteger() : -1
 	//debug "Dashboard: Request received to set a piston chunk (#${1 + chunk}/${atomicState.chunks?.count})"
@@ -1553,7 +1657,7 @@ private api_intf_dashboard_piston_set_chunk(){
 
 private api_intf_dashboard_piston_set_end(){
 	Map result
-	String wName=app.id.toString()
+	String wName=sAppId()
 	debug "Dashboard: Request received to set a piston (chunked end)"
 	if(verifySecurityToken((String)params.token)){
 		//def chunks=atomicState.chunks
@@ -1597,23 +1701,22 @@ private api_intf_dashboard_piston_set_end(){
 
 private api_intf_dashboard_piston_pause(){
 	Map result
-	debug "Dashboard: Request received to pause a piston"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			Map rtData=(Map)piston.pausePiston()
 			updateRunTimeData(rtData)
 			result=[(sSTS): sSUCC, active: false]
 		}else result=api_get_error_result(sERRID)
 	}else result=api_get_error_result(sERRTOK)
+	debug "Dashboard: Request received to pause a piston"
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
 private api_intf_dashboard_piston_resume(){
 	Map result
-	debug "Dashboard: Request received to resume a piston"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			Map rtData=(Map)piston.resume()
 			result=(Map)rtData.result
@@ -1621,19 +1724,20 @@ private api_intf_dashboard_piston_resume(){
 			result.status=sSUCC
 		}else result=api_get_error_result(sERRID)
 	}else result=api_get_error_result(sERRTOK)
+	debug "Dashboard: Request received to resume a piston"
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
 private api_intf_dashboard_piston_test(){
 	Map result
-	debug "Dashboard: Request received to test a piston"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston!=null){
 			result=(Map)piston.test()
 			result.status=sSUCC
 		}else result=api_get_error_result(sERRID)
 	}else result=api_get_error_result(sERRTOK)
+	debug "Dashboard: Request received to test a piston"
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1641,7 +1745,7 @@ private api_intf_dashboard_presence_create(){
 	Map result
 	if(verifySecurityToken((String)params.token)){
 		String dni=(String)params.dni
-		def sensor=(dni ? getChildDevices().find{ (String)it.getDeviceNetworkId()==dni } : null) ?: addChildDevice("ady624", handle() + " Presence Sensor", dni ?: hashId("${now()}"), null, [label: params.name])
+		def sensor=(dni ? getChildDevices().find{ (String)it.getDeviceNetworkId()==dni } : null) ?: addChildDevice("ady624", handlePres(), dni ?: hashId("${now()}"), null, [label: params.name])
 		if(sensor){
 			sensor.label=(String)params.name
 			result=[
@@ -1658,7 +1762,7 @@ private api_intf_dashboard_piston_tile(){
 	Map result
 	debug "Dashboard: Clicked a piston tile"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			result=(Map)piston.clickTile(params.tile)
 			result.status=sSUCC
@@ -1671,7 +1775,7 @@ private api_intf_dashboard_piston_set_bin(){
 	Map result
 	debug "Dashboard: Request received to set piston bin"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			result=(Map)piston.setBin((String)params.bin)
 			result.status=sSUCC
@@ -1682,10 +1786,10 @@ private api_intf_dashboard_piston_set_bin(){
 
 private api_intf_dashboard_piston_set_category(){
 	Map result
-	String wName=app.id.toString()
+	String wName=sAppId()
 	debug "Dashboard: Request received to set piston category"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			result=(Map)piston.setCategory(params.category)
 			String myId=(String)params.id
@@ -1708,7 +1812,7 @@ private api_intf_dashboard_piston_logging(){
 	Map result
 	debug "Dashboard: Request received to set piston logging level"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			result=(Map)piston.setLoggingLevel((String)params.level)
 			result.status=sSUCC
@@ -1721,7 +1825,7 @@ private api_intf_dashboard_piston_clear_logs(){
 	Map result
 	debug "Dashboard: Request received to clear piston logs"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			result=(Map)piston.clearLogs()
 			result.status=sSUCC
@@ -1732,11 +1836,11 @@ private api_intf_dashboard_piston_clear_logs(){
 
 private api_intf_dashboard_piston_delete(){
 	Map result
-	String wName=app.id.toString()
+	String wName=sAppId()
 	debug "Dashboard: Request received to delete a piston"
 	if(verifySecurityToken((String)params.token)){
 		String id=(String)params.id
-		def piston=getChildApps().find{ hashId(it.id)==id }
+		def piston=findPiston(id)
 		if(piston){
 			if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 			pStateFLD[wName][id]=null
@@ -1791,7 +1895,7 @@ private api_intf_variable_set(){
 		String pid=(String)params.id
 		String name=(String)params.name
 		def value=params.value ? (LinkedHashMap) new JsonSlurper().parseText(new String(((String)params.value).decodeBase64(), "UTF-8")) : null
-		trace meth+"pid: $pid  name: $name value: $value"
+		trace meth+"pid: $pid name: $name value: $value"
 		Map<String,Map> globalVars
 		Map<String,Object> localVars
 		if(!pid){
@@ -1804,7 +1908,7 @@ private api_intf_variable_set(){
 					vn=name.substring(2)
 					chgd=deleteGlobalVar(vn)
 					meth1=meth+"DELETE HE global $vn "
-					if(!chgd) {
+					if(!chgd){
 						warn meth1+"FAILED"
 					}
 					else trace meth1
@@ -1874,7 +1978,7 @@ private api_intf_variable_set(){
 									chgd=false
 									try{ chgd=setGlobalVar(vln, vl) }catch(ignored){}
 									meth1=meth+"SET HE global $vln ${vl} "
-									if(!chgd) warn meth1+"FAILED mismatch $vln ${hg.type} ${typ}   ${value.t} ${vl}"
+									if(!chgd) warn meth1+"FAILED mismatch $vln ${hg.type} ${typ} ${value.t} ${vl}"
 									else trace meth1
 								}
 							}else warn meth1+"no value"
@@ -1919,7 +2023,7 @@ private api_intf_variable_set(){
 				result=[(sSTS): sSUCC]+[globalVars: globalVars]
 			}else result=[(sSTS): sERROR, (sERR): sERRUNK]
 		}else{
-			def piston=getChildApps().find{ hashId(it.id)==pid }
+			def piston=findPiston(pid)
 			if(piston){
 				localVars=(Map)piston.setLocalVariable(name, value.v)
 				//clearBaseResult('api_intf_variable_set')
@@ -1957,10 +2061,10 @@ private void resetFuelStreamList(){
 }
 
 void writeToFuelStream(Map req){
-	String name=handleFuelS()
+	String n=handleFuelS()
 	String streamName="${(req.c ?: sBLK)}||${req.n}"
 
-	def result=getChildApps().find{ (String)it.name==name && ((String)it.label).contains(streamName)}
+	def result=getChildApps().find{ (String)it.name==n && ((String)it.label).contains(streamName)}
 //	def fuelStreams=isHubitat() ? [] : atomicState.fuelStreams ?: []
 
 	if(!result){
@@ -1987,16 +2091,18 @@ void writeToFuelStream(Map req){
 			error "Please install the webCoRE Fuel Streams app for local Fuel Streams"
 			return
 		}
+		t0=null
 	}
 	result.updateFuelStream(req)
+	result=null
 }
 
 private api_intf_fuelstreams_list(){
 	def result
 	debug "Dashboard: Request received to list fuelstreams"
 	//if(verifySecurityToken((String)params.token)){
-	String name=handleFuelS()
-	result=getChildApps().findAll{ (String)it.name==name }*.getFuelStream()
+	String n=handleFuelS()
+	result=getChildApps().findAll{ (String)it.name==n }*.getFuelStream()
 
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(["fuelStreams" : result])})"
 }
@@ -2007,8 +2113,8 @@ private api_intf_fuelstreams_get(){
 	debug "Dashboard: Request received to get fuelstream data $id"
 
 	//if(verifySecurityToken((String)params.token)){
-	String name=handleFuelS()
-	def stream=getChildApps().find { (String)it.name==name && ((String)it.label).startsWith("$id -")}
+	String n=handleFuelS()
+	def stream=getChildApps().find { (String)it.name==n && ((String)it.label).startsWith("$id -")}
 	result=stream.listFuelStreamData()
 
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(["points" : result])})"
@@ -2035,7 +2141,7 @@ private api_intf_dashboard_piston_evaluate(){
 	Map result
 	debug "Dashboard: Request received to evaluate an expression"
 	if(verifySecurityToken((String)params.token)){
-		def piston=getChildApps().find{ hashId(it.id)==(String)params.id }
+		def piston=findPiston((String)params.id)
 		if(piston){
 			LinkedHashMap expression=(LinkedHashMap) new JsonSlurper().parseText(new String(((String)params.expression).decodeBase64(), "UTF-8"))
 			Map msg=timer "Evaluating expression"
@@ -2051,7 +2157,7 @@ private api_intf_dashboard_piston_activity(){
 	//debug "Dashboard: Activity request received $params"
 	if(verifySecurityToken((String)params.token)){
 		String pistonId=(String)params.id
-		def piston=getChildApps().find{ hashId((String)it.id)==pistonId }
+		def piston=findPiston(pistonId)
 		if(piston!=null){
 			Map t0=(Map)piston.activity(params.log)
 			result=[(sSTS): sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id, updateCache), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
@@ -2065,7 +2171,7 @@ def api_ifttt(){
 	//def remoteAddr=isHubitat() ? "UNKNOWN" : request.getHeader("X-FORWARDED-FOR") ?: request.getRemoteAddr()
 	def remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
 	if(remoteAddr==null)remoteAddr=request.'X-forwarded-for' ?: request.Host
-	debug "Request received ifttt call IP $remoteAddr  Referer: ${request.headers.Referer}"
+	debug "Request received ifttt call IP $remoteAddr Referer: ${request.headers.Referer}"
 //log.debug "params ${params}"
 	if(params){
 		data.params=[:]
@@ -2101,7 +2207,7 @@ private api_execute(){
 	def remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
 	if(remoteAddr==null)remoteAddr=request.'X-forwarded-for' ?: request.Host
 	if(remoteAddr==null)remoteAddr='just'
-	debug "Dashboard or web request received to execute a piston from IP $remoteAddr  Referer: ${request.headers.Referer}"
+	debug "Dashboard or web request received to execute a piston from IP $remoteAddr Referer: ${request.headers.Referer}"
 //log.debug "params ${params} request: ${request}"
 	if(params){
 		for(param in params){
@@ -2114,9 +2220,13 @@ private api_execute(){
 	data.remoteAddr=remoteAddr
 	data.referer=request.headers.Referer
 	String pistonIdOrName=(String)params?.pistonIdOrName
-	def piston=getChildApps().find{ ((String)it.label==pistonIdOrName) || (hashId(it.id)==pistonIdOrName) }
+	def piston= findPiston(pistonIdOrName,pistonIdOrName)
 	if(piston!=null){
-		sendLocationEvent((sNM): hashId(piston.id), (sVAL): remoteAddr, isStateChange: true, displayed: false, linkText: "Execute event", descriptionText: "External piston execute ${(String)piston.label} request from IP $remoteAddr", (sDATA): data)
+		sendExecuteEvt(hashPID(piston.id),
+				remoteAddr,
+				"Execute event",
+				"External piston execute ${(String)piston.label} request from IP $remoteAddr".toString(),
+				data)
 		result.result='OK'
 	}else{
 		result.result='ERROR'
@@ -2126,12 +2236,17 @@ private api_execute(){
 	render contentType: sAPPJSON, data: JsonOutput.toJson(result)
 }
 
+void sendExecuteEvt(String pistonId,val,String desc, String desc1,Map data){
+	String json=JsonOutput.toJson(data)
+	sendLocationEvent((sNM):pistonId,(sVAL):val,isStateChange:true,displayed:false,linkText:desc,descriptionText:desc1,data:json)
+}
+
 // get webcore global variables
 private api_global(){
 	def remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
 	if(remoteAddr==null)remoteAddr=request.'X-forwarded-for' ?: request.Host
 	if(remoteAddr==null)remoteAddr='just'
-	debug "web request received to get variable from IP $remoteAddr  Referer: ${request.headers.Referer} | $params"
+	debug "web request received to get variable from IP $remoteAddr Referer: ${request.headers.Referer} | $params"
 	Map result=[:]
 	Boolean err=true
 	String varName=(String)params?.varName
@@ -2172,34 +2287,34 @@ private api_global(){
 @Field static Map<String,String> verFLD= [:]
 @Field static Map<String,String> HverFLD= [:]
 
+void resetMemSt(String wName,String meth){
+	atomicState.hsmAlerts=[] // reload or restart
+	state.hsmAlerts=[]
+	verFLD[wName]=sVER
+	HverFLD[wName]=sHVER
+	mb()
+	clearParentPistonCache(meth)
+}
+
 void recoveryHandler(){
-	String wName=app.id.toString()
+	String wName=sAppId()
+	String meth='ver check'
 	if(verFLD[wName]==sNULL || HverFLD[wName]==sNULL){
 		if((String)state.cV==sVER && (String)state.hV==sHVER){
-			atomicState.hsmAlerts=[] // reload or restart
-			state.hsmAlerts=[]
-			verFLD[wName]=sVER
-			HverFLD[wName]=sHVER
-			mb()
-			clearParentPistonCache("ver check")
-			clearBaseResult('ver check')
+			resetMemSt(wName,meth)
+			clearBaseResult(meth)
 		}
 	}
 	if(verFLD[wName]!=sVER || HverFLD[wName]!=sHVER){
 		info "webCoRE software Updated to "+sVER+" HE: "+sHVER
-		atomicState.hsmAlerts=[] // reload or restart
-		state.hsmAlerts=[]
-		verFLD[wName]=sVER
-		HverFLD[wName]=sHVER
-		mb()
-		clearParentPistonCache("ver check")
+		resetMemSt(wName,meth)
 		updated()
 	}
 
 	Long t=now()
 	Long lastRecovered=lastRecoveredFLD[wName]
 	lastRecovered=lastRecovered ?: 0L
-	Long recTime=900000L  // 15 min in ms
+	Long recTime=900000L // 15 min in ms
 	if(lastRecovered!=0L && (t - lastRecovered) < recTime) return
 	lastRecoveredFLD[wName]=t
 	Integer delay=Math.round(200.0D * Math.random()).toInteger() // seconds
@@ -2209,16 +2324,14 @@ void recoveryHandler(){
 void finishRecovery(){
 	registerInstance(false)
 	Long recTime=300000L  // 5 min in ms
-	String name=handlePistn()
+	String n=handlePistn()
 	Long lnow=now()
-	Long threshold=lnow - recTime
-	Boolean updateCache=true
-	String wName=app.id.toString()
+	Long threshold= lnow-recTime
+	String wName=sAppId()
 	if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 
-	String sMETA='meta'
-	def failedPistons=getChildApps().findAll{ (String)it.name==name }.collect {
-		String myId=hashId(it.id, updateCache)
+	def failedPistons=getChildApps().findAll{ (String)it.name==n }.collect{
+		String myId=hashPID(it.id)
 		Map meta=(Map)pStateFLD[wName][myId]
 		if(meta==null){
 			//meta=atomicState[myId]
@@ -2226,15 +2339,24 @@ void finishRecovery(){
 			pStateFLD[wName][myId]=meta
 			pStateFLD=pStateFLD
 		}
-		[ id: myId, (sNM): (String)it.label, (sMETA): meta ] }.findAll{ it.meta!=null && (Boolean)it.meta.a && it.meta.n && (Long)it.meta.n < threshold }
-	if(failedPistons.size()){
+		[ id: myId, (sNM): (String)it.label, meta: meta ]
+	}.findAll{ it.meta!=null && (Boolean)it.meta.a && it.meta.n && (Long)it.meta.n < threshold }
+	Integer i= failedPistons.size()
+	if(i){
+		i=0
+		Long delay=Math.round(2000.0D * Math.random()) // 2 sec
 		for (piston in failedPistons){
-			sendLocationEvent((sNM): (String)piston.id, (sVAL): 'recovery', isStateChange: true, displayed: false, linkText: "Recovery event", descriptionText: "Recovery event for piston $piston.name")
-			warn "Piston $piston.name was sent a recovery signal because it was ${lnow - piston.meta.n}ms late"
-			Long delay=Math.round(2000.0D * Math.random()) // 2 sec
-			pauseExecution(delay)
+			String myId=(String)piston.id
+			Map meta=(Map)pStateFLD[wName][myId]
+			if((Long)meta.n < threshold){
+				if(i!=0) pauseExecution(delay)
+				i++
+				sendExecuteEvt((String)piston.id,'recovery',"Recovery event","Recovery event for piston $piston.name",null)
+				warn "Piston $piston.name was sent a recovery signal because it was ${lnow - (Long)piston.meta.n}ms late"
+			}
 		}
 	}
+	failedPistons=null
 }
 
 /******************************************************************************/
@@ -2243,32 +2365,34 @@ void finishRecovery(){
 
 private void cleanUp(){
     try{
-	List pistons=getChildApps().collect{ hashId(it.id) }
-	for (item in state.findAll{ (it.key.startsWith('sph') || it.key.contains('-') ) }){
-		state.remove(item.key)
-	}
+		//List pistons=getChildApps().collect{ hashPID(it.id) }
+		for (item in state.findAll{ (it.key.startsWith('sph') || it.key.contains('-') ) }){
+			state.remove(item.key)
+		}
 
-	List data=[ 'version', 'versionHE', 'chunks', 'hash', 'virtualDevices', 'updateDevices', 'semaphore', 'pong', 'modules', 'globalVars', 'devices', 'migratedStorage', 'lastRecovered', 'lastReg', 'lastRegTry']
-	for(String foo in data)state.remove(foo)
+		List data=[ 'version', 'versionHE', 'chunks', 'hash', 'virtualDevices', 'updateDevices', 'semaphore', 'pong', 'modules', 'globalVars', 'devices', 'migratedStorage', 'lastRecovered', 'lastReg', 'lastRegTry']
+		for(String foo in data)state.remove(foo)
 
-	String name=handlePistn()
-	List t0=getChildApps().findAll{ (String)it.name==name }
-	if(t0){
+		String n=handlePistn()
+		String myId
+		List t0=getChildApps().findAll{ (String)it.name==n }
 		t0.each{
-			String myId=hashId(it.id, true)
+			myId=hashId(it.id)
+			state.remove(myId)
+			myId=hashPID(it.id)
 			state.remove(myId)
 		}
-	}
-	Map a=api_get_base_result(true)
-    }catch(ignored){}
+		t0=null
+		Map a=api_get_base_result(true)
+	}catch(ignored){}
 }
 
 private getStorageApp(Boolean install=false){
-	String name=handleStor()
-	def storageApp=getChildApps().find{ (String)it.name==name }
+	String n=handleStor()
+	def storageApp=getChildApps().find{ (String)it.name==n }
 
-	String name1=handleWeat()
-	def weatDev=getChildDevices().find{ (String)it.name==name1 }
+	String n1=handleWeat()
+	def weatDev=getChildDevices().find{ (String)it.name==n1 }
 
 	if(storageApp!=null){
 
@@ -2297,7 +2421,7 @@ private getStorageApp(Boolean install=false){
 	if(install){
 		if(storageApp==null){
 			try{
-				storageApp=addChildApp("ady624", name, label)
+				storageApp=addChildApp("ady624", n, label)
 			}catch(ignored){
 				error "Please install the webCoRE Storage App for \$weather to work"
 				return null
@@ -2305,7 +2429,7 @@ private getStorageApp(Boolean install=false){
 		}
 		if(weatDev==null){
 			try{
-				weatDev=addChildDevice("ady624", name1, hashId("${now()}"), null, [label: label1])
+				weatDev=addChildDevice("ady624", n1, hashId("${now()}"), null, [label: label1])
 			}catch(ignored){
 //				error "Please install the webCoRE Weather Devicefor \$weather notification to work"
 //				return null
@@ -2331,8 +2455,8 @@ private getStorageApp(Boolean install=false){
 }
 
 def getWeatDev(){
-	String name1=handleWeat()
-	def weatDev=getChildDevices().find{ (String)it.name==name1 }
+	String n=handleWeat()
+	def weatDev=getChildDevices().find{ (String)it.name==n }
 	return weatDev
 }
 
@@ -2362,13 +2486,13 @@ private getDashboardApp(Boolean install=false){
 
 private String customApiServerUrl(String path){
 	path= path ?: sBLK
-	if(!path.startsWith("/")){
-		path="/" + path
+	if(!path.startsWith(sDIV)){
+		path=sDIV + path
 	}
 	if( !(Boolean)settings.localHubUrl){
 		return apiServerUrl("$hubUID/apps/${app.id}".toString()) + path
 	}
-	return localApiServerUrl(app.id.toString()) + path
+	return localApiServerUrl(sAppId()) + path
 }
 
 private Boolean isCustomEndpoint(){
@@ -2380,8 +2504,8 @@ String getDashboardUrl(){
 
 	String aa= settings.customWebcoreInstanceUrl
 	if((Boolean)customEndpoints && aa){
-		if(aa.endsWith("/")) return aa
-		else return aa + "/"
+		if(aa.endsWith(sDIV)) return aa
+		else return aa + sDIV
 	}else{
 	//if((Boolean)state.installed && (Boolean)settings.agreement){
 		return "https://dashboard.${domain()}/".toString()
@@ -2410,10 +2534,10 @@ private String getDashboardInitUrl(Boolean reg=false){
 //		log.debug "t0 $t0"
 /*		String a =(
 			regkey.replace('http://',sBLK).replace('https://', sBLK).replace('.api.smartthings.com', sBLK).replace(':443', sBLK).replace('/', sBLK) +
-			(hubUID.toString() + app.id.toString()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ) */
+			(hubUID.toString() + sAppId()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ) */
 //		log.debug "regkey $a"
-		t0=t0+( regkey.replace('http://',sBLK).replace('https://', sBLK).replace('.api.smartthings.com', sBLK).replace(':443', sBLK).replace('/', sBLK) +
-			(hubUID.toString() + app.id.toString()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
+		t0=t0+( regkey.replace('http://',sBLK).replace('https://', sBLK).replace('.api.smartthings.com', sBLK).replace(':443', sBLK).replace(sDIV, sBLK) +
+			(hubUID.toString() + sAppId()).replace("-", sBLK) + '/?access_token=' + (String)state.accessToken ).bytes.encodeBase64()
 	}
 	if(eric())log.debug "getDashboardInitUrl result: $t0"
 	return t0
@@ -2427,7 +2551,7 @@ private String getDashboardRegistrationUrl(){
 }
 
 Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer offset=0){
-	Long time=now()
+	Long time=(Long)now()
 	def storageApp //=getStorageApp()
 	Map result=[:]
 	if(storageApp){
@@ -2436,7 +2560,7 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 		List myDevices=(List)((Map)settings).findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
 		List devices=(List)myDevices.unique{ it.id }
 		if(raw){
-			result=devices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}
+			result=devices.collectEntries{ dev -> [(hashId(dev.id)): dev]}
 		}else{
 //			Map<String,Map> overrides=commandOverrides()
 			Integer deviceCount=devices.size()
@@ -2444,29 +2568,17 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 			if(devices){
 				devices=devices[offset..-1]
 				Integer dsz=devices.size()
-				result.complete=!devices.indexed().find{ idx, dev ->
+				result.complete=!devices.indexed().find{ Integer idx, dev ->
 //				log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${result.toString().size()}"
 					result.devices[hashId(dev.id)]=getDevDetails(dev, true)
-/*					result.devices[hashId(dev.id)]=[
-							(sN): dev.getDisplayName(),
-							cn: dev.getCapabilities()*.name,
-							(sA): dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
-									(sN): (String)it.name,
-									(sT): it.getDataType(),
-									(sO): it.getValues()
-							]},
-							(sC): dev.getSupportedCommands().unique{ transformCommand(it, overrides) }.collect{[
-									(sN): transformCommand(it, overrides),
-									(sP): it.getArguments()
-							]}
-					] */
+
 					Boolean stop=false
 					String jsonData=JsonOutput.toJson(result)
 					Integer responseLength=jsonData.getBytes("UTF-8").length
 					if(responseLength > 50000){
 						stop=true // Stop if large
 					}
-					if(now()-time > 4000) stop=true
+					if((Long)now()-time > 4000) stop=true
 					if(stop && idx < dsz-1 ){
 						result.nextOffset= offset+idx+1
 						return true
@@ -2476,35 +2588,22 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 			}else result.complete=true
 			debug "Generated list of ${offset}-${offset + ((Map)result.devices).size()-1} of ${deviceCount} devices in ${now() - time}ms. Data size is ${result.toString().size()}"
 		}
+		myDevices=null
+		devices=null
 	}
 	if(raw || (Boolean)result.complete){
-		List presenceDevices=getChildDevices()
+		String n=handlePres()
+		List presenceDevices=getChildDevices().find{ (String)it.name==n }
 		if(presenceDevices && presenceDevices.size()){
 			if(raw){
-				result << presenceDevices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}
+				result << presenceDevices.collectEntries{ dev -> [(hashId(dev.id)): dev]}
 			}else{
-				result.devices << presenceDevices.collectEntries{ dev -> [(hashId(dev.id, updateCache)): dev]}.collectEntries{ id, dev ->
-					[
-							(id): getDevDetails(dev)
-/*							(id): [
-									(sN): dev.getDisplayName(),
-									cn: dev.getCapabilities()*.name,
-									(sA): dev.getSupportedAttributes().unique{ (String)it.name }.collect{
-										def x=[
-												(sN): (String)it.name,
-												(sT): it.getDataType(),
-												(sO): it.getValues()
-										]
-										x
-									},
-									(sC): dev.getSupportedCommands().unique{ it.getName() }.collect{[
-											(sN): it.getName(),
-											(sP): it.getArguments()
-									]}
-							] */
-					]}
+				result.devices << presenceDevices.collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
+					[ (id): getDevDetails(dev) ]
+				}
 			}
 		}
+		presenceDevices=null
 	}
 	return result
 }
@@ -2531,16 +2630,23 @@ Map getDevDetails(dev, Boolean addtransform=false){
 	return [
 			(sN): nm,
 			cn: dev.getCapabilities()*.name,
-			(sA): ((List)dev.getSupportedAttributes()).unique{ (String)it.name }.collect{[
+			(sA): ((List)dev.getSupportedAttributes()).unique{ (String)it.name }.collect{
+				//Map x=[
+				[
 					(sN): (String)it.name,
 					(sT): it.getDataType(),
 					(sO): it.getValues()
-			]},
+				]
+//				try { // removed from UI in 9/2019
+//					x.v= dev.currentValue(x.n)
+//				} catch(ignored){}
+//				x
+			},
 			/*(sC): dev.getSupportedCommands().unique{ transform ? transformCommand(it, overrides) : it.getName() }.collect{[
 					(sN): transform ? transformCommand(it, overrides) : it.getName(),
 					(sP): it.getArguments()
 			]} */
-			(sC): newCL.unique { (String)it.n }
+			(sC): newCL.unique{ (String)it.n }
 	]
 }
 
@@ -2694,27 +2800,55 @@ private void stopDashboard(){
 	def dashboardApp=getDashboardApp()
 	if(!dashboardApp) return //false
 	dashboardApp.stop()
-	if((String)state.dashboard!=sINACT){
-		atomicState.dashboard=sINACT
-	}
+	if((String)state.dashboard!=sINACT) atomicState.dashboard=sINACT
 }
 
-private String getAccountSid(){
+private String accountSid(){
 	Boolean useNew=state.properSID!=null ? (Boolean)state.properSID : true
-	String accountStr=useNew ? hubUID.toString()+'-A' : hubUID
+	String t='-A'
+	String accountStr= hubUID.toString() + (useNew ? t : sNULL)
+	if(acctANDloc()) accountStr= (String)settings.acctID
+	if(eric()) debug "instance acct: $accountStr"
 	return hashId(accountStr)
 }
 
-private String getLocationSid(){
-	Boolean useNew=state.properSID!=null ? (Boolean)state.properSID : true
-	String locationStr=useNew ? hubUID.toString()+location.name.toString()+'-L' : location.id.toString() + '-L'
-	return hashId(locationStr)
+@Field static Map<String,String> locFLD= [:]
+@Field static Map<String,Boolean> acctlocFLD= [:]
+
+private Boolean acctANDloc(){
+	String wName=sAppId()
+	Boolean t=acctlocFLD[wName]
+	if(t==null){
+		t= ((String)settings.acctID && (String)settings.locID)
+		acctlocFLD[wName]=t
+	}
+	return t
+}
+
+@Field static final String sML='-L'
+
+private String locationSid(){
+	String wName=sAppId()
+	String t=locFLD[wName]
+	if(t==sNULL){
+		if(acctANDloc()) t= (String)settings.acctID + (String)settings.locID + sML
+		else{
+			Boolean useNew=state.properSID!=null ? (Boolean)state.properSID : true
+			t= (useNew ? hubUID.toString()+location.name.toString() : location.id.toString()) + sML
+		}
+		if(eric()) debug "instance location: $t"
+		t= hashId(t)
+		locFLD[wName]=t
+	}
+	return t
 }
 
 private String getInstanceSid(){
 	Boolean useNew=state.properSID!=null ? (Boolean)state.properSID : true
-	String hsh=app.id.toString()
-	String instStr=useNew ? hubUID.toString()+hsh+'-I' : hsh
+	String hsh=sAppId()
+	String t='-I'
+	String instStr=useNew ? hubUID.toString()+hsh+t : hsh
+	if(eric()) debug "instance ID: $instStr"
 	return hashId(instStr)
 }
 
@@ -2748,7 +2882,7 @@ private void testLifx1(Boolean first=false){
 
 private void registerInstance(Boolean force=true){
 	//if((Boolean)state.installed && (Boolean)settings.agreement && !isCustomEndpoint()){
-	String wName=app.id.toString()
+	String wName=sAppId()
 	Long lnow=now()
 	if((Boolean)state.installed && (Boolean)settings.agreement){
 		if(!force){
@@ -2762,8 +2896,8 @@ private void registerInstance(Boolean force=true){
 		}
 		if((String)state.accessToken) updateEndpoint()
 		lastRegTryFLD[wName]=lnow
-		String accountId=getAccountSid()
-		String locationId=getLocationSid()
+		String accountId=accountSid()
+		String locationId=locationSid()
 
 		String instanceId=getInstanceSid()
 		String endpoint=(String)state.endpointCloud
@@ -2771,7 +2905,7 @@ private void registerInstance(Boolean force=true){
 		String name=handlePistn()
 		if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 		def pistons=getChildApps().findAll{ (String)it.name==name }.collect{
-			String myId=hashId(it.id, true)
+			String myId=hashPID(it.id)
 			Map meta=(Map)pStateFLD[wName][myId]
 			if(meta==null){
 				//meta=atomicState[myId]
@@ -2785,6 +2919,7 @@ private void registerInstance(Boolean force=true){
 		Integer pa=lpa.size()
 		List lpd=pistons.findAll{ !it.a }.collect{ it.id }
 		Integer pd=pistons.size() - pa
+		pistons=null
 
 		Map params=[
 			uri: "https://api-${region}-${instanceId[32]}.webcore.co:9247".toString(),
@@ -2805,6 +2940,8 @@ private void registerInstance(Boolean force=true){
 			],
 			timeout:20
 		]
+		lpa=null
+		lpd=null
 		if(eric()) debug "registering instance: params: $params"
 		params << [contentType: sAPPJSON, requestContentType: sAPPJSON]
 		asynchttpPut('myDone', params, [bbb:0])
@@ -2817,7 +2954,7 @@ void myDone(resp, data){
 	String instanceId=getInstanceSid()
 	if(eric())debug "register resp: ${resp?.status} using api-${region}-${instanceId[32]}.webcore.co:9247"
 	if(resp?.status==200){
-		String wName=app.id.toString()
+		String wName=sAppId()
 		lastRegFLD[wName]=(Long)now()
 	}
 }
@@ -2875,7 +3012,7 @@ private String mem(Boolean showBytes=true){
 void pCallupdateRunTimeData(Map data){
 	if(!data || !data.id) return
 	String id=(String)data.id
-	String wName=app.id.toString()
+	String wName=sAppId()
 	if(p_executionFLD[wName]==null){ p_executionFLD[wName]=(Map)[:]; p_executionFLD=p_executionFLD }
 	Long cnt=p_executionFLD[wName]."${id}"!=null ? (Long)p_executionFLD[wName][id] : 0L
 	cnt +=1L
@@ -2888,7 +3025,7 @@ void pCallupdateRunTimeData(Map data){
 
 void updateRunTimeData(Map data){
 	if(!data || !data.id) return
-	String wName=app.id.toString()
+	String wName=sAppId()
 	List<Map> variableEvents=[]
 	if(data.gvCache!=null){
 		String t='updateGlobal'
@@ -2947,15 +3084,15 @@ void updateRunTimeData(Map data){
 		sendVariableEvent(variable)
 	}
 	//broadcast to dashboard
-	if((String)state.dashboard==sACT){
+/*	if((String)state.dashboard==sACT){
 		def dashboardApp=getDashboardApp()
 		if(dashboardApp) dashboardApp.updatePiston(id, piston)
-	}
+	} */
 	recoveryHandler()
 }
 
-Boolean pausePiston(String pistonId){
-	def piston=getChildApps().find{ hashId(it.id)==pistonId }
+Boolean pausePiston(String pistonId,String src){
+	def piston=findPiston(pistonId)
 	if(piston){
 		Map rtData=piston.pausePiston()
 		updateRunTimeData(rtData)
@@ -2964,8 +3101,8 @@ Boolean pausePiston(String pistonId){
 	return false
 }
 
-Boolean resumePiston(String pistonId){
-	def piston=getChildApps().find{ hashId(it.id)==pistonId }
+Boolean resumePiston(String pistonId,String src){
+	def piston=findPiston(pistonId)
 	if(piston){
 		Map rtData=piston.resume()
 		updateRunTimeData(rtData)
@@ -2974,10 +3111,10 @@ Boolean resumePiston(String pistonId){
 	return false
 }
 
-Boolean executePiston(String pistonId, data, source){
-	def piston=getChildApps().find{ hashId(it.id)==pistonId }
+Boolean executePiston(String pistonId, Map data, String src){
+	def piston=findPiston(pistonId)
 	if(piston){
-		Map a=piston.execute(data, source)
+		Map a=piston.execute(data, src)
 		return true
 	}
 	return false
@@ -3031,7 +3168,7 @@ void broadcastPistonList(){
 				(sNM): myN,
 				pistons: getChildApps().findAll{ (String)it.name==handlePistn() }.collect{
 					[
-						id: hashId(it.id),
+						id: hashPID(it.id),
 						(sNM): normalizeLabel(it),
 						aname: (it?.label)
 					]}
@@ -3154,7 +3291,7 @@ List t1=getLocationEventsSince('hsmAlert', new Date() - 10)
 	def a=atomicState.hsmAlerts
 	List<Map> alerts= a? (List<Map>)a : []
 	Boolean aa=alerts.push(alert)
-	if(locStat=='allDisarmed' || evV=='cancel' || evV=='cancelRuleAlerts') alerts=[]
+	if(locStat==sALLDISARM || evV in [sCANCEL, sCANRULEA]) alerts=[]
 	atomicState.hsmAlerts=alerts
 
 	if(alerts) a=getIncidents() // cause trimming
@@ -3171,14 +3308,19 @@ private List<Map> getIncidents(){
 	List<Map> alerts= a? (List<Map>)a : []
 	Integer osz=alerts.size()
 	if(osz==0) return []
-	if(locStat=='allDisarmed'){ alerts=[]; state.remove("hsmAlert") }
+	if(locStat==sALLDISARM){ alerts=[]; state.remove("hsmAlert") }
 	List<Map> newAlerts=alerts.collect{it}.findAll{ (Long)it.date >= incidentThreshold }
-	List<Map> new2Alerts=newAlerts.collect{it}.findAll{ !(locStat=='disarmed' && ((String)it.v).contains('intrusion')) }.sort { (Long)it.date }
+	String intrusion='intrusion'
+	List<Map> new2Alerts=newAlerts.collect{it}.findAll{ !(locStat==sDISARMD && ((String)it.v).contains(intrusion)) }.sort { (Long)it.date }
 	List<Map> new3Alerts=[]
 	for(Map myE in new2Alerts){
-		if(myE.v=='cancel' || myE.v=='cancelRuleAlerts') new3Alerts=[]
+		if((String)myE.v in [sCANCEL,sCANRULEA]) new3Alerts=[]
 		else Boolean aa=new3Alerts.push(myE)
 	}
+	a=null
+	alerts=null
+	newAlerts=null
+	new2Alerts=null
 	Integer nsz=new3Alerts.size()
 	if(osz!=nsz) atomicState.hsmAlerts=new3Alerts
 	return new3Alerts
@@ -3190,7 +3332,7 @@ void modeHandler(evt){
 
 void startHandler(evt){
 	debug "startHandler called"
-	String wName=app.id.toString()
+	String wName=sAppId()
 	lastRecoveredFLD[wName]=0L
 	lastRegFLD[wName]=0L
 	lastRegTryFLD[wName]=0L
@@ -3388,24 +3530,24 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	doorControl			: [ (sN): "Door Control",			(sD): "automatic doors",			(sA): "door",		(sC): [sCLOSE, sOPEN],					],
 	doubleTapableButton	: [ (sN): "Double Tapable Button",	(sD): "double tapable buttons",		(sA): "doubleTapped",	(sM): true,	(sC): ["doubleTap"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/	],
 	energyMeter			: [ (sN): "Energy Meter",			(sD): "energy meters",				(sA): "energy",									],
-	estimatedTimeOfArrival		: [ (sN): "Estimated Time of Arrival",	(sD): "moving devices (ETA)",		(sA): "eta",									],
+	estimatedTimeOfArrival	: [ (sN): "Estimated Time of Arrival",	(sD): "moving devices (ETA)",		(sA): "eta",									],
 	fanControl			: [ (sN): "Fan Control",			(sD): "fan devices",				(sA): "speed",		(sC): ["setSpeed", "cycleSpeed"],					],
 	filterStatus		: [ (sN): "Filter Status",			(sD): "filters",					(sA): "filterStatus",								],
+//	flash 				: [ (sN): "Flash",					(sD): "flashers",								(sC): ["flash"],					],
 	garageDoorControl	: [ (sN): "Garage Door Control",	(sD): "automatic garage doors",	(sA): "door",		(sC): [sCLOSE, sOPEN],					],
 	gasDetector			: [ (sN): "Gas Detector",			(sD): "gas detectors",				(sA): "naturalGas",							],
-//	holdableButton		: [ (sN): "Holdable Button",		(sD): "holdable buttons",			(sA): "button",		(sM): true,	(sS): "numberOfButtons,numButtons", i: "buttonNumber",			],
+	healthCheck			: [ (sN): "HealthCheck",			(sD): "healthcheck devices",		(sA): "checkInterval",			(sC): ["ping"], 		],
 	holdableButton		: [ (sN): "Holdable Button",		(sD): "holdable buttons",			(sA): "held",		(sM): true,	(sC): ["hold"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/		],
-	illuminanceMeasurement		: [ (sN): "Illuminance Measurement",	(sD): "illuminance sensors",		(sA): "illuminance",										],
+	illuminanceMeasurement	: [ (sN): "Illuminance Measurement",	(sD): "illuminance sensors",		(sA): "illuminance",										],
 	imageCapture		: [ (sN): "Image Capture",			(sD): "cameras, imaging devices",	(sA): "image",		(sC): ["take"],						],
 	indicator			: [ (sN): "Indicator",				(sD): "indicator devices",			(sA): "indicatorStatus",	(sC): ["indicatorNever", "indicatorWhenOn", "indicatorWhenOff"],		],
-//	infraredLevel		: [ (sN): "Infrared Level",			(sD): "adjustable infrared lights",	(sA): "infraredLevel",	(sC): ["setInfraredLevel"],						],
 	levelPreset			: [ (sN): "Level Preset",			(sD): "adjustable levels",			(sA): "levelPreset",	(sC): ["presetLevel"],							],
 	light				: [ (sN): "Light",					(sD): "lights",					(sA): sSWITCH,		(sC): [sOFF, sON],							],
 	lightEffects		: [ (sN): "Light Effects",			(sD): "light effects",				(sA): "effectName",	(sC): ["setEffect", "setNextEffect", "setPreviousEffect"],			],
 	liquidFlowRate		: [ (sN): "Liquid Flow Rate",		(sD): "liquid flow rates",			(sA): "rate",											],
-//	lock				: [ (sN): "Lock",					(sD): "electronic locks",			(sA): "lock",		(sC): ["lock", "unlock"],	(sS):"numberOfCodes,numCodes", i: "usedCode",	],
+//	locationMode		: [ (sN): "Mode",					(sD): "modes",						(sA): "mode",			],
 	lock				: [ (sN): "Lock",					(sD): "electronic locks",			(sA): "lock",		(sC): ["lock", "unlock"],	/*s:"numberOfCodes,numCodes", i: "usedCode",*/	],
-	lockCodes			: [ (sN): "Lock Codes",				(sD): "locks with lock codes",			(sA): "codeChanged",	(sC): ["deleteCode", "getCodes", "setCode", "setCodeLength"],		],
+	lockCodes			: [ (sN): "Lock Codes",				(sD): "locks with lock codes",		(sA): "codeChanged",	(sC): ["deleteCode", "getCodes", "setCode", "setCodeLength"],		],
 //	lockOnly			: [ (sN): "Lock Only",				(sD): "electronic locks (lock only)",	(sA): "lock",		(sC): ["lock"],								],
 	mediaController		: [ (sN): "Media Controller",		(sD): "media controllers",			(sA): "currentActivity",	(sC): ["startActivity", "getAllActivities", "getCurrentActivity"],		],
 	mediaInputSource	: [ (sN): "Media Input Source",		(sD): "media input sources",			(sA): "mediaInputSource",	(sC): ["setInputSource"],		],
@@ -3426,7 +3568,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	relativeHumidityMeasurement	: [ (sN): "Relative Humidity Measurement",	(sD): "humidity sensors",			(sA): "humidity",											],
 	relaySwitch			: [ (sN): "Relay Switch",			(sD): "relay switches",			(sA): sSWITCH,		(sC): [sOFF, sON],							],
 	releasableButton	: [ (sN): "Releasable Button",		(sD): "releasable buttons",		(sA): "released",		(sM): true,	(sC): ["release"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/			],
-	//samsungTV		: [ (sN): "Samsung TV",		(sD): "Samsung TVs",			(sA): "switch",	(sC): ["mute", sOFF, sON, "setPictureMode", "setSoundMode", "setVoulume", "showMessage", "unmute", "volumeDown", "volumeUp"],										],
+//	samsungTV			: [ (sN): "Samsung TV",		(sD): "Samsung TVs",			(sA): "switch",	(sC): ["mute", sOFF, sON, "setPictureMode", "setSoundMode", "setVoulume", "showMessage", "unmute", "volumeDown", "volumeUp"],										],
 	securityKeypad		: [ (sN): "Security Keypad",		(sD): "security keypads",			(sA): "securityKeypad",	(sC): ["armAway", "armHome", "deleteCode", "disarm", "getCodes", "setCode", "setCodeLength", "setEntryDelay", "setExitDelay"],										],
 	sensor				: [ (sN): "Sensor",					(sD): "sensors",					(sA): "sensor",											],
 	shockSensor			: [ (sN): "Shock Sensor",			(sD): "shock sensors",				(sA): "shock",											],
@@ -3440,9 +3582,11 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	stepSensor			: [ (sN): "Step Sensor",			(sD): "step counters",				(sA): "steps",											],
 	(sSWITCH)			: [ (sN): "Switch",					(sD): "switches",					(sA): sSWITCH,		(sC): [sOFF, sON],							],
 	switchLevel			: [ (sN): "Switch Level",			(sD): "dimmers and dimmable lights",	(sA): sLVL,		(sC): ["setLevel"],							],
-	//tv		: [ (sN): "TV",		(sD): "TVs",			(sA): "power",	(sC): ["channelDown", "channelUp", "volumeDown", "volumeUp"],										],
+//	tv					: [ (sN): "TV",		(sD): "TVs",			(sA): "power",	(sC): ["channelDown", "channelUp", "volumeDown", "volumeUp"],										],
 	tamperAlert			: [ (sN): "Tamper Alert",			(sD): "tamper sensors",			(sA): "tamper",											],
+//	telnet				: [ (sN): "Telnet",					(sD): "telnet devices",		(sA): "networkStatus",		(sC): ["sendMsg"]				],
 	temperatureMeasurement		: [ (sN): "Temperature Measurement",	(sD): "temperature sensors",		(sA): "temperature",										],
+//	testCapability		: [ (sN): "Test Ability",				(sD): "test devices",		(				],
 	thermostat			: [ (sN): "Thermostat",				(sD): "thermostats",			(sA): sTHERM,	(sC): ["auto", "cool", "eco", "emergencyHeat", "fanAuto", "fanCirculate", "fanOn", "heat", sOFF, "setCoolingSetpoint", "setHeatingSetpoint", /* "setSchedule",*/ "setThermostatFanMode", "setThermostatMode"],	],
 	thermostatCoolingSetpoint	: [ (sN): "Thermostat Cooling Setpoint",	(sD): "thermostats (cooling)",		(sA): "coolingSetpoint",	(sC): ["setCoolingSetpoint"],						],
 	thermostatFanMode	: [ (sN): "Thermostat Fan Mode",	(sD): "fans",					(sA): sTHERFM,	(sC): ["fanAuto", "fanCirculate", "fanOn", "setThermostatFanMode"],	],
@@ -3452,7 +3596,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 //	thermostatSchedule	: [ (sN): "Thermostat Schedule",							(sA): "schedule",									],
 	thermostatSetpoint	: [ (sN): "Thermostat Setpoint",	(sD): "thermostat setpoints",					(sA): "thermostatSetpoint",									],
 	threeAxis			: [ (sN): "Three Axis Sensor",		(sD): "three axis sensors",		(sA): "orientation",										],
-	timedSession		: [ (sN): "Timed Session",			(sD): "timers",				(sA): "sessionStatus",	(sC): ["cancel", "pause", "setTimeRemaining", "start", "stop", ],		],
+	timedSession		: [ (sN): "Timed Session",			(sD): "timers",				(sA): "sessionStatus",	(sC): [sCANCEL, "pause", "setTimeRemaining", "start", "stop", ],		],
 	tone				: [ (sN): "Tone",					(sD): "tone generators",						(sC): ["beep"],								],
 	touchSensor			: [ (sN): "Touch Sensor",			(sD): "touch sensors",			(sA): "touch",  /* (sM): true */									],
 	ultravioletIndex	: [ (sN): "Ultraviolet Index",		(sD): "ultraviolet sensors",		(sA): "ultravioletIndex",										],
@@ -3556,7 +3700,7 @@ Map getChildAttributes(){
 	rssi				: [ (sN): "signal strength",	(sT): sINT,	(sR): [0, 100],		u: "%",							],
 	saturation			: [ (sN): "saturation",			(sT): sINT,	(sR): [0, 100],		u: "%",							],
 //	schedule			: [ (sN): "schedule",			(sT): "object",											],
-	securityKeypad		: [ (sN): "security keypad",	(sT): sENUM,		(sO): ["disarmed", "armed home", "armed away", "unknown"],			],
+	securityKeypad		: [ (sN): "security keypad",	(sT): sENUM,		(sO): [sDISARMD, "armed home", "armed away", "unknown"],			],
 	sessionStatus		: [ (sN): "session status",		(sT): sENUM,		(sO): ["canceled", "paused", "running", "stopped"],			],
 	shock				: [ (sN): "shock",				(sT): sENUM,		(sO): ["clear", "detected"],						],
 	sleeping			: [ (sN): "sleeping",			(sT): sENUM,		(sO): ["not sleeping", "sleeping"],					],
@@ -3655,14 +3799,14 @@ Map getChildCommands(){
 	auto				: [ (sN): "Set to Auto",			(sA): sTHERM,					(sV): "auto",						],
 	beep				: [ (sN): "Beep",																				],
 	both				: [ (sN): "Strobe and Siren",		(sA): "alarm",					(sV): "both",						],
-	cancel				: [ (sN): "Cancel",																			],
+	(sCANCEL)			: [ (sN): "Cancel",																			],
 	close				: [ (sN): "Close",					(sA): "door",					(sV): sCLOSE,						],
 	configure			: [ (sN): "Configure",		(sI): 'cog',															],
 	cool				: [ (sN): "Set to Cool",		(sI): 'snowflake', is: 'l',	(sA): sTHERM,		(sV): "cool",			],
 	cycleSpeed			: [ (sN): "Cycle speed",																	],
 	deleteCode			: [ (sN): "Delete Code...",		(sD): "Delete code {0}",			(sP): [[(sN):"Code position", (sT):sINT]],					],
 	deviceNotification	: [ (sN): "Send device notification...",	(sD): "Send device notification \"{0}\"",			(sP): [[(sN):"Message", (sT):sSTR]],				],
-	disarm				: [ (sN): "Disarm",				(sA): "securityKeypad",				(sV): "disarmed",						],
+	disarm				: [ (sN): "Disarm",				(sA): "securityKeypad",				(sV): sDISARMD,						],
 	eco					: [ (sN): "Set to Eco",		(sI): 'leaf',	(sA): sTHERM,				(sV): "eco",						],
 	emergencyHeat		: [ (sN): "Set to Emergency Heat",			(sA): sTHERM,				(sV): "emergency heat",					],
 	fanAuto				: [ (sN): "Set fan to Auto",			(sA): sTHERFM,				(sV): "auto",						],
@@ -3746,7 +3890,10 @@ Map getChildCommands(){
 	hold				: [ (sN): "Hold",					(sD): "Hold Button {0}",				(sA): "held",					(sP):[[(sN):"Button #", (sT): sINT]]	],
 	push				: [ (sN): "Push",					(sD): "Push button {0}",				(sA): "pushed",				(sP):[[(sN): "Button #", (sT): sINT]]	],
 	release				: [ (sN): "Release",				(sD): "Release button {0}",			(sA): "released",				(sP):[[(sN): "Button #", (sT): sINT]]	],
-
+// non standard ES commands
+	parallelPlayAnnouncement	: [ (sN): "Parallel Play Announcement...",			(sD): "Parallel Play Announcement \"{0}\"",								(sP): [[(sN):"Message",(sT):sSTR], [(sN):"Title",(sT):sSTR]],			],
+	parallelSpeak		: [ (sN): "Parallel Speak...",			(sD): "Parallel Speak \"{0}\"",								(sP): [[(sN):"Message", (sT):sSTR]],			],
+	parallelSpeakIgnoreDnd		: [ (sN): "Parallel Speak Ignore Dnd...",			(sD): "Parallel Speak Ignore Dnd \"{0}\"",								(sP): [[(sN):"Message", (sT):sSTR]],			],
 /* predfined commands below */
 	//general
 	quickSetCool		: [ (sN): "Quick set cooling point...",	(sD): "Set quick cooling point at {0}{T}",				(sP): [[(sN):"Desired temperature", (sT):"thermostatSetpoint"]],		],
@@ -4146,7 +4293,7 @@ def getLifxToken(){
 private Map getLocationModeOptions(Boolean updateCache=false){
 	Map result=[:]
 	for (mode in location.modes){
-		if(mode) result[hashId((Long)mode.getId(), updateCache)]=(String)mode.name
+		if(mode) result[hashId((Long)mode.getId())]=(String)mode.name
 	}
 	return result
 }
@@ -4182,7 +4329,7 @@ private static Map getHubitatAlarmSystemStatusOptions(){
 		armingHome:		"Arming Home pending exit delay",
 		armedNight:		"Armed Night",
 		armingNight:	"Arming Night pending exit delay",
-		disarmed:		"Disarmed",
+		(sDISARMD):		"Disarmed",
 		allDisarmed:	"All Disarmed"
 	]
 }
@@ -4239,7 +4386,7 @@ private Map getRuleOptions(Boolean updateCache){
 		def rules=RMUtils.getRuleList(ver ?: sNULL)
 		rules.each{rule->
 			rule.each{pair->
-				result[hashId(pair.key, updateCache)]=pair.value
+				result[hashId(pair.key)]=pair.value
 			}
 		}
 	}
@@ -4570,11 +4717,19 @@ static void clearHashMap(String wName){
 	theHashMapVFLD=theHashMapVFLD
 }
 
-private String hashId(id, Boolean updateCache=true){
+private String sAppId(){ return ((Long)app.id).toString() }
+
+private String hashPID(id){
+	if(acctANDloc()) return hashId(locationSid()+id.toString())
+	return hashId(id)
+}
+
+private String hashId(id){
 	//enabled hash caching for faster processing
 	String result
 	String myId=id.toString()
-	String wName= parent ? parent.id.toString() : app.id.toString()
+	//String wName= parent ? parent.id.toString() : sAppId()
+	String wName= sAppId()
 	if(theHashMapVFLD[wName]==null){ theHashMapVFLD[wName]= [:]; theHashMapVFLD=theHashMapVFLD }
 	result=(String)theHashMapVFLD[wName][myId]
 	if(result==sNULL){
