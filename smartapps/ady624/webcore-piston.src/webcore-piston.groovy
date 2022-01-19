@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update January 18, 2022 for Hubitat
+ * Last update January 19, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -2159,10 +2159,11 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 				Boolean sOk=rCode>=200 && rCode<=299
 				switch(evntVal){
 					case sHTTPR:
-						if(event.schedule.stack!=null){
-							event.schedule.stack.response=event.responseData
-							event.schedule.stack.json=event.jsonData
-						}
+						Map ee=(Map)event.schedule.stack
+						ee= ee!=null ? ee:[:]
+						ee.response=event.responseData
+						ee.json=event.jsonData
+						event.schedule.stack=ee
 						setSystemVariableValue(rtD,sHTTPCONTENT,(String)event.contentType)
 					case sSTOREM:
 						if((Map)event.setRtData){
@@ -2360,6 +2361,7 @@ private Boolean executeEvent(Map rtD,event){
 			index:index
 		]
 		if(srcEvent!=null){
+			if((Boolean)event.schedule.up) event.schedule.s= (Integer)event.schedule.svs ?: (Integer)event.schedule.s
 			myEvt=myEvt+[
 				(sNM):(String)srcEvent.name,
 				(sVAL):srcEvent.value,
@@ -3354,10 +3356,9 @@ private Boolean executeTask(Map rtD,List devices,Map statement,Map task,Boolean 
 		//get remaining piston time
 		if(reschedule || async || delay>(Long)getPistonLimits.taskMaxDelay){
 			//schedule a wake up
-			Long msec=delay
-			if(isTrc(rtD))trace "Requesting a wake up for ${formatLocalTime(Math.round((Long)now()*d1+delay))} (in ${msec}ms)",rtD
+			if(isTrc(rtD))trace "Requesting a wake up for ${formatLocalTime(Math.round((Long)now()*d1+delay))} (in ${delay}ms)",rtD
 			tracePoint(rtD,myS,elapseT(t),-delay) //timers need to show the remaining time
-			requestWakeUp(rtD,statement,task,delay,(String)task.c)
+			requestWakeUp(rtD,statement,task,delay,(String)task.c,true)
 			if((Boolean)rtD.eric)myDetail rtD,mySt+"result:FALSE"
 			return false
 		}else doPause(pStr+"${delay}ms",delay,rtD,true)
@@ -3881,55 +3882,60 @@ private static Integer getWeekOfMonth(Date date,Boolean backwards=false){
 	}else return i1+Math.floor((day-i1)/i7) //1 based
 }
 
-private void requestWakeUp(Map rtD,Map statement,Map task,Long timeOrDelay,String data=sNULL){
+private void requestWakeUp(Map rtD,Map statement,Map task,Long timeOrDelay,String data=sNULL,Boolean toResume=false){
 	Long time=timeOrDelay>9999999999L ? timeOrDelay:(Long)now()+timeOrDelay
 	List<Integer> cs=svCS(rtD,statement)
 	Integer ps= svPS(statement)
-// state to save across a sleep
-	Boolean fnd=false
-	def myResp=rtD.response
-	if(myResp.toString().size()>10000){ myResp=[:]; fnd=true } // state can only be total 100KB
-	def myJson=rtD.json
-	if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
-	if(fnd) debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',rtD
-	Map<String,Map>sysV=(Map<String,Map>)rtD.systemVars
-
-	fnd=false
-	Map mstk=[:]
-	def a=(Double)sysV[sDLLRINDX].v
-	if(a!=null) fnd=true
-	mstk.index=a
-	a=(List)sysV[sDLLRDEVICE].v
-	if(a!=null) fnd=true
-	mstk.device=a
-	a=(List)sysV[sDLLRDEVS].v
-	if(a!=null) fnd=true
-	mstk.devices=a
-	if(myJson) fnd=true
-	mstk.json=myJson
-	if(myResp) fnd=true
-	mstk.response=myResp
-// what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
-// currentEvent in case of httpRequest
-
-	Map evt=[:]+(Map)rtD.currentEvent
-	if(evt){
-		if(evt.unit==null)a=evt.remove('unit')
-		if(evt.descriptionText==null)a=evt.remove('descriptionText')
-		if(evt.index==iZ)a=evt.remove('index')
-		if(!(Boolean)evt.physical)a=evt.remove('physical')
-	}
 	Map mmschedule=[
 		(sT):time,
 		(sS):stmtNum(statement),
 		(sI):stmtNum(task),
 		cs:cs,
-		ps:ps,
-		evt:evt
+		ps:ps
 	]
 	if(data!=sNULL) mmschedule.d=data
-	if(rtD.args) mmschedule.args=rtD.args
-	if(fnd) mmschedule.stack=mstk
+	//not all wakeups are suspend/resume
+	if(toResume){
+		mmschedule.up=true
+// state to save across an sleep
+		if((String)rtD.event.name==sTIME && rtD.event.schedule!=null && (Integer)rtD.event.schedule.s)
+			mmschedule.svs=(Integer)rtD.event.schedule.s // dealing with rtD.wakingUp
+		Boolean fnd=false
+		def myResp=rtD.response
+		if(myResp.toString().size()>10000){ myResp=[:]; fnd=true } // state can only be total 100KB
+		def myJson=rtD.json
+		if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
+		if(fnd) debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',rtD
+
+		Map<String,Map>sysV=(Map<String,Map>)rtD.systemVars
+		fnd=false
+		Map mstk=[:]
+		def a=(Double)sysV[sDLLRINDX].v
+		if(a!=null) fnd=true
+			mstk.index=a
+		a=(List)sysV[sDLLRDEVICE].v
+		if(a!=null) fnd=true
+			mstk.device=a
+		a=(List)sysV[sDLLRDEVS].v
+		if(a!=null) fnd=true
+			mstk.devices=a
+		if(myJson) fnd=true
+			mstk.json=myJson
+		if(myResp) fnd=true
+			mstk.response=myResp
+		if(fnd) mmschedule.stack=mstk
+// what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
+
+		Map evt=[:]+(Map)rtD.currentEvent
+		if(evt){
+			if(evt.unit==null)a=evt.remove('unit')
+			if(evt.descriptionText==null)a=evt.remove('descriptionText')
+			if(evt.index==iZ)a=evt.remove('index')
+			if(!(Boolean)evt.physical)a=evt.remove('physical')
+		}
+		mmschedule.evt=evt
+		if(rtD.args) mmschedule.args=rtD.args
+	}
 	a=((List<Map>)rtD.schedules).push(mmschedule)
 }
 
@@ -6738,7 +6744,7 @@ private getDevice(Map rtD,String idOrName){
 			if(eric()||isDbg(rtD))debug msg,rtD
 		}
 		if(rtD.allDevices!=null){
-			def deviceMap=((Map<String,Object>)rtD.allDevices).find{ (idOrName==(String)it.key)|| (idOrName==(String)it.value.getDisplayName())}
+			def deviceMap=((Map<String,Object>)rtD.allDevices).find{ idOrName==(String)it.key || idOrName==(String)it.value.getDisplayName() }
 			if(deviceMap!=null){
 				device=deviceMap.value
 				rtD.updateDevices=true
