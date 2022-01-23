@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 18, 2022 for Hubitat
+ * Last update January 23, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -1150,12 +1150,12 @@ static void releaseTheLock(String meth=sNULL){
 	sema.release()
 }
 
-private void clearBaseResult(String meth=sNULL){
-	String t='clearB'
-	String wName=sAppId()
-	Boolean didw=getTheLock(t)
+@Field static final String sCB='clearB'
+private void clearBaseResult(String meth=sNULL,String wNi=sNULL){
+	String wName= wNi ?: sAppId()
+	Boolean didw=getTheLock(sCB)
 	base_resultFLD[wName]=null
-	releaseTheLock(t)
+	releaseTheLock(sCB)
 }
 
 @Field volatile static Map<String,Map> base_resultFLD= [:]
@@ -1854,7 +1854,7 @@ private api_intf_dashboard_piston_delete(){
 //			p_executionFLD=p_executionFLD
 			clearHashMap(wName)
 			mb()
-			clearBaseResult('delete Piston')
+			clearBaseResult('delete Piston',wName)
 			result=[(sSTS): sSUCC]
 			//cleanUp()
 			//clearParentPistonCache("piston deleted")
@@ -2287,7 +2287,7 @@ private api_global(){
 @Field static Map<String,String> verFLD= [:]
 @Field static Map<String,String> HverFLD= [:]
 
-void resetMemSt(String wName,String meth){
+void resetMemSt(String meth,String wName){
 	atomicState.hsmAlerts=[] // reload or restart
 	state.hsmAlerts=[]
 	verFLD[wName]=sVER
@@ -2296,26 +2296,31 @@ void resetMemSt(String wName,String meth){
 	clearParentPistonCache(meth)
 }
 
-void recoveryHandler(){
-	String wName=sAppId()
-	String meth='ver check'
+@Field static final String sVC='ver check'
+void verCheck(String wName){
+	if(verFLD[wName]==sVER && HverFLD[wName]==sHVER) return
 	if(verFLD[wName]==sNULL || HverFLD[wName]==sNULL){
 		if((String)state.cV==sVER && (String)state.hV==sHVER){
-			resetMemSt(wName,meth)
-			clearBaseResult(meth)
+			resetMemSt(sVC,wName)
+			clearBaseResult(sVC,wName)
 		}
 	}
 	if(verFLD[wName]!=sVER || HverFLD[wName]!=sHVER){
 		info "webCoRE software Updated to "+sVER+" HE: "+sHVER
-		resetMemSt(wName,meth)
+		resetMemSt(sVC,wName)
 		updated()
 	}
+}
+
+void recoveryHandler(){
+	String wName=sAppId()
+	verCheck(wName)
 
 	Long t=now()
 	Long lastRecovered=lastRecoveredFLD[wName]
 	lastRecovered=lastRecovered ?: 0L
 	Long recTime=900000L // 15 min in ms
-	if(lastRecovered!=0L && (t - lastRecovered) < recTime) return
+	if(lastRecovered!=0L && (t-lastRecovered) < recTime) return
 	lastRecoveredFLD[wName]=t
 	Integer delay=Math.round(200.0D * Math.random()).toInteger() // seconds
 	runIn(delay, finishRecovery)
@@ -3018,18 +3023,19 @@ void pCallupdateRunTimeData(Map data){
 	cnt +=1L
 	p_executionFLD[wName]."${id}"=cnt
 	p_executionFLD=p_executionFLD
-	updateRunTimeData(data)
+	updateRunTimeData(data,wName,id)
 }
 
 @Field volatile static Map<String,Map<String,Map>> pStateFLD=[:]
 
-void updateRunTimeData(Map data){
+@Field static final String sURT='updateRunTimeData'
+void updateRunTimeData(Map data, String wNi=sNULL, String idi=sNULL){
 	if(!data || !data.id) return
-	String wName=sAppId()
+	String wName= wNi ?: sAppId()
+	String id= idi ?: (String)data.id
 	List<Map> variableEvents=[]
 	if(data.gvCache!=null){
-		String t='updateGlobal'
-		Boolean didw=getTheLock(t)
+		Boolean didw=getTheLock(sURT)
 
 		def am=atomicState.vars
 		Map<String,Map> vars= am? (Map<String,Map>)am : [:]
@@ -3043,11 +3049,10 @@ void updateRunTimeData(Map data){
 			}
 		}
 		if(modified) atomicState.vars=vars
-		releaseTheLock(t)
+		releaseTheLock(sURT)
 	}
 	if(data.gvStoreCache!=null){
-		String t='updateGlobal'
-		Boolean didw=getTheLock(t)
+		Boolean didw=getTheLock(sURT)
 
 		def am=atomicState.store
 		Map<String,Object> store= am? (Map<String,Object>)am : [:]
@@ -3061,9 +3066,8 @@ void updateRunTimeData(Map data){
 			modified=true
 		}
 		if(modified) atomicState.store=store
-		releaseTheLock(t)
+		releaseTheLock(sURT)
 	}
-	String id=(String)data.id
 	Map st=[:] + (Map)data.state
 	st.remove('old') //remove the old state as we don't need it
 	Map piston=[
@@ -3078,7 +3082,7 @@ void updateRunTimeData(Map data){
 	if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
 	pStateFLD[wName][id]=piston
 	pStateFLD=pStateFLD
-	clearBaseResult('updateRunTimeData')
+	clearBaseResult(sURT,wName)
 	//broadcast variable change events
 	for (Map variable in variableEvents){ // this notifies the other webCoRE master instances and children
 		sendVariableEvent(variable)
@@ -3088,7 +3092,7 @@ void updateRunTimeData(Map data){
 		def dashboardApp=getDashboardApp()
 		if(dashboardApp) dashboardApp.updatePiston(id, piston)
 	} */
-	recoveryHandler()
+	verCheck(wName)
 }
 
 Boolean pausePiston(String pistonId,String src){
