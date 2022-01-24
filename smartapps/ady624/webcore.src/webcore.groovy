@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 23, 2022 for Hubitat
+ * Last update January 24, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -2163,6 +2163,7 @@ private api_intf_dashboard_piston_activity(){
 			result=[(sSTS): sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id, updateCache), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
 		}else{ result=api_get_error_result(sERRID) }
 	}else{ result=api_get_error_result(sERRTOK) }
+	if((Boolean)getLogging().debug) checkResultSize(result, false, "piston activity")
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -2598,7 +2599,7 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 	}
 	if(raw || (Boolean)result.complete){
 		String n=handlePres()
-		List presenceDevices=getChildDevices().find{ (String)it.name==n }
+		List presenceDevices=getChildDevices().findAll{ (String)it.name==n }
 		if(presenceDevices && presenceDevices.size()){
 			if(raw){
 				result << presenceDevices.collectEntries{ dev -> [(hashId(dev.id)): dev]}
