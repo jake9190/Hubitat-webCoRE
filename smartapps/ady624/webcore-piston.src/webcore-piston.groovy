@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update January 24, 2022 for Hubitat
+ * Last update January 25, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -6689,12 +6689,12 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 		}
 		if(doit){
 			//save devices
-			List deviceIdList=rawDevices.collect{ it && it.value ? it.value.id:null }
+			List deviceList=rawDevices.collect{ it && it.value ? it.value:null }
 			rawDevices=null
-			Boolean a=deviceIdList.removeAll{ it==null }
+			Boolean a=deviceList.removeAll{ it==null }
+			List deviceIdList=deviceList.collect{ it.id }
 			updateDeviceList(rtD,deviceIdList)
-			rtD.devices= settings.dev && settings.dev instanceof List ? ((List)settings.dev).collectEntries{ it -> [(hashId(rtD,it.id)):it]} : [:]
-			clearMyCache(s+'updateDeviceList')
+			rtD.devices= deviceList.collectEntries { it -> [(hashId(rtD,it.id)):it] }
 
 			state.subscriptions=ss
 			if(lg>i1)trace msg,rtD
@@ -6718,6 +6718,7 @@ private void subscribeAll(Map rtD,Boolean doit=true){
 				Map nc=theCacheVFLD[myId]
 				if(nc){
 					nc.cache=[:]+(Map)rtD.cache
+					nc.devices=[:]+(Map)rtD.devices
 					theCacheVFLD[myId]=nc
 					theCacheVFLD=theCacheVFLD
 				}
