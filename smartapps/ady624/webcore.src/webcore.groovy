@@ -4092,6 +4092,8 @@ Map getChildComparisons(){
 //      v = virtual device
 //      d = decimal
 //      i = integer
+//		b = boolean
+//		n = number (decimal)
 @Field final Map<String,Map> comparisonsFLD=[
 	conditions: [
 		changed				: [ (sD): "changed",									(sG):"bdfis",				(sT): 1,	],
