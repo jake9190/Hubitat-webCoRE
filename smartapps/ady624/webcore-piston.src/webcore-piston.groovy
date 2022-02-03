@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update January 29, 2022 for Hubitat
+ * Last update February 3, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -3227,14 +3227,15 @@ private void doPause(String mstr,Long delay,Map rtD,Boolean ign=false){
 
 private Boolean executeAction(Map rtD,Map statement,Boolean async){
 	String mySt=sNULL
+	Integer stmtNm=stmtNum(statement)
 	if(isEric(rtD)){
-		mySt='executeAction '+("#${stmtNum(statement)} "+sffwdng(rtD)+"async: ${async} ").toString()
+		mySt='executeAction '+("#${stmtNm} "+sffwdng(rtD)+"async: ${async} ").toString()
 		myDetail rtD,mySt,i1
 	}
 	List svDevices=(List)rtD.systemVars[sDLLRDEVS].v
 	//if override
 	if(prun(rtD) && (String)statement.tsp!=sA) // Task scheduling policy - a- allow multiple schedules, ""-override existing (def)
-		cancelStatementSchedules(rtD,stmtNum(statement))
+		cancelStatementSchedules(rtD,stmtNm)
 	Boolean result=true
 	List<String> deviceIds=expandDeviceList(rtD,(List)statement.d)
 	List devices=deviceIds.collect{ String it -> getDevice(rtD,it)}
@@ -6516,7 +6517,7 @@ private void subscribeAll(Map rtD,Boolean doit=true,Boolean shorten){
 				if(comparison!=null){
 					if(isTrig){
 						Boolean didDwnGrd=false
-						if (!(dwnGrdTrig || (String) cndtn.sm==never)){ // not force condition
+						if (!(dwnGrdTrig || (String)cndtn.sm==never)){ // not force condition
 							hasTriggers=true
 							cmpTyp=sTRIG //subscription method
 						} else didDwnGrd=true
