@@ -5312,7 +5312,7 @@ private Boolean evaluateConditions(Map rtD,Map cndtns,String collection,Boolean 
 					Integer svrun=currun(rtD)
 					chgRun(rtD,iN9)
 					Map cndtn=((List<Map>)cndtns[collection])[i]
-					Boolean tvalue=evaluateCondition(rtD,cndtn,collection,async)
+					Boolean tvalue=evaluateCondition(rtD,cndtn,collection,async) //run through all to update stuff
 					chgRun(rtD,svrun)
 				}else{
 					Long ladderUpdated=(Long)cast(rtD,((Map<String,Object>)rtD.cache)[sldt],sDTIME) // gives back current dtime if null
@@ -5388,9 +5388,8 @@ private Boolean evaluateConditions(Map rtD,Map cndtns,String collection,Boolean 
 		}
 		Boolean res
 		for(Map cndtn in (List<Map>)cndtns[collection]){
-			res=evaluateCondition(rtD,cndtn,collection,async)
+			res=evaluateCondition(rtD,cndtn,collection,async) //run through all to update stuff
 			value= grouping==sOR ? value||res : value&&res
-			//run through all to update stuff
 			if(prun(rtD) && canopt && ((value && grouping==sOR) || (!value && grouping==sAND)))break
 		}
 	}

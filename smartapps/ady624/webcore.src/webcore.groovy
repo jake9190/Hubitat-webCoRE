@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update January 29, 2022 for Hubitat
+ * Last update January 31, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -1239,8 +1239,8 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 			fuelStreamUrls: getFuelStreamUrls(instanceId),
 		],
 		location: [
-			//hubs: location.getHubs().findAll{ !((String)it.name).contains(':') }.collect{ [id: it.id /*hashId(it.id, updateCache)*/, (sNM): (String)it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
-			hubs: ((List)location.getHubs()).collect{ [id: it.id /*hashId(it.id, updateCache)*/, (sNM): (String)location.name, firmware: isHubitat() ? (String)((Map)getHubitatVersion())[(String)it.id.toString()] : (String)it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
+			//hubs: location.getHubs().findAll{ !((String)it.name).contains(':') }.collect{ [id: it.id /*hashId(it.id)*/, (sNM): (String)it.name, firmware: isHubitat() ? getHubitatVersion()[it.id] : it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
+			hubs: ((List)location.getHubs()).collect{ [id: it.id /*hashId(it.id)*/, (sNM): (String)location.name, firmware: isHubitat() ? (String)((Map)getHubitatVersion())[(String)it.id.toString()] : (String)it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]},
 			incidents: alerts.collect{it}.findAll{ (Long)it.date >= incidentThreshold },
 			//incidents: isHubitat() ? [] : location.activeIncidents.collect{[date: it.date.time, (sTIT): it.getTitle(), message: it.getMessage(), args: it.getMessageArgs(), sourceType: it.getSourceType()]}.findAll{ it.date >= incidentThreshold },
 			id: locationId,
@@ -1261,12 +1261,6 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 	base_resultFLD[wName]=result
 	releaseTheLock(t)
 	return result
-}
-
-private Map api_get_devices_result(Integer offset=0, Boolean updateCache=false){
-	return listAvailableDevices(false, updateCache, offset) + [
-		deviceVersion: (String)atomicState.deviceVersion,
-	]
 }
 
 private Map<String,Map> getFuelStreamUrls(String iid){
@@ -1362,8 +1356,11 @@ private api_intf_dashboard_load(){
 private api_intf_dashboard_devices(){
 	Map result
 	if(verifySecurityToken((String)params.token)){
-		String offset="${params.offset}".toString()
-		result=api_get_devices_result(offset.isInteger() ? offset.toInteger() : 0)
+		String soffset= "${params.offset}".toString()
+		Integer offset= soffset.isInteger() ? soffset.toInteger() : 0
+		if(eric())debug "dashboard_devices "+soffset
+		result=listAvailableDevices(false, false, offset) +
+				[ deviceVersion: (String)atomicState.deviceVersion ]
 	}else{ result=api_get_error_result(sERRTOK) }
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
@@ -1391,7 +1388,7 @@ private Map getDashboardData(){
 	if(storageApp!=null){
 		result=storageApp.getDashboardData()
 	}else{
-		result=((Map)settings).findAll{ ((String)it.key).startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
+		result=((Map<String,Object>)settings).findAll{ ((String)it.key).startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
 			[ (id): dev.getSupportedAttributes().collect{ (String)it.name }.unique().collectEntries{
 				def value
 				try { value=dev.currentValue(it) }catch(ignored){ value=null }
@@ -1706,7 +1703,11 @@ private api_intf_dashboard_piston_set_end(){
 			mb()
 			if(ok){
 				//save the piston
-				Map saved=api_intf_dashboard_piston_set_save((String)chunks.id, data, chunks.findAll{ it.key.startsWith('chunk:') } as Map<String, String>)
+				Map saved=api_intf_dashboard_piston_set_save(
+						(String)chunks.id,
+						data,
+						((Map<String,String>)chunks).findAll{ it -> it.key.startsWith('chunk:') }
+				)
 				if(saved){
 					if(saved.rtData){
 						updateRunTimeData((Map)saved.rtData)
@@ -2188,8 +2189,9 @@ private api_intf_dashboard_piston_activity(){
 			String rl=generateMD5_A(jsonData)
 			if(rl!=lastActivityFLD){
 				lastActivityFLD=rl
-				result=[(sSTS):sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id, updateCache), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
+				result=[(sSTS):sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
 			} else result=[(sSTS):sSUCC, activity: [:]]
+			tlastActivityFLD=(Long)now()
 		}else{ result=api_get_error_result(sERRID) }
 	}else{ result=api_get_error_result(sERRTOK) }
 	if((Boolean)getLogging().debug) checkResultSize(result, false, "piston activity")
@@ -2401,7 +2403,7 @@ void finishRecovery(){
 private void cleanUp(){
     try{
 		//List pistons=getChildApps().collect{ hashPID(it.id) }
-		for (item in state.findAll{ (it.key.startsWith('sph') || it.key.contains('-') ) }){
+		for (item in ((Map<String,Object>)state).findAll{ (it.key.startsWith('sph') || it.key.contains('-') ) }){
 			state.remove(item.key)
 		}
 
@@ -2592,12 +2594,11 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 	if(storageApp){
 		result=storageApp.listAvailableDevices(raw, offset)
 	}else{
-		List myDevices=(List)((Map)settings).findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
+		List myDevices=(List)((Map<String,Object>)settings).findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
 		List devices=(List)myDevices.unique{ it.id }
 		if(raw){
 			result=devices.collectEntries{ dev -> [(hashId(dev.id)): dev]}
 		}else{
-//			Map<String,Map> overrides=commandOverrides()
 			Integer deviceCount=devices.size()
 			result.devices=[:]
 			if(devices){
@@ -2610,10 +2611,7 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 					Boolean stop=false
 					String jsonData=JsonOutput.toJson(result)
 					Integer responseLength=jsonData.getBytes("UTF-8").length
-					if(responseLength > 50000){
-						stop=true // Stop if large
-					}
-					if((Long)now()-time > 4000) stop=true
+					if(responseLength > 50000 || (Long)now()-time > 4000) stop=true
 					if(stop && idx < dsz-1 ){
 						result.nextOffset= offset+idx+1
 						return true
@@ -3060,10 +3058,7 @@ void pCallupdateRunTimeData(Map data){
 @Field static final String sURT='updateRunTimeData'
 void updateRunTimeData(Map data, String wNi=sNULL, String idi=sNULL){
 	if(!data || !data.id) return
-	String wName= wNi ?: sAppId()
-	String id= idi ?: (String)data.id
 	List<Map> variableEvents=[]
-	Boolean modified=false
 	if(data.gvCache!=null){
 		Boolean didw=getTheLock(sURT)
 
@@ -3076,7 +3071,6 @@ void updateRunTimeData(Map data, String wNi=sNULL, String idi=sNULL){
 				Boolean a=variableEvents.push([(sNM): varName, oldValue: vars[varName].v, (sVAL): var.value.v, type: var.value.t])
 				vars[varName].v=var.value.v
 				mdfd=true
-				modified=true
 			}
 		}
 		if(mdfd) atomicState.vars=vars
@@ -3092,27 +3086,34 @@ void updateRunTimeData(Map data, String wNi=sNULL, String idi=sNULL){
 			if(var.value==null) store.remove((String)var.key)
 			else store[(String)var.key]=var.value
 			mdfd=true
-			modified=true
 		}
 		if(mdfd) atomicState.store=store
 		releaseTheLock(sURT)
 	}
-	Map st=[:] + (Map)data.state
-	st.remove('old') //remove the old state as we don't need it
-	Map piston=[
-		(sA): (Boolean)data.active,
-		(sC): data.category,
-		(sT): data.t ?:now(), //last run
-		(sN): (Long)data.stats.nextSchedule,
-		z: (String)data.piston.z, //description
-		(sS): st,
-		heCached:(Boolean)data.Cached
-	]
-	if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD; modified=true}
-	//log.warn "data: $data piston: $piston old: ${pStateFLD[wName][id]}"
-	pStateFLD[wName][id]=piston
-	pStateFLD=pStateFLD
-	/*if(modified)*/clearBaseResult(sURT,wName)
+
+	String wName= wNi ?: sAppId()
+	String id= idi ?: (String)data.id
+	if(wName){
+		if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD}
+		Map st=[:]+(Map)data.state
+		st.remove('old') //remove the old state as we don't need it
+		Map piston=[
+				(sA): (Boolean)data.active,
+				(sC): data.category,
+				(sT): data.t ?:now(), //last run
+				(sN): (Long)data.stats.nextSchedule,
+				z: (String)data.piston.z, //description
+				(sS): st,
+				heCached:(Boolean)data.Cached
+		]
+		//log.warn "data: $data piston: $piston old: ${pStateFLD[wName][id]}"
+		if(id){
+			pStateFLD[wName][id]=piston
+			pStateFLD=pStateFLD
+		} else log.error "no id"
+		clearBaseResult(sURT,wName)
+	} else log.error "no wName"
+
 	//broadcast variable change events
 	for (Map variable in variableEvents){ // this notifies the other webCoRE master instances and children
 		sendVariableEvent(variable)
@@ -4606,7 +4607,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				String res=sNULL
 				Boolean ok=true
 				dL.each{ String it->
-					if(ok && it && it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+					if(ok && it && it.size()==34 && it.startsWith(sCOLON) && it.endsWith(sCOLON)){
 						res= res ? res+sSPC+it : it
 					} else ok=false
 				}
@@ -4688,7 +4689,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				String[] t1=((String)v).split(sSPC)
 				t1.each{ String it ->
 					// sDEV is a string in global, need to detect if it is really devices :xxxxx:
-					if(ok && it && it.size()==34 && (Boolean)it.startsWith(sCOLON) && (Boolean)it.endsWith(sCOLON)){
+					if(ok && it && it.size()==34 && it.startsWith(sCOLON) && it.endsWith(sCOLON)){
 						dvL.push(it)
 					} else ok=false
 				}
