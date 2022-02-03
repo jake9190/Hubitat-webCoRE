@@ -28,7 +28,7 @@
 //file:noinspection GroovyPointlessBoolean
 
 @Field static final String sVER='v0.3.113.20210203'
-@Field static final String sHVER='v0.3.113.20220117_HE'
+@Field static final String sHVER='v0.3.113.20220203_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -1071,7 +1071,7 @@ mappings{
 	path("/intf/dashboard/piston/create"){action: [GET: "api_intf_dashboard_piston_create"]}
 	path("/intf/dashboard/piston/backup"){action: [GET: "api_intf_dashboard_piston_backup"]}
 	path("/intf/dashboard/piston/get"){action: [GET: "api_intf_dashboard_piston_get"]}
-	path("/intf/dashboard/piston/getDB"){action: [GET: "api_intf_dashboard_piston_getDB"]}
+	path("/intf/dashboard/piston/getDb"){action: [GET: "api_intf_dashboard_piston_getDb"]}
 	path("/intf/dashboard/piston/set"){action: [GET: "api_intf_dashboard_piston_set"]}
 	path("/intf/dashboard/piston/set.start"){action: [GET: "api_intf_dashboard_piston_set_start"]}
 	path("/intf/dashboard/piston/set.chunk"){action: [GET: "api_intf_dashboard_piston_set_chunk"]}
@@ -1461,12 +1461,11 @@ private findPiston(String id, String nm=sNULL){
 	return piston
 }
 
-private api_intf_dashboard_piston_getDB() {
+private api_intf_dashboard_piston_getDb() {
 	Map result=[:]
 	if(verifySecurityToken((String)params.token)){
-		String clientDbVersion=(String)params.db
 		String serverDbVersion=sHVER
-		debug "Dashboard: getDB ${params?.id} needs new db current: ${serverDbVersion} in server ${clientDbVersion}"
+		debug "Dashboard: getDb sending new db current: ${serverDbVersion} in server"
 		Map theDb=[
 				capabilities: capabilities().sort{ (String)it.value.d },
 				commands: [
@@ -1484,6 +1483,8 @@ private api_intf_dashboard_piston_getDB() {
 		result.dbVersion=serverDbVersion
 		result.db=theDb
 	}else{ result=api_get_error_result(sERRTOK) }
+	String wName=sAppId()
+	clearBaseResult('get Db',wName)
 	result.now=now()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
@@ -1506,7 +1507,7 @@ private api_intf_dashboard_piston_get(){
 			result.data=t0!=null ? t0 : [:]
 			if(requireDb){
 				debug "Dashboard: get piston ${params?.id} needs new db current: ${serverDbVersion} in server ${clientDbVersion}"
-				Map theDb=[
+				/*Map theDb=[
 					capabilities: capabilities().sort{ (String)it.value.d },
 					commands: [
 						physical: commands().sort{ (String)it.value.d!=sNULL ? (String)it.value.d : (String)it.value.n },
@@ -1519,9 +1520,9 @@ private api_intf_dashboard_piston_get(){
 						//standard: colorUtil?.ALL ?: getColors()
 						standard: getColors()
 					],
-				]
+				]*/
 				result.dbVersion=serverDbVersion
-				result.db=theDb
+				//result.db=theDb
 			}
 			if((Boolean)getLogging().debug) checkResultSize(result, requireDb, "get piston")
 		}else{ result=api_get_error_result(sERRID) }
