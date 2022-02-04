@@ -4,7 +4,7 @@
   "version": "1.0.37",
   "minimumHEVersion": "2.2.4",
   "licenseFile": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/LICENSE",
-  "releaseNotes": "Latest release for Hubitat to run webCoRE pistons locally on HE - bug fixes, fix stays statements\nUpdates for UI",
+  "releaseNotes": "Latest release for Hubitat to run webCoRE pistons locally on HE - bug fixes, fix stays statements\nUpdates for UI\nReduce network bandwith usage by dashboard and IDE",
   "documentationLink": "https://wiki.webcore.co",
   "communityLink": "https://community.hubitat.com/t/webcore-for-hubitat-updates/11967",
   "dateReleased": "2022-02-03",
