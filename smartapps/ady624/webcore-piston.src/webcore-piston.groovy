@@ -10338,7 +10338,7 @@ private getSystemVariableValue(Map rtD,String name){
 	case (sCURDESC): return rtnStr(rtD.currentEvent?.descriptionText)
 	case (sCURDATE): return rtD.currentEvent?.t
 	case (sCURDELAY): return rtD.currentEvent?.delay
-	case (sCURDEV): return [rtD.currentEvent?.device]
+	case (sCURDEV): return rtD.currentEvent?.device ? [rtD.currentEvent.device]:[]
 	case (sCURDEVINDX): return rtD.currentEvent?.index
 	case (sCURPHYS): return rtD.currentEvent?.physical
 	case (sCURVALUE): return rtD.currentEvent?.value
@@ -10351,7 +10351,7 @@ private getSystemVariableValue(Map rtD,String name){
 	case (sPEVDESC): return rtnStr(rtD.previousEvent?.descriptionText)
 	case (sPEVDATE): return rtD.previousEvent?.t
 	case (sPEVDELAY): return rtD.previousEvent?.delay
-	case (sPEVDEV): return [rtD.previousEvent?.device]
+	case (sPEVDEV): return rtD.previousEvent?.device ? [rtD.previousEvent.device]:[]
 	case (sPEVDEVINDX): return rtD.previousEvent?.index
 	case (sPEVPHYS): return rtD.previousEvent?.physical
 	case (sPEVVALUE): return rtD.previousEvent?.value
