@@ -16,12 +16,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update August 31, 2021 for Hubitat
+ * Last update February 3, 2022 for Hubitat
  */
 //file:noinspection unused
 
-static String version(){ return 'v0.3.113.20210203' }
-static String HEversion(){ return 'v0.3.113.20210830_HE' }
+static String version(){ return 'v0.3.114.20220203' }
+static String HEversion(){ return 'v0.3.114.20220203_HE' }
 /******************************************************************************/
 /*** webCoRE DEFINITION														***/
 /******************************************************************************/
@@ -606,36 +606,36 @@ public Map listAvailableDevices(Boolean raw=false, Integer offset=0){
 		//Map<String,Map> overrides = commandOverrides()
 		response.devices = [:]
 		if(devices){
-		devices = devices[offset..-1]
-		response.complete = !devices.indexed().find{ idx, dev ->
-//			log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${response.toString().size()}"
-			response.devices[hashId(dev.id)]=getDevDetails(dev, true)
-/*			response.devices[hashId(dev.id)] = [
-				n: dev.getDisplayName(),
-				cn: dev.getCapabilities()*.name,
-				a: dev.getSupportedAttributes().unique{ it.name }.collect{[
-					n: it.name,
-					t: it.getDataType(),
-					o: it.getValues()
-				]},
-				c: dev.getSupportedCommands().unique{ transformCommand(it, overrides) }.collect{[
-					n: transformCommand(it, overrides),
-					p: it.getArguments()
-				]}
-			] */
-			Boolean stop = false
-			String jsonData = JsonOutput.toJson(response)
-			Integer responseLength = jsonData.getBytes("UTF-8").length
-			if(responseLength > (50 * 1024)){
-				stop = true // Stop if large
+			devices = devices[offset..-1]
+			response.complete = !devices.indexed().find{ idx, dev ->
+//				log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${response.toString().size()}"
+				response.devices[hashId(dev.id)]=getDevDetails(dev, true)
+/*				response.devices[hashId(dev.id)] = [
+					n: dev.getDisplayName(),
+					cn: dev.getCapabilities()*.name,
+					a: dev.getSupportedAttributes().unique{ it.name }.collect{[
+						n: it.name,
+						t: it.getDataType(),
+						o: it.getValues()
+					]},
+					c: dev.getSupportedCommands().unique{ transformCommand(it, overrides) }.collect{[
+						n: transformCommand(it, overrides),
+						p: it.getArguments()
+					]}
+				] */
+				Boolean stop = false
+				String jsonData = JsonOutput.toJson(response)
+				Integer responseLength = jsonData.getBytes("UTF-8").length
+				if(responseLength > (50 * 1024)){
+					stop = true // Stop if large
+				}
+				if(now() - time > 4000) stop = true
+				if(stop && idx < devices.size()-1){
+					response.nextOffset = offset + idx + 1
+					return true
+				}
+				false
 			}
-			if(now() - time > 4000) stop = true
-			if(stop && idx < devices.size()-1){
-				response.nextOffset = offset + idx + 1
-				return true
-			}
-			false
-		}
 		} else response.complete=true
 		log.debug "Generated list of ${offset}-${offset + devices.size()} of ${deviceCount} devices in ${now() - time}ms. Data size is ${response.toString().size()}"
 	}
@@ -647,11 +647,18 @@ Map getDevDetails(dev, Boolean transform=false){
 	return [
 			n: dev.getDisplayName(),
 			cn: dev.getCapabilities()*.name,
-			a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{[
+			a: dev.getSupportedAttributes().unique{ (String)it.name }.collect{
+//				Map x=[
+				[
 					n: (String)it.name,
 					t: it.getDataType(),
 					o: it.getValues()
-			]},
+				]
+//				try {
+//					x.v = dev.currentValue(x.n)
+//				} catch(ignored){}
+//				x
+			},
 			c: dev.getSupportedCommands().unique{ transform ? transformCommand(it, overrides) : it.getName() }.collect{[
 					n: transform ? transformCommand(it, overrides) : it.getName(),
 					p: it.getArguments()

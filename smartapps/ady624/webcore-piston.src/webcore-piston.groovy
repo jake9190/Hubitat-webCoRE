@@ -28,8 +28,8 @@
 //file:noinspection unused
 //file:noinspection GroovyAssignabilityCheck
 
-@Field static final String sVER='v0.3.113.20210203'
-@Field static final String sHVER='v0.3.113.20220203_HE'
+@Field static final String sVER='v0.3.114.20220203'
+@Field static final String sHVER='v0.3.114.20220203_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -6525,7 +6525,7 @@ private void subscribeAll(Map rtD,Boolean doit=true,Boolean shorten){
 						if(isTracking){
 							String m=sNULL
 							String tm="trigger comparison type "
-							if(didDwnGrd) m="downgraded "+tm+"in EVERY or ON statement, or forced never subscribe"
+							if(didDwnGrd) m="downgraded "+tm+"not subscribed in EVERY or ON statement, or forced never subscribe"
 							else if(cmpTyp!=sTRIG) m=tm+"that relies on event tracking"
 							else if(stmtLvl.v>i2) m="possible nested "+tm+"that may cause errors"
 							if(m && !shorten) addWarning(curStatement,'Found '+m+" $co  level: $stmtLvl.v")

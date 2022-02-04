@@ -1045,7 +1045,7 @@ config.factory('dataService', ['$http', '$location', '$rootScope', '$window', '$
 				var data = response.data;
 				if (data.dbVersion && !data.db) {
 					return dataService.getDb().then(function(dbData) {
-						const mergedData = Object.assign({}, data, dbData);
+						var mergedData = Object.assign({}, data, dbData);
 						return Object.assign({}, response, { data: mergedData });
 					});
 				}
@@ -1063,7 +1063,7 @@ config.factory('dataService', ['$http', '$location', '$rootScope', '$window', '$
 						data.instance = setInstance(data.instance);
 					} else {
 						return dataService.loadInstance(inst).then(function(instData) {
-							const mergedData = Object.assign({}, data, instData);
+							var mergedData = Object.assign({}, data, instData);
 							return Object.assign({}, response, { data: mergedData });
 						});
 					}
@@ -1702,19 +1702,19 @@ config.factory('dataService', ['$http', '$location', '$rootScope', '$window', '$
 app.factory('colorSchemeService', ['dataService', '$rootScope', function(dataService, $rootScope) {
 	var colorSchemeService = {};
 
-	colorSchemeService.initialize = async function() {
-		let promise = await dataService.whenReady();
-
-		let userTheme = dataService.getDashboardTheme();
-		// if user didn't choose a default theme, try to infer from the OS or defaults to light
-		if (!userTheme) {
-			userTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-		}
-		$rootScope.setDashboardTheme(userTheme);
+	colorSchemeService.initialize = function() {
+		dataService.whenReady().then(function() {
+			var userTheme = dataService.getDashboardTheme();
+			// if user didn't choose a default theme, try to infer from the OS or defaults to light
+			if (!userTheme) {
+				userTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+			}
+			$rootScope.setDashboardTheme(userTheme);
+		});
 	}
 
 	colorSchemeService.toggleDarkMode = function() {
-		let newTheme = ($rootScope.getDashboardTheme() == 'light' ? 'dark' : 'light');
+		var newTheme = ($rootScope.getDashboardTheme() == 'light' ? 'dark' : 'light');
 		$rootScope.setDashboardTheme(newTheme);
 		dataService.setDashboardTheme(newTheme);
 	}
@@ -2148,8 +2148,8 @@ var entityMap = {
 	"'": '&#39;'
 };
 var entityPattern = /[&<>"']/g;
-function charToHtmlEntity(char) { 
-	return entityMap[char] || char; 
+function charToHtmlEntity(c) { 
+	return entityMap[c] || c; 
 }
 function escapeHtml(value) {
 	return (value || '').replace(entityPattern, charToHtmlEntity);
@@ -2437,4 +2437,4 @@ if (!String.prototype.endsWith) {
 
 // Minimum version to display as an optional upgrade
 minCoreVersion = 'v0.3.110.20191009';
-version = function() { return 'v0.3.113.20210203'; };
+version = function() { return 'v0.3.114.20220203'; };
