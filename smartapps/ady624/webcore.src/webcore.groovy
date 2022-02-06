@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 3, 2022 for Hubitat
+ * Last update February 5, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -1103,7 +1103,8 @@ mappings{
 	path("/tap/:tapId"){action: [GET: "api_tap"]}
 }
 
-private Map api_get_error_result(String error){
+private Map api_get_error_result(String error,String m=sNULL){
+	debug "Dashboard: error: ${error} m:$m"
 	return [
 		(sNM): location.name + ' \\ ' + appName(),
 		(sERR): error,
@@ -1317,6 +1318,7 @@ private api_intf_dashboard_load(){
 //	debug "Dashboard: load ${params}"
 	recoveryHandler()
 	//debug "Dashboard: Request received to initialize instance"
+	String s='dashLoad'
 	if(verifySecurityToken((String)params.token)){
 		result=api_get_base_result(true)
 
@@ -1334,7 +1336,7 @@ private api_intf_dashboard_load(){
 				error "Dashboard: Authentication failed due to an invalid PIN"
 			}
 		}
-		if(result==null) result=api_get_error_result(sERRTOK)
+		if(result==null) result=api_get_error_result(sERRTOK,s)
 	}
 
 	if(result) result.remove('now')
@@ -1347,7 +1349,7 @@ private api_intf_dashboard_load(){
 	}else result=[:]
 	tlastActivityFLD=t
 
-	if((Boolean)getLogging().debug) checkResultSize(result, false, "dashLoad")
+	if((Boolean)getLogging().debug) checkResultSize(result, false, s)
 
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
@@ -1356,13 +1358,14 @@ private api_intf_dashboard_load(){
 
 private api_intf_dashboard_devices(){
 	Map result
+	String s='dashbaord_devices '
 	if(verifySecurityToken((String)params.token)){
 		String soffset= "${params.offset}".toString()
 		Integer offset= soffset.isInteger() ? soffset.toInteger() : 0
-		if(eric())debug "dashboard_devices "+soffset
+		if(eric())debug s+soffset
 		result=listAvailableDevices(false, false, offset) +
 				[ deviceVersion: (String)atomicState.deviceVersion ]
-	}else{ result=api_get_error_result(sERRTOK) }
+	}else{ result=api_get_error_result(sERRTOK,s) }
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
@@ -1403,9 +1406,10 @@ private Map getDashboardData(){
 private api_intf_dashboard_piston_new(){
 	Map result
 	debug "Dashboard: Request received to generate a new piston name"
+	String s='piston_new'
 	if(verifySecurityToken((String)params.token)){
 		result=[(sSTS): sSUCC, (sNM): generatePistonName()]
-	}else{ result=api_get_error_result(sERRTOK) }
+	}else{ result=api_get_error_result(sERRTOK,s) }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1442,7 +1446,7 @@ private api_intf_dashboard_piston_create(){
 			error "create piston: Name in use "+pname
 			result=[(sSTS): sERROR, (sERR): sERRUNK]
 		}
-	}else{ result=api_get_error_result(sERRTOK) }
+	}else{ result=api_get_error_result(sERRTOK,'piston_create') }
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1482,7 +1486,7 @@ private api_intf_dashboard_piston_getDb() {
 		]
 		result.dbVersion=serverDbVersion
 		result.db=theDb
-	}else{ result=api_get_error_result(sERRTOK) }
+	}else{ result=api_get_error_result(sERRTOK,'getDb') }
 	String wName=sAppId()
 	clearBaseResult('get Db',wName)
 	result.now=now()
@@ -1494,6 +1498,7 @@ private api_intf_dashboard_piston_get(){
 	Boolean requireDb
 	String wName=sAppId()
 	clearBaseResult('get Piston',wName)
+	String s='piston_get'
 	if(verifySecurityToken((String)params.token)){
 		String pistonId=(String)params.id
 		def piston=findPiston(pistonId)
@@ -1525,8 +1530,14 @@ private api_intf_dashboard_piston_get(){
 				//result.db=theDb
 			}
 			if((Boolean)getLogging().debug) checkResultSize(result, requireDb, "get piston")
-		}else{ result=api_get_error_result(sERRID) }
-	}else{ result=api_get_error_result(sERRTOK) }
+		}else{
+			result=api_get_error_result(sERRID,s)
+			warn "Dashboard: get piston bad ID : ${params?.id}"
+		}
+	}else{
+		result=api_get_error_result(sERRTOK,s)
+		warn "Dashboard: get piston bad token: ${params}"
+	}
 
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
@@ -1605,7 +1616,7 @@ private api_intf_dashboard_piston_backup(){
 				}
 			}
 		}
-	}else{ result=api_get_error_result(sERRTOK) }
+	}else{ result=api_get_error_result(sERRTOK,'piston_backup') }
 	//for accuracy, use the time as close as possible to the render
 	result.now=now()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
