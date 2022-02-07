@@ -5588,7 +5588,7 @@ private evaluateOperand(Map r9,Map node,Map oper,index=null,Boolean trigger=fals
 					if((String)e?.t==sEXPR && i?.size()==i1){
 						Map val=i[iZ]
 						String ty= (String)val.t
-						if(ty!=sVARIABLE){
+						if(!(ty in [sVARIABLE,sFUNC,sDEV,sOPERAND,sDURATION])){
 							def v= val.v
 							v= ty==sBOOLN ? bcast(r9,v):v
 							if(ovt==sDEC){
