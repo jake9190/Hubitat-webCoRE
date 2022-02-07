@@ -2395,6 +2395,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		event.dev=event.device
 		event.device=theFinalDevice // here on device is a string
 		event.index=index
+		event.isResume=false
 
 		Map mEvt=[:]+event
 		for(String foo in cleanData3) aa=mEvt.remove(foo)
@@ -2408,6 +2409,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 			mEvt.unit=srcEvent.unit
 			mEvt.index=srcEvent.index
 			mEvt.physical=!!srcEvent.physical
+			mEvt.isResume=true
 		}
 		Map pEvt=(Map)state.lastEvent
 		if(pEvt==null)pEvt=[:]
@@ -6022,7 +6024,7 @@ private Boolean valueWas(Map r9,Map comparisonValue,Map rightValue,Map rightValu
 	String attr=(String)comparisonValue.v.a
 	Long threshold=(Long)evaluateExpression(r9,rtnMap1(timeValue.v,(String)timeValue.vt)).v
 
-	Boolean thisEventWokeUs=((String)r9.event.device==hashId(r9,device.id) && (String)r9.event.name==attr)
+	Boolean thisEventWokeUs=((String)r9.event.device==hashId(r9,device.id) && (String)r9.event.name==attr && !(Boolean)r9.event.isResume)
 	List<Map> states=listPreviousStates(device,attr,threshold,false) // thisEventWokeUs)
 	Boolean result
 	Long duration=lZ
@@ -6835,7 +6837,7 @@ private getDevice(Map r9,String idOrName){
 private getDeviceAttributeValue(Map r9,device,String attr){
 	String r9EvN=r9.event!=null ? (String)r9.event.name:sBLK
 	Boolean r9EdID=r9.event!=null ? (String)r9.event.device==hashId(r9,device.id):false
-	if(r9EvN==attr && r9EdID) return r9.event.value
+	if(r9EvN==attr && r9EdID && !(Boolean)r9.event.isResume) return r9.event.value
 	else{
 		def result
 		String msg="Error reading current value for ${device}.".toString()
