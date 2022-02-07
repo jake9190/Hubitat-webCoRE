@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 5, 2022 for Hubitat
+ * Last update February 6, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -1179,6 +1179,7 @@ private List presult(String wName){
 		Map meta=(Map)pStateFLD[wName][myId]
 		if(meta==null){
 			meta=(Map)it.curPState()
+			meta= meta?:[:]
 			pStateFLD[wName][myId]=meta
 			pStateFLD=pStateFLD
 		}
