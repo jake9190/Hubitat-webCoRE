@@ -2257,7 +2257,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 					data:[
 						(sID):r9.id,
 						(sNM):(String)app.label,
-						event:[(sDATE):new Date((Long)rtCE.t),delay:(Long)rtCE.delay,(sDURATION):elapseT((Long)rtCE.t),(sDEV):"${r9.event.dev}".toString(),(sNM):(String)rtCE.name,(sVAL):rtCE.value,physical:(Boolean)rtCE.physical,index:(Integer)rtCE.index],
+						event:[(sDATE):new Date((Long)rtCE.t),delay:(Long)rtCE.delay,(sDURATION):elapseT((Long)rtCE.t),(sDEV):"${getDevice(r9,r9.event.device)}".toString(),(sNM):(String)rtCE.name,(sVAL):rtCE.value,physical:(Boolean)rtCE.physical,index:(Integer)rtCE.index],
 						state:[old:(String)r9.state.old,new:(String)r9.state.new]
 					]
 				)
@@ -2358,20 +2358,20 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		setSystemVariableValue(r9,sDARGS,targs)
 
 		def theDevice1=event.device ? event.device.id:null
-		String theFinalDevice=theDevice1!=null ? (!isDeviceLocation(event.device) ? hashId(r9,theDevice1.toString()):(String)r9.locationId) : (String)r9.locationId
+		String a=(String)r9.locationId
+		String theFinalDevice=theDevice1!=null ? (!isDeviceLocation(event.device) ? hashId(r9,theDevice1.toString()) :a) :a
 
 		def aa
 		for(String foo in cleanData2) aa=event.remove(foo)
 		aa=event.remove('jsonData')
 		def sv=event.device
-		event.device=hashId(r9,event.device.id)
+		event.device=theFinalDevice // device from here on is a hashed string
 		r9.event=event
 
 		Map mEvt=[:]+event
 		mEvt.delay=r9.stats?.timing?.d ? (Long)r9.stats.timing.d:lZ
-		mEvt.dev=sv
-		mEvt.device=theFinalDevice // here on device is a string
 		mEvt.index=index
+		mEvt.dev=cvtDev(getDevice(r9,theFinalDevice)) // documentation
 		mEvt.isResume=false
 
 		for(String foo in cleanData3) aa=mEvt.remove(foo)
@@ -2396,7 +2396,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		state.lastEvent=mEvt
 
 		Integer s= es ? (Integer)es.svs:null
-		if(s) event.schedule.s= s // dealing with r9.wakingUp
+		if(s) event.schedule.s= s // dealing with pause/wait before happens_daily_at r9.wakingUp
 
 		r9.cndtnStChgd=false
 		r9.pstnStChgd=false
@@ -2438,10 +2438,10 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 								Map statement=[$:jq.$]
 								if(jq.tcp) statement += [tcp:jq.tcp]
 								r9.currentAction=statement
-								def a=r9.stack.cs
+								def ta=r9.stack.cs
 								r9.stack.cs=jq.cs
 								runRepeat(r9,jq)
-								r9.stack.cs=a
+								r9.stack.cs=ta
 								r9.remove('currentAction')
 							}
 						}else{
@@ -2459,7 +2459,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 				if(lg)debug 'Piston execution aborted due to restrictions in effect; updating piston states',r9
 				//run through all to update stuff
 				chgRun(r9,iN9)
-				Boolean a=executeStatements(r9,(List)r9.piston.s)
+				Boolean ya=executeStatements(r9,(List)r9.piston.s)
 				ended=true
 				tracePoint(r9,sEND,lZ,iZ)
 				processSchedules r9
@@ -6279,6 +6279,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		List<String>rg=['receives','gets']
 		List<String>lsub=[sIF,sFOR,sWHILE,sREPEAT,sSWITCH,sON,sEACH,sEVERY]
 		List<String> lntrk= ['receives','gets','happens_daily_at','arrives','event_occurs','executes']
+		String LID=(String)r9.locationId
 		Map msg=timer "Finished subscribing",r9,iN1
 		if(doit){
 			removeAllInUseGlobalVar()
@@ -6310,7 +6311,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			String attr=sNULL
 			String exprID=(String)expression.id
 			if((String)expression.t==sDEV && exprID){
-				if(exprID in (List<String>)r9.oldLocations) exprID=(String)r9.locationId
+				if(exprID in (List<String>)r9.oldLocations) exprID=LID
 				devices[exprID]=[(sC):(cmpTyp ? i1:iZ)+(devices[exprID]?.c ? (Integer)devices[exprID].c:iZ)]
 				deviceId=exprID
 				attr=(String)expression.a
@@ -6318,7 +6319,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			}
 			String exprX=(String)expression.x
 			if((String)expression.t==sVARIABLE && exprX && exprX.startsWith(sAT)){
-				deviceId=(String)r9.locationId
+				deviceId=LID
 				if(exprX.startsWith(sAT2)){
 					String vn=exprX.substring(2)
 					def hg=getGlobalVar(vn) // check if it exists
@@ -6337,7 +6338,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 					ct=sTRIG
 				}else ct=ct ?: cmpTyp
 				subscriptions[subsId]=[(sD):deviceId, (sA):attr, (sT):ct, (sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(cmpTyp? [expression]:[])]
-				if(deviceId!=(String)r9.locationId && deviceId.startsWith(sCLN)){
+				if(deviceId!=LID && deviceId.startsWith(sCLN)){
 					if(doit && !rawDevices[deviceId])rawDevices[deviceId]=getDevice(r9,deviceId)
 					devices[deviceId]=[(sC):(cmpTyp ? i1:iZ)+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:iZ)]
 				}
@@ -6349,7 +6350,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 				case sP: //physical device
 					for(String mdeviceId in expandDeviceList(r9,(List)operand.d,true)){
 						String deviceId=mdeviceId
-						if(deviceId in (List<String>)r9.oldLocations) deviceId=(String)r9.locationId
+						if(deviceId in (List<String>)r9.oldLocations) deviceId=LID
 						devices[deviceId]=[(sC):(cmpTyp ? i1:iZ)+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:iZ)]
 						String attr=(String)operand.a
 						String subsId=deviceId+attr
@@ -6380,13 +6381,13 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 							if(doit && lg>i2)debug msgVal+' subscription',r9
 						}else ct=ct ?: cmpTyp
 						subscriptions[subsId]=[(sD):deviceId,(sA):attr,(sT):ct,(sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(cmpTyp?[node]:[]),allowA: allowAval,avals: avals]
-						if(doit && deviceId!=(String)r9.locationId && deviceId.startsWith(sCLN) && !rawDevices[deviceId]){
+						if(doit && deviceId!=LID && deviceId.startsWith(sCLN) && !rawDevices[deviceId]){
 							rawDevices[deviceId]=getDevice(r9,deviceId)
 						}
 					}
 					break
 				case sV: //virtual device
-					String deviceId=(String)r9.locationId
+					String deviceId=LID
 					//if we have any trigger, it takes precedence over anything else
 					devices[deviceId]=[(sC):(cmpTyp ? i1:iZ)+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:iZ)]
 					String subsId=sNULL
@@ -6473,7 +6474,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 							ct=sTRIG
 							hasTriggers=true
 						}else ct=ct ?: cmpTyp
-						subscriptions[subsId]=[(sD):(String)r9.locationId,(sA):attr,(sT):ct,(sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(cmpTyp?[node]:[])]
+						subscriptions[subsId]=[(sD):LID,(sA):attr,(sT):ct,(sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(cmpTyp?[node]:[])]
 					}
 					break
 				case sC: //constant
@@ -6547,9 +6548,9 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			if(node.r)traverseRestrictions(node.r,restrictionTraverser)
 			for(String mdeviceId in (List<String>)node.d){
 				String deviceId=mdeviceId
-				if(deviceId in (List<String>)r9.oldLocations) deviceId=(String)r9.locationId
+				if(deviceId in (List<String>)r9.oldLocations) deviceId=LID
 				devices[deviceId]=devices[deviceId] ?: [(sC):iZ]
-				if(doit && deviceId!=(String)r9.locationId && deviceId.startsWith(sCLN) && !rawDevices[deviceId]){
+				if(doit && deviceId!=LID && deviceId.startsWith(sCLN) && !rawDevices[deviceId]){
 					rawDevices[deviceId]=getDevice(r9,deviceId)
 				}
 			}
@@ -6614,9 +6615,9 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		for(Map variable in ((List<Map>)r9.piston.v).findAll{ Map it -> /*(String)it.t==sDEV && */ it.v!=null && it.v.d!=null && it.v.d instanceof List}){
 			for(String mdeviceId in (List<String>)variable.v.d){
 				String deviceId=mdeviceId
-				if(deviceId in (List<String>)r9.oldLocations) deviceId=(String)r9.locationId
+				if(deviceId in (List<String>)r9.oldLocations) deviceId=LID
 				devices[deviceId]=[(sC): iZ+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:iZ)]
-				if(doit && deviceId!=(String)r9.locationId && !rawDevices[deviceId]){
+				if(doit && deviceId!=LID && !rawDevices[deviceId]){
 					rawDevices[deviceId]=getDevice(r9,deviceId)
 				}
 			}
@@ -6695,7 +6696,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		}
 
 		//not using fake subscriptions; piston has devices inuse in settings
-		for(d in devices.findAll{ ((Integer)it.value.c<=iZ || (Integer)r9.piston.o?.des) && (String)it.key!=(String)r9.locationId }){
+		for(d in devices.findAll{ ((Integer)it.value.c<=iZ || (Integer)r9.piston.o?.des) && (String)it.key!=LID }){
 			def device= ((String)d.key).startsWith(sCLN)? getDevice(r9,(String)d.key):null
 			if(device!=null && !isDeviceLocation(device)){
 				String didS=device.id.toString()
@@ -10322,7 +10323,7 @@ private getSystemVariableValue(Map r9,String name){
 	case (sCURDESC): return rtnStr(r9.currentEvent?.descriptionText)
 	case (sCURDATE): return r9.currentEvent?.t
 	case (sCURDELAY): return r9.currentEvent?.delay
-	case (sCURDEV): return r9.currentEvent?.device ? [r9.currentEvent.device]:[]
+	case (sCURDEV): return r9.currentEvent?.device ? [getDevice(r9,(String)r9.currentEvent.device)]:[]
 	case (sCURDEVINDX): return r9.currentEvent?.index
 	case (sCURPHYS): return r9.currentEvent?.physical
 	case (sCURVALUE): return r9.currentEvent?.value
@@ -10335,7 +10336,7 @@ private getSystemVariableValue(Map r9,String name){
 	case (sPEVDESC): return rtnStr(r9.previousEvent?.descriptionText)
 	case (sPEVDATE): return r9.previousEvent?.t
 	case (sPEVDELAY): return r9.previousEvent?.delay
-	case (sPEVDEV): return r9.previousEvent?.device ? [r9.previousEvent.device]:[]
+	case (sPEVDEV): return r9.previousEvent?.device ? [getDevice(r9,(String)r9.previousEvent.device)]:[]
 	case (sPEVDEVINDX): return r9.previousEvent?.index
 	case (sPEVPHYS): return r9.previousEvent?.physical
 	case (sPEVVALUE): return r9.previousEvent?.value
