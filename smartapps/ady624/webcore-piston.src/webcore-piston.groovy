@@ -2393,9 +2393,8 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		r9.currentEvent=mEvt
 		state.lastEvent=mEvt
 
-		//if(es && (Boolean)es.up) event.schedule.s= (Integer)es.svs ?: (Integer)es.s // dealing with r9.wakingUp
-		//Map newEvt= event.schedule ? mEvt+[schedule:event.schedule]:mEvt
-		//r9.event=newEvt
+		Integer s= es ? (Integer)es.svs:null
+		if(s) event.schedule.s= s // dealing with r9.wakingUp
 
 		r9.cndtnStChgd=false
 		r9.pstnStChgd=false
@@ -3341,7 +3340,7 @@ private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean a
 			//schedule a wake up
 			if(isTrc(r9))trace "Requesting a wake up for ${formatLocalTime(Math.round((Long)now()*d1+delay))} (in ${delay}ms)",r9
 			tracePoint(r9,myS,elapseT(t),-delay) //timers need to show the remaining time
-			requestWakeUp(r9,statement,task,delay,(String)task.c)
+			requestWakeUp(r9,statement,task,delay,(String)task.c,!async)
 			if(isEric(r9))myDetail r9,mySt+"result:FALSE"
 			return false
 		}else doPause(pStr+"${delay}ms",delay,r9,true)
@@ -3878,45 +3877,41 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 	]
 	if(data!=sNULL) mmschedule.d=data
 	//not all wakeups are suspend/resume
-	if(toResume){
-//		mmschedule.up=true
-// state to save across an sleep
-//		Map es=r9.event?.schedule
-//		if((String)r9.event.name==sTIME && es!=null && (Integer)es.s)
-//			mmschedule.svs=(Integer)es.s // dealing with r9.wakingUp
+	if(toResume){ // state to save across an sleep
+		Map es=r9.event?.schedule
+		if((String)r9.event.name==sTIME && es!=null && (Integer)es.s && stmtNum(task)>=0)
+			mmschedule.svs=(Integer)es.s // dealing a sleep before r9.wakingUp
+	}
 
-		Boolean fnd=false
-		def myResp=r9.response
-		if(myResp.toString().size()>10000){ myResp=[:]; fnd=true } // state can only be total 100KB
-		def myJson=r9.json
-		if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
-		if(fnd) debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',r9
+	Boolean fnd=false
+	def myResp=r9.response
+	if(myResp.toString().size()>10000){ myResp=[:]; fnd=true } // state can only be total 100KB
+	def myJson=r9.json
+	if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
+	if(fnd) debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',r9
 
-		Map<String,Map>sysV=(Map<String,Map>)r9.systemVars
-		fnd=false
-		Map mstk=[:]
-		def a=(Double)sysV[sDLLRINDX].v
-		if(a!=null) fnd=true
-			mstk.index=a
-		a=(List)sysV[sDLLRDEVICE].v
-		if(a!=null) fnd=true
-			mstk.device=a
-		a=(List)sysV[sDLLRDEVS].v
-		if(a!=null) fnd=true
-			mstk.devices=a
-		if(myJson) fnd=true
-			mstk.json=myJson
-		if(myResp) fnd=true
-			mstk.response=myResp
-		if(fnd) mmschedule.stack=mstk
+	Map<String,Map>sysV=(Map<String,Map>)r9.systemVars
+	fnd=false
+	Map mstk=[:]
+	def a=(Double)sysV[sDLLRINDX].v; if(a!=null) fnd=true
+	mstk.index=a
+	a=(List)sysV[sDLLRDEVICE].v; if(a!=null) fnd=true
+	mstk.device=a
+	a=(List)sysV[sDLLRDEVS].v; if(a) fnd=true
+	mstk.devices=a
+	if(myJson) fnd=true
+	mstk.json=myJson
+	if(myResp) fnd=true
+	mstk.response=myResp
+	if(fnd) mmschedule.stack=mstk
 // what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
 
-		Map evt=[:]+(Map)r9.currentEvent
-		if(evt) evt=cleanEvt(evt)
-		mmschedule.evt=evt
-		def ttt=r9.systemVars[sDARGS].v
-		if(ttt) mmschedule.args=ttt
-	}
+	Map evt=[:]+(Map)r9.currentEvent
+	if(evt) evt=cleanEvt(evt)
+	mmschedule.evt=evt
+	def ttt=r9.systemVars[sDARGS].v
+	if(ttt) mmschedule.args=ttt
+
 	a=spshSch(r9,mmschedule)
 }
 
