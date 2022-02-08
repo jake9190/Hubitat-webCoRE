@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update February 5, 2022 for Hubitat
+ * Last update February 7, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -65,6 +65,7 @@ definition(
 @Field static final String sPCLRALL='pageClearAll'
 @Field static final String sPDPIS='pageDumpPiston'
 @Field static final String sPDPIS1='pageDumpPiston1'
+@Field static final String sPDPIS2='pageDumpPiston2'
 @Field static final String sPDPC='pageDumpPCache'
 @Field static final String sPREM='pageRemove'
 preferences{
@@ -75,6 +76,7 @@ preferences{
 	page((sNM):sPDPC)
 	page((sNM):sPDPIS)
 	page((sNM):sPDPIS1)
+	page((sNM):sPDPIS2)
 	page((sNM):sPREM)
 }
 
@@ -391,6 +393,7 @@ def pageMain(){
 				section('Debug'){
 					href sPDPIS,(sTIT):'Dump piston structure',description:sBLK
 					href sPDPIS1,(sTIT):'Dump cached piston structure',description:sBLK
+					href sPDPIS2,(sTIT):'To IDE piston structure',description:sBLK
 					href sPDPC,(sTIT):'Dump piston Cache',description:sBLK
 				}
 			}
@@ -451,7 +454,7 @@ void clear1(Boolean ccache=false,Boolean some=true,Boolean most=false,Boolean al
 
 		if(act && !dis){
 			tRtData=getTemporaryRunTimeData()
-			LinkedHashMap r9=getRunTimeData(tRtData,null,true,true) //reinitializes cache variables; caches piston
+			LinkedHashMap r9=getRunTimeData(tRtData,null,true,true,true) //reinitializes cache variables; caches piston
 			r9=null
 			tRtData=null
 		}
@@ -601,30 +604,42 @@ def pageDumpPCache(){
 	}
 }
 
-def pageDumpPiston1(){
+def pageDumpHelper(Integer i,String nm, String desc){
 	LinkedHashMap r9=getRunTimeData()
-	LinkedHashMap pis=recreatePiston(true,true)
-	r9.piston=pis
-	subscribeAll(r9,false,true)
+	LinkedHashMap pis
+	if(i==iZ){ // full
+		pis= recreatePiston(false, false, false)
+		r9.piston = pis
+		subscribeAll(r9, false, false)
+	}else if(i==i1){ // cached
+		pis=recreatePiston(true,true,true)
+		r9.piston=pis
+		subscribeAll(r9,false,true)
+	}else if(i==i2){ // returned to iDE
+		pis=recreatePiston(true,false,false)
+		r9.piston=pis
+		subscribeAll(r9,false,false)
+	}
+	pis=null
 	String message=getMapDescStr((Map)r9.piston)
 	r9=null
-	pis=null
-	return dynamicPage((sNM):sPDPIS1,(sTIT):sBLK,uninstall:false){
-		section('Cached Piston dump'){
+	return dynamicPage((sNM):nm,(sTIT):sBLK,uninstall:false){
+		section(desc+'Piston dump'){
 			paragraph message
 		}
 	}
 }
 
-def pageDumpPiston(){
-	LinkedHashMap r9=getRunTimeData()
-	String message=getMapDescStr((Map)r9.piston)
-	r9=null
-	return dynamicPage((sNM):sPDPIS,(sTIT):sBLK,uninstall:false){
-		section('Full Piston dump'){
-			paragraph message
-		}
-	}
+def pageDumpPiston2() { // dumps what to return to IDE
+	pageDumpHelper(i2,sPDPIS2,'To IDE ')
+}
+
+def pageDumpPiston1(){ // dumps memory cached piston
+	pageDumpHelper(i1,sPDPIS1,'Memory cached ')
+}
+
+def pageDumpPiston(){ // dumps full piston
+	pageDumpHelper(iZ,sPDPIS,'Full ')
 }
 
 void installed(){
@@ -765,14 +780,14 @@ static String decodeEmoji(String value){
 @Field static Map<String,Map> thePistonCacheFLD=[:]
 
 private void clearMyPiston(String meth=sNULL){
-	String pisName=sAppId()
-	if(pisName.length()==iZ)return
+	String pNm=sAppId()
+	if(pNm.length()==iZ)return
 	Boolean cleared=false
-	Map pData=(Map)thePistonCacheFLD[pisName]
+	Map pData=(Map)thePistonCacheFLD[pNm]
 	if(pData!=null){
 		LinkedHashMap<String,Object> t0=(LinkedHashMap<String,Object>)pData.pis
 		if(t0){
-			thePistonCacheFLD[pisName].pis=null
+			thePistonCacheFLD[pNm].pis=null
 			mb()
 			cleared=true
 		}
@@ -783,19 +798,19 @@ private void clearMyPiston(String meth=sNULL){
 	}
 }
 
-private LinkedHashMap recreatePiston(Boolean shorten=false,Boolean useCache=true){
-	if(shorten && useCache){
-		String pisName=sAppId()
-		Map pData=(Map)thePistonCacheFLD[pisName]
+private LinkedHashMap recreatePiston(Boolean shorten=false,Boolean inMem=false,Boolean useCache=true){
+	if(shorten && inMem && useCache){
+		String pNm=sAppId()
+		Map pData=(Map)thePistonCacheFLD[pNm]
 		if(pData==null || pData.cnt==null){
 			pData=[cnt:iZ,pis:null]
-			thePistonCacheFLD[pisName]=pData
+			thePistonCacheFLD[pNm]=pData
 			mb()
 		}
 		if(pData.pis!=null)return (LinkedHashMap)(pData.pis+[cached:true])
 	}
 
-	if(eric())log.debug "recreating piston shorten: $shorten useCache: $useCache"
+	if(eric())log.debug "recreating piston shorten: $shorten inMem: $inMem useCache: $useCache"
 	String sdata=sBLK
 	Integer i=iZ
 	String s
@@ -818,7 +833,7 @@ private LinkedHashMap recreatePiston(Boolean shorten=false,Boolean useCache=true
 		]
 		state.pistonZ=(String)piston.z
 		clearMsetIds(piston)
-		Integer a=msetIds(shorten,piston)
+		Integer a=msetIds(shorten,inMem,piston)
 		return piston
 	}
 	return [:]
@@ -848,7 +863,7 @@ Map setup(LinkedHashMap data,Map<String,String>chunks){
 	]
 	clearMyPiston(meth)
 	clearMsetIds(piston)
-	Integer a=msetIds(false,piston)
+	Integer a=msetIds(false,false,piston)
 
 	for(chunk in ((Map<String,Object>)settings).findAll{ ((String)it.key).startsWith(sCHNK) && !chunks[(String)it.key] }){
 		app.removeSetting((String)chunk.key)
@@ -894,7 +909,7 @@ private void clearMsetIds(node){
 @Field static List<String> ListCmd=[]
 private static List<String> fill_CMD(){ return [sIF,sACTION,sCONDITION,sWHILE,sREPEAT,sFOR,sEACH,sSWITCH,sEVERY,sRESTRIC,sGROUP,sDO,sON,sEVENT,sEXIT,sBREAK] }
 
-private Integer msetIds(Boolean shorten,node,Integer mId=0,Map<String,Integer> existingIds=[:],List<Map> requiringIds=[],Integer level=iZ){
+private Integer msetIds(Boolean shorten,Boolean inMem,node,Integer mId=0,Map<String,Integer> existingIds=[:],List<Map> requiringIds=[],Integer level=iZ){
 	List<Map> nodeE=node?.ei
 	String nodeT=node?.t
 	Integer maxId=mId
@@ -942,14 +957,14 @@ private Integer msetIds(Boolean shorten,node,Integer mId=0,Map<String,Integer> e
 		}
 	}
 	for(list in node.findAll{ it.value instanceof List }){
-		for(item in ((List)list.value).findAll{ it instanceof Map })maxId=msetIds(shorten,item,maxId,existingIds,requiringIds,level+i1)
+		for(item in ((List)list.value).findAll{ it instanceof Map })maxId=msetIds(shorten,inMem,item,maxId,existingIds,requiringIds,level+i1)
 	}
 	if(level==iZ){
 		for(Map item in requiringIds){
 			maxId+= i1
 			item[sDLR]=maxId
 		}
-		if(shorten)cleanCode(node)
+		if(shorten)cleanCode(node,inMem)
 	}
 	return maxId
 }
@@ -957,14 +972,12 @@ private Integer msetIds(Boolean shorten,node,Integer mId=0,Map<String,Integer> e
 @Field static List<String> ListAL=[]
 @Field static List<String> ListC1=[]
 @Field static List<String> ListC2=[]
-@Field static List<String> ListC3=[]
-@Field static List<String> ListC4=[]
 
 @Field static List<String> ListStmt=[]
 private static List<String> fill_STMT(){ return [sIF,sACTION,sWHILE,sREPEAT,sFOR,sEACH,sSWITCH,sEVERY,sDO,sON,sEXIT,sBREAK] }
 
-// to reduce memory code size
-private void cleanCode(item){
+// to reduce memory code size or remove cruft for IDE
+private void cleanCode(item,Boolean inMem){
 	if(item==null || !(item instanceof Map)) return
 
 	if(!ListC1){
@@ -979,12 +992,10 @@ private void cleanCode(item){
 		ListAL=[sP, sD, sV, sS, sX, sC, sE, sU]    //  don't need
 		ListC1=[        sV, sS,     sC, sE, sU]    //     g,a
 		ListC2=[        sV, sS, sX, sC, sE, sU]    //     d
-		ListC3=[sP, sD, sV, sS, sX,     sE, sU]    //     c
-		ListC4=[sP, sD, sV, sS,     sC, sE, sU]    //     x, xi
 		mb()
 	}
 	def a
-	if(item.di){ // disabled statements
+	if(inMem && item.di){ // disabled statements
 		List<String> b=item.collect{ (String)it.key }
 		for (String c in b) if(!(c in ['di', sDLR])) a=item.remove(c)
 		return
@@ -992,26 +1003,33 @@ private void cleanCode(item){
 
 	String av='avg'
 	String ty=(String)item.t
-	if(ty==sNULL && item.size()==i4 && item.d instanceof List && !item.d && (String)item.g==av && item.f==sL && item.vt){
+	if(inMem && ty==sNULL && item.size()==i4 && item.d instanceof List && !item.d && (String)item.g==av && item.f==sL && item.vt){
 		a=item.remove(sD); a=item.remove(sG)
 	}
-	if(ty in ListAL){
-		if(ty in ListC2 && item.d instanceof List) a=item.remove(sD)
-		if(ty in ListC3) a=item.remove(sC)
-		if(ty in ListC4){ a=item.remove(sX); a=item.remove('xi') }
-		if(ty in ListC1){
-			if((String)item.g in [av,sANY]) a=item.remove(sG)
-			if(item.a instanceof String && item.a==sD) a=item.remove(sA)
+	if(ty in ListAL){ // cleanup operands
+		// UI important data
+		if(inMem){
+			if(ty in ListC1){
+				if((String)item.g in [av,sANY]) a=item.remove(sG)
+				//if(item.a instanceof String && item.a==sD) a=item.remove(sA)
+			}
+			if(ty==sX && (String)item.vt!=sDEV) // operand values that don't need f, g
+				if((String)item.g in [av,sANY]) a=item.remove(sG)
+			if(!LT1) LT1=fill_TIM()
+			if(ty==sC && !((String)item.vt in LT1)) a=item.remove(sC)
+			if(ty==sE && item.e) a=item.remove(sE)
 		}
-		if(ty==sX && (String)item.vt!=sDEV) // operand values that don't need f, g
-			if((String)item.g in [av,sANY]) a=item.remove(sG)
-		if(!(ty in [sE,sC]) && item.exp) item.remove('exp') // evaluateOperand
-		if(ty!=sV && item.v) item.remove(sV)
-		if(ty!=sS && item.s) item.remove(sS)
-		if(!LT1) LT1=fill_TIM()
-		if(ty==sC && !((String)item.vt in LT1)) item.remove(sC)
+		// cruft when editing operands
+		if(ty in ListC2 && item.d instanceof List) a=item.remove(sD)
+		if(!(ty in [sE,sC]) && item.exp) a=item.remove('exp') // evaluateOperand
+		if(ty!=sX && item.x){ a=item.remove(sX); a=item.remove('xi')}
+		if(ty!=sE && item.e) a=item.remove(sE)
+		if(ty!=sC && item.c) a=item.remove(sC)
+		if(ty!=sV && item.v) a=item.remove(sV)
+		if(ty!=sS && item.s) a=item.remove(sS)
+		if(ty!=sP && item.a) a=item.remove(sA)
 	}
-	if(ty==sEXPR && item.i && ((List)item.i).size()==i1){
+	if(inMem && ty==sEXPR && item.i && ((List)item.i).size()==i1){ // simplify un-needed nesting
 		List<Map> bb=(List<Map>)item.i
 		Map bb1=bb[iZ]
 		if(bb1.t==sEXPR){
@@ -1025,122 +1043,77 @@ private void cleanCode(item){
 	}
 
 	if(item.data instanceof Map && !item.data)a=item.remove('data')
-	// defaults
-	if((String)item.f==sL)a=item.remove(sF)
-	if((String)item.sm=='auto')a=item.remove('sm') // subscription method
-	if((String)item.ctp==sI)a=item.remove('ctp') // switch stmt
 
-	// from IDE: cancel on c- condition state change (def), p- piston state change, b- condition or piston state change, ""- never cancel
-	if(!ListStmt) ListStmt=fill_STMT()
-	if(ty in ListStmt){
-		if(!item.tcp) item.tcp=sN
-		else if(item.tcp==sC) item.remove('tcp')
-		if(item.a instanceof String && (String)item.a==s0) item.remove(sA) // async
-	}
-	if(item.tcp==sC) log.warn "found tcp in $ty"
+	if(inMem){
+		// defaults
+		if((String)item.f==sL)a=item.remove(sF) // timeValue.f
+		if((String)item.sm=='auto')a=item.remove('sm') // subscription method
+		if((String)item.ctp==sI)a=item.remove('ctp') // case traversal switch stmt
+		if(item.n && item.t && (String)item.a==sD) a=item.remove(sA) // variable.a sS -> constant  sD-> dynamic
 
-	if(item.n && item.t && (String)item.a==sD) item.remove(sA) // variable section
+		// from IDE: cancel on c- condition state change (def), p- piston state change, b- condition or piston state change, ""- never cancel
+		// makes 'c' the default empty for the groovy code
+		if(!ListStmt) ListStmt=fill_STMT()
+		if(ty in ListStmt){
+			if(!item.tcp) item.tcp=sN
+			else if(item.tcp==sC) a=item.remove('tcp')
+			if(item.a instanceof String && (String)item.a==s0) a=item.remove(sA) // async
+		}
+		if(item.tcp==sC) log.warn "found tcp in $ty"
 
-	// item.w is warnings
-	if(item.w instanceof List) a=item.remove('w')
+		// item.w is warnings
+		if(item.w instanceof List) a=item.remove('w')
 
-	if(item.rop && (!item.r || ((List)item.r).size()==iZ)){ item.remove('rop'); item.remove('rn') }
-	if(item.r instanceof List){
-		if(!item.r)a=item.remove(sR)
-		else for(Map eI in (List<Map>)item.r) cleanCode(eI)
+		if(item.rop && (!item.r || ((List)item.r).size()==iZ)){ a=item.remove('rop'); a=item.remove('rn') }
 	}
 
-	if(item.cs instanceof List){
-		if(!item.cs)a=item.remove('cs')
-		else for(Map eI in (List<Map>)item.cs) cleanCode(eI)
-	}
-	if(item.fs instanceof List){
-		if(!item.fs)a=item.remove('fs')
-		else for(Map eI in (List<Map>)item.fs) cleanCode(eI)
-	}
-	if(item.ts instanceof List){
-		if(!item.ts)a=item.remove('ts')
-		else for(Map eI in (List<Map>)item.ts) cleanCode(eI)
-	}
-	if(item.e instanceof List){
-		if(!item.e)a=item.remove(sE)
-		else for(Map eI in (List<Map>)item.e) cleanCode(eI)
-	}
-	if(item.ei instanceof List){
-		if(!item.ei)a=item.remove('ei')
-		else for(Map eI in (List<Map>)item.ei) cleanCode(eI)
-	}
-	if(item.s instanceof List){
-		if(!item.s)a=item.remove(sS)
-		else for(Map eI in (List<Map>)item.s) cleanCode(eI)
-	}
-	if(item.d instanceof List){
-		if(!item.d)a=item.remove(sD)
-		else for(eI in (List)item.d) cleanCode(eI)
-	}
-	if(item.k instanceof List){
-		if(!item.k)a=item.remove('k')
-		else for(Map eI in (List<Map>)item.k) cleanCode(eI)
-	}
-	if(item.p instanceof List){
-		if(!item.p)a=item.remove(sP)
-		else for(Map eI in (List<Map>)item.p) cleanCode(eI)
-	}
-	if(item.i instanceof List){
-		if(!item.i)a=item.remove(sI)
-		else{
-			if(((List)item.i)[0] instanceof Map) for(Map eI in (List<Map>)item.i) cleanCode(eI)
-			else item.remove(sI)
+	[sD,sR,'cs','fs','ts',sE,'ei',sS,'k',sP,sV,sC].each { String t ->
+		if(item."$t" instanceof List){
+			if(inMem && !item."$t")Boolean b=item.remove(t)
+			else if(((List)item."$t")[0] instanceof Map) for(Map eI in (List<Map>)item."$t") cleanCode(eI,inMem)
 		}
 	}
-	if(item.v instanceof List){
-		if(!item.v)a=item.remove(sV)
-		else for(eI in (List)item.v) cleanCode(eI)
+	[sI].each { String t ->
+		if(item."$t" instanceof List){
+			if(inMem && !item."$t")Boolean b=item.remove(t)
+			else{
+				if(((List)item."$t")[0] instanceof Map) for(Map eI in (List<Map>)item."$t") cleanCode(eI,inMem)
+				else if(inMem) Boolean b=item.remove(t)
+			}
+		}
 	}
-	if(item.c instanceof List){
-		if(!item.c)a=item.remove(sC)
-		else for(eI in (List)item.c) cleanCode(eI)
+
+	if(inMem){
+		// comments
+		if(item.z!=null)a=item.remove(sZ)
+		if(item.zc!=null)a=item.remove('zc')
+		// UI operand operating keys
+		if(item.str!=null)a=item.remove('str')
+		if(item.ok!=null)a=item.remove('ok')
+		if(item.l!=null && item.l instanceof String)a=item.remove(sL)
 	}
-	// comments
-	if(item.z!=null)a=item.remove(sZ)
-	if(item.zc!=null)a=item.remove('zc')
-	// debug strings
-	if(item.str!=null)a=item.remove('str')
-	if(item.ok!=null)a=item.remove('ok')
-	if(item.e!=null && item.e instanceof String)a=item.remove(sE)
-	if(item.l!=null && item.l instanceof String)a=item.remove(sL)
 
 	if(item.t==sEVERY){ // scheduleTimer
-		if(item.lo.vt in [sMS, sS, sM, sH]){ item.remove('lo2'); item.remove('lo3') }
-		else if(item.lo2.t==sC) item.remove('lo3')
+		if(item.lo.vt in [sMS, sS, sM, sH]){ a=item.remove('lo2'); a=item.remove('lo3') }
+		else if(item.lo2.t==sC) a=item.remove('lo3')
 	}
 
-	if(item.rn!=null)cleanCode(item.rn)
-	if(item.exp!=null)cleanCode(item.exp)
-	if(item.v instanceof Map)cleanCode(item.v)
-	if(item.lo!=null)cleanCode(item.lo)
-	if(item.lo2!=null)cleanCode(item.lo2)
-	if(item.lo3!=null)cleanCode(item.lo3)
+	if(item.rn!=null)cleanCode(item.rn,inMem)
+	if(item.exp!=null)cleanCode(item.exp,inMem)
+	if(item.v instanceof Map)cleanCode(item.v,inMem)
+	if(item.lo!=null)cleanCode(item.lo,inMem)
+	if(item.lo2!=null)cleanCode(item.lo2,inMem)
+	if(item.lo3!=null)cleanCode(item.lo3,inMem)
 
 	if(item.ro!=null){
-		if(item.ro instanceof String || fndEmptyOper((Map)item.ro))a=item.remove('ro')
-		else cleanCode(item.ro)
+		if(inMem && item.ro instanceof String || fndEmptyOper((Map)item.ro))a=item.remove('ro')
+		else cleanCode(item.ro,inMem)
 	}
-	if(item.wd!=null){
-		if(fndEmptyOper((Map)item.wd))a=item.remove('wd')
-		else cleanCode(item.wd)
-	}
-	if(item.ro2!=null){
-		if(fndEmptyOper((Map)item.ro2))a=item.remove('ro2')
-		else cleanCode(item.ro2)
-	}
-	if(item.to!=null){
-		if(fndEmptyOper((Map)item.to))a=item.remove('to')
-		else cleanCode(item.to)
-	}
-	if(item.to2!=null){
-		if(fndEmptyOper((Map)item.to2))a=item.remove('to2')
-		else cleanCode(item.to2)
+	['wd', 'ro2','to', 'to2'].each { String t ->
+		if(item."$t"!=null){
+			if(inMem && fndEmptyOper((Map)item."$t"))Boolean b=item.remove(t)
+			else cleanCode(item."$t",inMem)
+		}
 	}
 }
 
@@ -1258,7 +1231,7 @@ Map resume(LinkedHashMap piston=null){
 	LinkedHashMap<String,Object> tmpRtD=getTemporaryRunTimeData()
 	Map msg=timer 'Piston started',tmpRtD,iN1
 	if(piston!=null)tmpRtD.piston=piston
-	LinkedHashMap r9=getRunTimeData(tmpRtD,null,true,false) //performs subscribeAll; reinitializes cache variables
+	LinkedHashMap r9=getRunTimeData(tmpRtD,null,true,false, false) //performs subscribeAll; reinitializes cache variables
 	Boolean lg= isInf(r9)
 	if(lg)info 'Starting piston... ('+sHVER+')',r9,iZ
 	checkVersion(r9)
@@ -1837,7 +1810,7 @@ private LinkedHashMap<String,Object> getParentCache(){
 	return result
 }
 
-private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object> ir9=null,Map retSt=null,Boolean fetchWrappers=false,Boolean shorten=false){
+private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object> ir9=null,Map retSt=null,Boolean fetchWrappers=false,Boolean shorten=true, Boolean inMem=false){
 	LinkedHashMap<String,Object> r9=ir9
 	Long started=(Long)now()
 	List logs=[]
@@ -1887,7 +1860,7 @@ private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object>
 
 	r9.pStart=(Long)now()
 
-	if(piston==null) piston=recreatePiston(shorten)
+	if(piston==null) piston=recreatePiston(shorten,inMem)
 	Boolean doSubScribe=!(Boolean)piston.cached
 
 	r9.piston=piston
@@ -1896,12 +1869,12 @@ private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object>
 	piston=null
 
 	if(doSubScribe || fetchWrappers){
-		subscribeAll(r9,fetchWrappers,shorten)
-		String pisName=(String)r9.nId
-		Map pData=(Map)thePistonCacheFLD[pisName]
-		if(shorten && pisName!=sBLK && pData!=null && pData.pis==null){
+		subscribeAll(r9,fetchWrappers,inMem)
+		String pNm=(String)r9.nId
+		Map pData=(Map)thePistonCacheFLD[pNm]
+		if(shorten && inMem && pNm!=sBLK && pData!=null && pData.pis==null){
 			pData.pis=[:]+(LinkedHashMap)r9.piston
-			thePistonCacheFLD[pisName]=[:]+pData
+			thePistonCacheFLD[pNm]=[:]+pData
 			pData=null
 			mb()
 			if(eric()){
@@ -2071,7 +2044,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	}
 
 	tmpRtD.cachePersist=[:]
-	LinkedHashMap<String,Object> r9=getRunTimeData(tmpRtD,retSt,false,true)
+	LinkedHashMap<String,Object> r9=getRunTimeData(tmpRtD,retSt,false,true,true)
 	tmpRtD=null
 	retSt=null
 	checkVersion(r9)
@@ -2390,14 +2363,15 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		def aa
 		for(String foo in cleanData2) aa=event.remove(foo)
 		aa=event.remove('jsonData')
-
-		event.delay=r9.stats?.timing?.d ? (Long)r9.stats.timing.d:lZ
-		event.dev=event.device
-		event.device=theFinalDevice // here on device is a string
-		event.index=index
-		event.isResume=false
+		r9.event=event
 
 		Map mEvt=[:]+event
+		mEvt.delay=r9.stats?.timing?.d ? (Long)r9.stats.timing.d:lZ
+		mEvt.dev=event.device
+		mEvt.device=theFinalDevice // here on device is a string
+		mEvt.index=index
+		mEvt.isResume=false
+
 		for(String foo in cleanData3) aa=mEvt.remove(foo)
 
 		if(srcEvent!=null){
@@ -2419,9 +2393,9 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		r9.currentEvent=mEvt
 		state.lastEvent=mEvt
 
-		if(es && (Boolean)es.up) event.schedule.s= (Integer)es.svs ?: (Integer)es.s // dealing with r9.wakingUp
-		Map newEvt= event.schedule ? mEvt+[schedule:event.schedule]:mEvt
-		r9.event=newEvt
+		//if(es && (Boolean)es.up) event.schedule.s= (Integer)es.svs ?: (Integer)es.s // dealing with r9.wakingUp
+		//Map newEvt= event.schedule ? mEvt+[schedule:event.schedule]:mEvt
+		//r9.event=newEvt
 
 		r9.cndtnStChgd=false
 		r9.pstnStChgd=false
@@ -3367,7 +3341,7 @@ private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean a
 			//schedule a wake up
 			if(isTrc(r9))trace "Requesting a wake up for ${formatLocalTime(Math.round((Long)now()*d1+delay))} (in ${delay}ms)",r9
 			tracePoint(r9,myS,elapseT(t),-delay) //timers need to show the remaining time
-			requestWakeUp(r9,statement,task,delay,(String)task.c,true)
+			requestWakeUp(r9,statement,task,delay,(String)task.c)
 			if(isEric(r9))myDetail r9,mySt+"result:FALSE"
 			return false
 		}else doPause(pStr+"${delay}ms",delay,r9,true)
@@ -3891,7 +3865,7 @@ private static Integer getWeekOfMonth(Date date,Boolean backwards=false){
 	}else return i1+Math.floor((day-i1)/i7) //1 based
 }
 
-private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String data=sNULL,Boolean toResume=false){
+private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String data=sNULL,Boolean toResume=true){
 	Long time=timeOrDelay>9999999999L ? timeOrDelay:(Long)now()+timeOrDelay
 	List<Integer> cs=svCS(r9,statement)
 	Integer ps= svPS(statement)
@@ -3905,11 +3879,11 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 	if(data!=sNULL) mmschedule.d=data
 	//not all wakeups are suspend/resume
 	if(toResume){
-		mmschedule.up=true
+//		mmschedule.up=true
 // state to save across an sleep
-		Map es=r9.event?.schedule
-		if((String)r9.event.name==sTIME && es!=null && (Integer)es.s)
-			mmschedule.svs=(Integer)es.s // dealing with r9.wakingUp
+//		Map es=r9.event?.schedule
+//		if((String)r9.event.name==sTIME && es!=null && (Integer)es.s)
+//			mmschedule.svs=(Integer)es.s // dealing with r9.wakingUp
 
 		Boolean fnd=false
 		def myResp=r9.response
@@ -6024,7 +5998,7 @@ private Boolean valueWas(Map r9,Map comparisonValue,Map rightValue,Map rightValu
 	String attr=(String)comparisonValue.v.a
 	Long threshold=(Long)evaluateExpression(r9,rtnMap1(timeValue.v,(String)timeValue.vt)).v
 
-	Boolean thisEventWokeUs=((String)r9.event.device==hashId(r9,device.id) && (String)r9.event.name==attr && !(Boolean)r9.event.isResume)
+	Boolean thisEventWokeUs=((String)r9.event.device==hashId(r9,device.id) && (String)r9.event.name==attr)
 	List<Map> states=listPreviousStates(device,attr,threshold,false) // thisEventWokeUs)
 	Boolean result
 	Long duration=lZ
@@ -6294,7 +6268,7 @@ private static addWarning(Map node, String msg){
 }
 
 @SuppressWarnings('GroovyFallthrough')
-private void subscribeAll(Map r9,Boolean doit=true,Boolean shorten){
+private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 	String s='subscribeAll '
 	if(eric())log.debug s+"doit: $doit"
 	try{
@@ -6541,7 +6515,7 @@ private void subscribeAll(Map r9,Boolean doit=true,Boolean shorten){
 							if(didDwnGrd) m="downgraded "+tm+"not subscribed in EVERY or ON statement, or forced never subscribe"
 							else if(cmpTyp!=sTRIG) m=tm+"that relies on event tracking"
 							else if(stmtLvl.v>i2) m="possible nested "+tm+"that may cause errors"
-							if(m && !shorten) addWarning(curStatement,'Found '+m+" $co  level: $stmtLvl.v")
+							if(m && !inMem) addWarning(curStatement,'Found '+m+" $co  level: $stmtLvl.v")
 						}
 					}
 					cndtn.ct=(String)cmpTyp.take(1) // modifies the code
@@ -6592,8 +6566,8 @@ private void subscribeAll(Map r9,Boolean doit=true,Boolean shorten){
 				node.remove('w')
 				lastlvl=(Integer)lvl.v
 				switch(t){
-					case sEVERY: if (lastlvl > 1 && !shorten) addWarning(node, 'Timers are designed to be top-level statements and should not be used inside other statements. If you need a conditional timer, please look into using a while loop instead.'); break
-					case sON: if (lastlvl > 1 && !shorten) addWarning(node, 'On event statements are designed to be top-level statements and should not be used inside other statements.'); break
+					case sEVERY: if (lastlvl > 1 && !inMem) addWarning(node, 'Timers are designed to be top-level statements and should not be used inside other statements. If you need a conditional timer, please look into using a while loop instead.'); break
+					case sON: if (lastlvl > 1 && !inMem) addWarning(node, 'On event statements are designed to be top-level statements and should not be used inside other statements.'); break
 				}
 				//log.warn "found statement $t level ${lvl.v}"
 				if(t in lsub) lvl.v=lastlvl+i1
@@ -6837,7 +6811,7 @@ private getDevice(Map r9,String idOrName){
 private getDeviceAttributeValue(Map r9,device,String attr){
 	String r9EvN=r9.event!=null ? (String)r9.event.name:sBLK
 	Boolean r9EdID=r9.event!=null ? (String)r9.event.device==hashId(r9,device.id):false
-	if(r9EvN==attr && r9EdID && !(Boolean)r9.event.isResume) return r9.event.value
+	if(r9EvN==attr && r9EdID) return r9.event.value
 	else{
 		def result
 		String msg="Error reading current value for ${device}.".toString()
