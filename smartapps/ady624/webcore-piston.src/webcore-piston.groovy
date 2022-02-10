@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update February 10, 2022 for Hubitat C
+ * Last update February 10, 2022 for Hubitat D
 */
 
 //file:noinspection GroovySillyAssignment
@@ -3881,7 +3881,7 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 	//not all wakeups are suspend/resume
 	if(toResume){ // state to save across an sleep
 		Map es=r9.event?.schedule
-		if((String)r9.event.name==sTIME && es!=null && (Integer)es.s && stmtNum(task)>=0)
+		if((String)r9.event.name==sTIME && es!=null && (Integer)es.s && stmtNum(task)>=0 && data!=sNULL && !data.startsWith(sCLN))
 			mmschedule.svs=(Integer)es.s // dealing a sleep before r9.wakingUp
 	}
 
@@ -5630,7 +5630,9 @@ private Boolean evaluateCondition(Map r9,Map cndtn,String collection,Boolean asy
 	if(!trigger)comparison=Comparisons().conditions[co]
 	Map es=r9.event?.schedule
 	String rEN=(String)r9.event.name
-	r9.wakingUp=rEN==sTIME && es!=null && (Integer)es.s==cndNm
+	Boolean w=rEN==sTIME && es!=null && (Integer)es.s==cndNm
+	r9.wakingUp=w
+	if(w && isEric(r9))myDetail r9,sEVCN+"WAKING UP",iN2
 	if(ffwd(r9) || comparison!=null){
 		Boolean isStays=co.startsWith('stays')
 		if(currun(r9) in [iZ,iN9]){
@@ -9998,6 +10000,16 @@ private void error(message,Map r9,Integer shift=iN2,err=null){
 }
 
 private Map timer(String message,Map r9,Integer shift=iN2,err=null){ log(message,r9,shift,err,sTIMER)}
+
+@Field static final String sCLR4D9        = '#2784D9'
+@Field static final String sCLRRED        = 'red'
+@Field static final String sCLRRED2       = '#cc2d3b'
+@Field static final String sCLRGRY        = 'gray'
+@Field static final String sCLRGRN        = 'green'
+@Field static final String sCLRGRN2       = '#43d843'
+@Field static final String sCLRORG        = 'orange'
+@Field static final String sLINEBR        = '<br>'
+static String span(String str, String clr=sNULL, String sz=sNULL, Boolean bld=false, Boolean br=false) { return str ? "<span ${(clr || sz || bld) ? "style='${clr ? "color: ${clr};" : sBLK}${sz ? "font-size: ${sz};" : sBLK}${bld ? "font-weight: bold;" : sBLK}'" : sBLK}>${str}</span>${br ? sLINEBR : sBLK}" : sBLK }
 
 private void tracePoint(Map r9,String objectId,Long duration,value){
 	if(objectId!=sNULL && r9!=null && (Map)r9.trace!=null){
