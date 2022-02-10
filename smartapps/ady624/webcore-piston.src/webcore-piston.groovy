@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update February 8, 2022 for Hubitat
+ * Last update February 10, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -10323,7 +10323,7 @@ private getSystemVariableValue(Map r9,String name){
 	case (sCURDESC): return rtnStr(r9.currentEvent?.descriptionText)
 	case (sCURDATE): return r9.currentEvent?.t
 	case (sCURDELAY): return r9.currentEvent?.delay
-	case (sCURDEV): return r9.currentEvent?.device ? [getDevice(r9,(String)r9.currentEvent.device)]:[]
+	case (sCURDEV): return r9.currentEvent?.device ? [(String)r9.currentEvent.device]:[]
 	case (sCURDEVINDX): return r9.currentEvent?.index
 	case (sCURPHYS): return r9.currentEvent?.physical
 	case (sCURVALUE): return r9.currentEvent?.value
@@ -10336,7 +10336,7 @@ private getSystemVariableValue(Map r9,String name){
 	case (sPEVDESC): return rtnStr(r9.previousEvent?.descriptionText)
 	case (sPEVDATE): return r9.previousEvent?.t
 	case (sPEVDELAY): return r9.previousEvent?.delay
-	case (sPEVDEV): return r9.previousEvent?.device ? [getDevice(r9,(String)r9.previousEvent.device)]:[]
+	case (sPEVDEV): return r9.previousEvent?.device ? [(String)r9.previousEvent.device]:[]
 	case (sPEVDEVINDX): return r9.previousEvent?.index
 	case (sPEVPHYS): return r9.previousEvent?.physical
 	case (sPEVVALUE): return r9.previousEvent?.value
