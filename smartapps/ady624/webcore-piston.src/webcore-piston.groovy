@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update February 10, 2022 for Hubitat
+ * Last update February 10, 2022 for Hubitat A
 */
 
 //file:noinspection GroovySillyAssignment
@@ -6781,7 +6781,7 @@ private static String sanitizeVariableName(String name){
 private getDevice(Map r9,String idOrName){
 	if(idOrName in (List<String>)r9.allLocations) return location
 	Map<String,Object> dM=(Map<String,Object>)r9.devices
-	def t0=dM[idOrName]
+	def t0=dM ?: dM[idOrName]:null
 	def device=t0!=null ? t0:dM.find{ (String)it.value.getDisplayName()==idOrName }?.value
 	if(device==null){
 		if(r9.allDevices==null){
