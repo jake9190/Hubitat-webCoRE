@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update February 10, 2022 for Hubitat B
+ * Last update February 10, 2022 for Hubitat C
 */
 
 //file:noinspection GroovySillyAssignment
@@ -2543,7 +2543,7 @@ private void finalizeEvent(Map r9,Map initialMsg,Boolean success=true){
 	if(r9.event?.schedule?.stack)r9.event.schedule.stack=[:]
 
 	if(r9Is(r9,'updateDevices')) updateDeviceList(r9)
-	aa=r9.remove('devices')
+	r9.devices=[:]
 
 //	Long el5=elapseT(startTime)
 	Boolean a
@@ -6715,6 +6715,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			Boolean a=deviceList.removeAll{ it==null }
 			List deviceIdList=deviceList.collect{ it.id }
 			r9.devices= deviceList.collectEntries{ it -> [(hashId(r9,it.id)):it] }
+			r9.devices= r9.devices ?:[:]
 			updateDeviceList(r9)
 
 			state.subscriptions=ss
@@ -6780,8 +6781,9 @@ private static String sanitizeVariableName(String name){
 
 private getDevice(Map r9,String idOrName){
 	if(idOrName in (List<String>)r9.allLocations) return location
+	r9.devices= r9.devices ?:[:]
 	Map<String,Object> dM=(Map<String,Object>)r9.devices
-	def t0=dM ? dM[idOrName]:null
+	def t0=dM[idOrName]
 	def device=t0!=null ? t0:dM.find{ (String)it.value.getDisplayName()==idOrName }?.value
 	if(device==null){
 		if(r9.allDevices==null){
