@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 6, 2022 for Hubitat
+ * Last update March 5, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -1162,6 +1162,7 @@ private void clearBaseResult(String meth=sNULL,String wNi=sNULL){
 	base_resultFLD[wName]=null
 	base_resultFLD=base_resultFLD
 	lastActivityFLD=sNULL
+	lastActivityTOKFLD=sNULL
 	tlastActivityFLD=0L
 	releaseTheLock(sCB)
 	if(eric())debug "clearBaseResult "+meth
@@ -1320,7 +1321,8 @@ private api_intf_dashboard_load(){
 	recoveryHandler()
 	//debug "Dashboard: Request received to initialize instance"
 	String s='dashLoad'
-	if(verifySecurityToken((String)params.token)){
+	String tok=(String)params.token
+	if(verifySecurityToken(tok)){
 		result=api_get_base_result(true)
 
 		if((String)params.dashboard=="1"){
@@ -1340,13 +1342,14 @@ private api_intf_dashboard_load(){
 		if(result==null) result=api_get_error_result(sERRTOK,s)
 	}
 
-	if(result) result.remove('now')
+	if(result)result.remove('now')
 	String jsonData= JsonOutput.toJson(result)
 	String rl=generateMD5_A(jsonData)
 	Long t=(Long)now()
-	if(tlastActivityFLD < (t-11000L) || rl!=lastActivityFLD){
+	if(tlastActivityFLD < (t-11000L) || rl!=lastActivityFLD || tok!=lastActivityTOKFLD){
 		//log.warn "rl: $rl lastAct: $lastActivityFLD"
 		lastActivityFLD=rl
+		lastActivityTOKFLD=tok
 	}else result=[:]
 	tlastActivityFLD=t
 
@@ -2216,20 +2219,23 @@ private api_intf_dashboard_piston_evaluate(){
 }
 
 @Field volatile static String lastActivityFLD
+@Field volatile static String lastActivityTOKFLD
 @Field volatile static Long tlastActivityFLD=0L
 
 private api_intf_dashboard_piston_activity(){
 	Map result
 	//debug "Dashboard: Activity request received $params"
-	if(verifySecurityToken((String)params.token)){
+	String tok=(String)params.token
+	if(verifySecurityToken(tok)){
 		String pistonId=(String)params.id
 		def piston=findPiston(pistonId)
 		if(piston!=null){
 			Map t0=(Map)piston.activity(params.log)
 			String jsonData= JsonOutput.toJson(t0)
 			String rl=generateMD5_A(jsonData)
-			if(rl!=lastActivityFLD){
+			if(rl!=lastActivityFLD || tok!=lastActivityTOKFLD){
 				lastActivityFLD=rl
+				lastActivityTOKFLD=tok
 				result=[(sSTS):sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
 			} else result=[(sSTS):sSUCC, activity: [:]]
 			tlastActivityFLD=(Long)now()
@@ -3845,6 +3851,7 @@ Map getChildAttributes(){
 }*/
 
 /* Push command has multiple overloads in hubitat */
+// the command r: is replaced with command c.
 private static Map<String,Map> commandOverrides(){
 	return ( [ //s: command signature
 		push	: [(sC): "push",	(sS): null , (sR): "pushMomentary"], // for capability momentary
