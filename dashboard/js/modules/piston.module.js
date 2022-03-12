@@ -2878,35 +2878,55 @@ config.controller('piston', ['$scope', '$rootScope', 'dataService', 'colorScheme
 		return result;
 	}
 
+	function getDeviceAttributeNames(device, restrictAttribute) {
+		var attributes = {};
+		if (device && device.a) {
+			for (var attributeIndex in device.a) {
+				var attribute = device.a[attributeIndex];
+				if (!restrictAttribute || (attribute.n == restrictAttribute)) {
+					attributes[attribute.n] = (attributes[attribute.n] || 0) + 1;
+				}
+			}
+		}
+		return attributes;
+	}
+
 	$scope.listAvailableAttributes = function(devices, restrictAttribute) {
 		var result = [];
-		var device = null;
+		var allDevices = [];
 		if (devices && devices.length) {
 			var attributes = {}
 			var deviceCount = devices.length;
 			var hasThreeAxis = false;
 			for (deviceIndex in devices) {
-				device = $scope.getDeviceById(devices[deviceIndex]);
+				var device = $scope.getDeviceById(devices[deviceIndex]);
 				if (device) {
-					for (attributeIndex in device.a) {
-						var attribute = device.a[attributeIndex];
-						if (!restrictAttribute || (attribute.n == restrictAttribute)) {
-							if (attributes[attribute.n]) {
-								attributes[attribute.n] += 1;
-							} else {
-								attributes[attribute.n] = 1;
+					allDevices.push(device);
+					var attrNames = getDeviceAttributeNames(device, restrictAttribute);
+					for (var attrName in attrNames) {
+						attributes[attrName] = (attributes[attrName] || 0) + attrNames[attrName];
+					}
+				} else {
+					var varValue = $scope.getVariableByName(devices[deviceIndex]);
+
+					//variable includes all global attributes
+					var varAttributes = Object.assign({}, $scope.db.attributes);
+
+					//attempt to include attributes from current variable value
+					if (varValue && varValue.v && varValue.v.d) {
+						for (var i in varValue.v.d) {
+							device = $scope.getDeviceById(varValue.v.d[i]);
+							if (device) {
+								allDevices.push(device);
+								Object.assign(varAttributes, getDeviceAttributeNames(device, restrictAttribute));
 							}
 						}
 					}
-				} else {
-					//variable
-					for (attributeName in $scope.db.attributes) {
-						if (!restrictAttribute || (attributeName == restrictAttribute)) {
-							if (attributes[attributeName]) {
-								attributes[attributeName] += 1;
-							} else {
-								attributes[attributeName] = 1;
-							}
+
+					// Add all possible attributes represented in the variable with device count 1
+					for (attributeName in varAttributes) {
+						if (!restrictAttribute || attributeName == restrictAttribute) {
+							attributes[attributeName] = (attributes[attributeName] || 0) + 1;
 						}
 					}
 				}
@@ -2919,11 +2939,16 @@ config.controller('piston', ['$scope', '$rootScope', 'dataService', 'colorScheme
 						if (attributeId == 'threeAxis') hasThreeAxis = true;
 					} else {
 						//custom attribute? device should contain the last device we've been through
-						for (a in device.a) {
-							if (device.a[a].n == attributeId) {
-								attribute = device.a[a];
-								break;
+						for (var i in allDevices) {
+							if (device.a) {
+								for (a in device.a) {
+									if (device.a[a].n == attributeId) {
+										attribute = device.a[a];
+										break;
+									}
+								}
 							}
+							if (attribute) break;
 						}
 						if (attribute) {
 							var obj = mergeObjects({id: attributeId, c:true}, attribute);
