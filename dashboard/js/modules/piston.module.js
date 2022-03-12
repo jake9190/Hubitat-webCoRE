@@ -2878,51 +2878,28 @@ config.controller('piston', ['$scope', '$rootScope', 'dataService', 'colorScheme
 		return result;
 	}
 
-	function getDeviceAttributeNames(device, restrictAttribute) {
-		var attributes = {};
-		if (device && device.a) {
-			for (var attributeIndex in device.a) {
-				var attribute = device.a[attributeIndex];
-				if (!restrictAttribute || (attribute.n == restrictAttribute)) {
-					if (attributes[attribute.n]) {
-						attributes[attribute.n] += 1;
-					} else {
-						attributes[attribute.n] = 1;
-					}
-				}
-			}
-		}
-		return attributes;
-	}
-
 	$scope.listAvailableAttributes = function(devices, restrictAttribute) {
 		var result = [];
-		var allDevices = [];
+		var device = null;
 		if (devices && devices.length) {
 			var attributes = {}
 			var deviceCount = devices.length;
 			var hasThreeAxis = false;
 			for (deviceIndex in devices) {
-				var device = $scope.getDeviceById(devices[deviceIndex]);
-				allDevices.push(device);
+				device = $scope.getDeviceById(devices[deviceIndex]);
 				if (device) {
-					Object.assign(attributes, getDeviceAttributeNames(device, restrictAttribute));
-				} else {
-					var varValue = $scope.getVariableByName(devices[deviceIndex]);
-
-					//attempt to include attributes from current variable value
-					if (varValue && varValue.v && varValue.v.d) {
-						for (var i in varValue.v.d) {
-							device = $scope.getDeviceById(varValue.v.d[i]);
-							allDevices.push(device);
-							Object.assign(attributes, getDeviceAttributeNames(
-								device,
-								restrictAttribute
-							));
+					for (attributeIndex in device.a) {
+						var attribute = device.a[attributeIndex];
+						if (!restrictAttribute || (attribute.n == restrictAttribute)) {
+							if (attributes[attribute.n]) {
+								attributes[attribute.n] += 1;
+							} else {
+								attributes[attribute.n] = 1;
+							}
 						}
 					}
-
-					//variable includes all global attributes
+				} else {
+					//variable
 					for (attributeName in $scope.db.attributes) {
 						if (!restrictAttribute || (attributeName == restrictAttribute)) {
 							if (attributes[attributeName]) {
@@ -2942,16 +2919,11 @@ config.controller('piston', ['$scope', '$rootScope', 'dataService', 'colorScheme
 						if (attributeId == 'threeAxis') hasThreeAxis = true;
 					} else {
 						//custom attribute? device should contain the last device we've been through
-						for (var i in devices) {
-							if (device && device.a) {
-								for (a in device.a) {
-									if (device.a[a].n == attributeId) {
-										attribute = device.a[a];
-										break;
-									}
-								}
+						for (a in device.a) {
+							if (device.a[a].n == attributeId) {
+								attribute = device.a[a];
+								break;
 							}
-							if (attribute) break;
 						}
 						if (attribute) {
 							var obj = mergeObjects({id: attributeId, c:true}, attribute);
