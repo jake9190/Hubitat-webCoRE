@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update March 5, 2022 for Hubitat
+ * Last update March 9, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -28,7 +28,7 @@
 //file:noinspection GroovyPointlessBoolean
 
 @Field static final String sVER='v0.3.114.20220203'
-@Field static final String sHVER='v0.3.114.20220203_HE'
+@Field static final String sHVER='v0.3.114.20220307_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -176,7 +176,7 @@ def pageMain(){
 						paragraph "If you have previously installed webCoRE and are trying to open it, please go back to Apps in the HE console access webCoRE.\r\n\r\nIf you are trying to install another instance of webCoRE then please continue with the steps.", (sREQ): true
 					}
 				}
-				if(location.getTimeZone()){
+				if(mTZ()){
 					section(){
 						paragraph "It looks like you are ready to go, please tap Next"
 					}
@@ -287,7 +287,7 @@ private pageSectionTimeZoneInstructions(){
 private pageInitializeDashboard(){
 	//webCoRE Dashboard initialization
 	Boolean success=initializeWebCoREEndpoint()
-	Boolean hasTZ=location.getTimeZone()!=null
+	Boolean hasTZ=mTZ()!=null
 	dynamicPage((sNM): "pageInitializeDashboard", nextPage: success && hasTZ ? "pageSelectDevices" : sNULL){
 		if(!(Boolean)state.installed){
 			if(success){
@@ -422,7 +422,7 @@ def pageSettings(){
 		//}
 
 		section(sectionTitleStr("pushMessage Device")){
-			input "pushDevice", "capability.notification", (sTIT): "Notification device for pushMessage (HE PhoneApp or pushOver)", multiple: true, (sREQ): false, submitOnChange: true
+			input "pushDevice", "capability.notification", (sTIT): "Notification device for pushMessage (HE mobile App or pushOver)", multiple: true, (sREQ): false, submitOnChange: true
 		}
 
 		section(sectionTitleStr('Enable \$weather via external provider')){
@@ -439,18 +439,18 @@ def pageSettings(){
 				input "apixuKey", sTXT, (sTIT): mreq+" key?", (sREQ): true
 				switch(mreq){
 				case apiXU:
-					defaultLoc="${location.zipCode}".toString()
-					zipDesc="Override zip code (${location.zipCode}), or set city name or latitude,longitude?".toString()
+					defaultLoc=(String)location.zipCode
+					zipDesc="Override zip code (${defaultLoc}), or set city name or latitude,longitude?".toString()
 					break
 				case DarkSky:
 					defaultLoc="${location.latitude},${location.longitude}".toString()
-					zipDesc="Override latitude,longitude (Default: ${location.latitude},${location.longitude})?".toString()
+					zipDesc="Override latitude,longitude (Default: ${defaultLoc})?".toString()
 					break
 				case OpnW:
 					defaultLoc="${location.latitude}".toString()
 					defaultLoc1="${location.longitude}".toString()
-					zipDesc="Override latitude (Default: ${location.latitude})?".toString()
-					zipDesc1="Override longitude (Default: ${location.longitude})?".toString()
+					zipDesc="Override latitude (Default: ${defaultLoc})?".toString()
+					zipDesc1="Override longitude (Default: ${defaultLoc1})?".toString()
 					break
 				default:
 					break
@@ -505,9 +505,9 @@ def pageSettings(){
 		section((sTIT): "Maintenance"){
 			paragraph "Memory usage is at ${mem()}", (sREQ): false
 			input "disabled", sBOOL, (sTIT): "Disable all pistons", (sDESC): "Disable all pistons belonging to this instance", defaultValue: false, (sREQ): false
-			input "logPistonExecutions", sBOOL, (sTIT): "Log piston executions?", (sDESC): "Tap to change logging pistons as hub location events", defaultValue: false, (sREQ): false
+			input "logPistonExecutions", sBOOL, (sTIT): "Log piston executions as Location events?", (sDESC): "Tap to change logging pistons as hub location events", defaultValue: false, (sREQ): false
 			input "enableDashNotifications", sBOOL, (sTIT): "Enable Dashboard Notifications for device state changes?", (sDESC): "Tap to change enable dashboard notifications of device state changes (more overhead)", defaultValue: false, (sREQ): false
-			href "pageRebuildCache", (sTIT): "Clean up and rebuild data cache", (sDESC): "Tap to change your clean up and rebuild your data cache", state: "complete"
+			href "pageRebuildCache", (sTIT): "Clean up and rebuild IDE data cache", (sDESC): "Tap to change your clean up and rebuild your data cache", state: "complete"
 		}
 
 		section((sTIT): "Recovery"){
@@ -516,14 +516,16 @@ def pageSettings(){
 		}
 
 		if((Boolean)getLogging().debug || eric()){
-			section("Child Log Cleanups"){
-				href "pageLogCleanups", (sTIT): "Clear Logs, trace, stats, optimization caches, reset logs, stats settings to default", (sDESC): "Tap to clear", state: "complete"
+			String a='Tap to clear'
+			String b='complete'
+			section("Piston Log Cleanups"){
+				href "pageLogCleanups", (sTIT): "Clear all piston logs, trace, stats, optimization caches, reset all piston logs, stats settings to default", (sDESC): a, state: b
 			}
-			section("Child Cleanups"){
-				href "pageCleanups", (sTIT): "Clear piston optimization cache", (sDESC): "Tap to clear", state: "complete"
+			section("Piston Caches Cleanup"){
+				href "pageCleanups", (sTIT): "Clear all piston optimization caches", (sDESC): a, state: b
 			}
-			section("Child Uber Cleanups"){
-				href "pageUberCleanups", (sTIT): "Danger: Clear Logs, variables, piston caches", (sDESC): "Tap to clear", state: "complete"
+			section("Piston Uber Cleanups"){
+				href "pageUberCleanups", (sTIT): "Danger: Clear all piston variables, piston caches, and logs", (sDESC): a, state: b
 			}
 		}
 
@@ -1106,7 +1108,7 @@ mappings{
 private Map api_get_error_result(String error,String m=sNULL){
 	debug "Dashboard: error: ${error} m:$m"
 	return [
-		(sNM): location.name + ' \\ ' + appName(),
+		(sNM): (String)location.name + ' \\ ' + appName(),
 		(sERR): error,
 		now: now()
 	]
@@ -1202,10 +1204,10 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 		}else{
 			Map<String,Object> result=[:]+base_resultFLD[wName]
 			result.instance.pistons= presult(wName)
-			base_resultFLD[wName]=result
-			result.now=lnow
+			base_resultFLD[wName]=[:]+result
 			base_resultFLD=base_resultFLD
 			releaseTheLock(t)
+			result.now=lnow
 			return result
 		}
 	}
@@ -1213,7 +1215,7 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 	cntbase_resultFLD[wName]=0
 	//log.warn "filling in"
 
-	TimeZone tz=location.getTimeZone()
+	TimeZone tz=mTZ()
 	String currentDeviceVersion=(String)state.deviceVersion
 	Long incidentThreshold=Math.round(lnow - 604800000.0D)
 	def a=state.hsmAlerts
@@ -1251,19 +1253,20 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 			mode: hashId(location.getCurrentMode().id),
 			modes: location.getModes().collect{ [id: hashId(it.id), (sNM): (String)it.name ]},
 			shm: transformHsmStatus((String)location.hsmStatus),
-			(sNM): location.name,
-			temperatureScale: location.getTemperatureScale(),
+			(sNM): (String)location.name,
+			temperatureScale: (String)location.temperatureScale,
 			timeZone: tz ? [
 				id: tz.ID,
 				(sNM): tz.displayName,
 				offset: tz.rawOffset
 			] : null,
-			zipCode: location.getZipCode(),
+			zipCode: (String)location.zipCode,
 		],
-		now: lnow,
 	]
-	base_resultFLD[wName]=result
+	base_resultFLD[wName]=[:]+result
+	base_resultFLD=base_resultFLD
 	releaseTheLock(t)
+	result.now=lnow
 	return result
 }
 
@@ -1314,6 +1317,8 @@ private static String transformHsmStatus(String status){
 			return "Unknown"
 	}
 }
+
+private TimeZone mTZ() { return (TimeZone)location.timeZone }
 
 private api_intf_dashboard_load(){
 	Map<String,Object> result
@@ -1776,6 +1781,7 @@ private api_intf_dashboard_piston_pause(){
 		}else result=api_get_error_result(sERRID)
 	}else result=api_get_error_result(sERRTOK)
 	debug "Dashboard: Request received to pause a piston"
+	clearBaseResult('pause piston')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1791,6 +1797,7 @@ private api_intf_dashboard_piston_resume(){
 		}else result=api_get_error_result(sERRID)
 	}else result=api_get_error_result(sERRTOK)
 	debug "Dashboard: Request received to resume a piston"
+	clearBaseResult('resume piston')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1804,6 +1811,7 @@ private api_intf_dashboard_piston_test(){
 		}else result=api_get_error_result(sERRID)
 	}else result=api_get_error_result(sERRTOK)
 	debug "Dashboard: Request received to test a piston"
+	clearBaseResult('test piston')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1847,6 +1855,7 @@ private api_intf_dashboard_piston_set_bin(){
 			result.status=sSUCC
 		}else{ result=api_get_error_result(sERRID) }
 	}else{ result=api_get_error_result(sERRTOK) }
+	clearBaseResult('set bin')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1871,6 +1880,7 @@ private api_intf_dashboard_piston_set_category(){
 			result.status=sSUCC
 		}else{ result=api_get_error_result(sERRID) }
 	}else{ result=api_get_error_result(sERRTOK) }
+	clearBaseResult('set category')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1884,6 +1894,7 @@ private api_intf_dashboard_piston_logging(){
 			result.status=sSUCC
 		}else{ result=api_get_error_result(sERRID) }
 	}else{ result=api_get_error_result(sERRTOK) }
+	clearBaseResult('change logging')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1897,6 +1908,7 @@ private api_intf_dashboard_piston_clear_logs(){
 			result.status=sSUCC
 		}else{ result=api_get_error_result(sERRID) }
 	}else{ result=api_get_error_result(sERRTOK) }
+	clearBaseResult('clear logs')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -2000,7 +2012,7 @@ private api_intf_variable_set(){
 						if((String)value.t==sTIME){
 							Long aa=vl.toLong()
 							// the browers is in local zone but internally HE is utc
-							Integer mmtvl=((TimeZone)location.timeZone).rawOffset
+							Integer mmtvl=mTZ().rawOffset
 							if(eric()) debug "att is adjustment is $mmtvl"
 							vl=vl - mmtvl
 						}
@@ -2030,8 +2042,8 @@ private api_intf_variable_set(){
 									if(eric())debug "aa is $aa"
 									// the browser is in local zone but internally HE is utc
 									if(vl instanceof Long){
-										Integer mtvl=((TimeZone)location.timeZone).getOffset((Long)now())
-										Integer mmtvl=((TimeZone)location.timeZone).rawOffset
+										Integer mtvl=mTZ().getOffset((Long)now())
+										Integer mmtvl=mTZ().rawOffset
 										if(eric()) debug "btt is adjustment is ${mmtvl} - ${mtvl}"
 										vl=vl-mmtvl-mtvl
 									}
@@ -2097,6 +2109,7 @@ private api_intf_variable_set(){
 			}else{ result=api_get_error_result(sERRID) }
 		}
 	}else{ result=api_get_error_result(sERRTOK) }
+	clearBaseResult('set var')
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -2113,7 +2126,7 @@ private api_intf_variable_set(){
 @Field static final Long lMSDAY=86400000L
 
 private Long getMidnightTime(){
-	return (Long)((Date)timeToday('00:00',(TimeZone)location.timeZone)).getTime()
+	return (Long)((Date)timeToday('00:00',mTZ())).getTime()
 }
 
 private void resetFuelStreamList(){
@@ -3564,6 +3577,9 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 @Field static final String sOFF='off'
 @Field static final String sOPEN='open'
 @Field static final String sCLOSE='close'
+@Field static final String sCLOSED='closed'
+@Field static final String sCLEAR='clear'
+@Field static final String sDETECTED='detected'
 @Field static final String sDTIME='datetime'
 @Field static final String sVOLUME='Volume'
 @Field static final String sSWITCH='switch'
@@ -3686,7 +3702,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	videoCamera			: [ (sN): "Video Camera",			(sD): "cameras",				(sA): "camera",		(sC): ["flip", "mute", sOFF, sON, "unmute"],				],
 	voltageMeasurement	: [ (sN): "Voltage Measurement",	(sD): "voltmeters",			(sA): "voltage",											],
 	waterSensor			: [ (sN): "Water Sensor",			(sD): "water and leak sensors",		(sA): "water",											],
-	windowBlind			: [ (sN): "Window Blind",			(sD): "automatic window blinds",		(sA): "windowShade",	(sC): [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange", "setTiltLevel"],					],
+	windowBlind			: [ (sN): "Window Blind",			(sD): "automatic window blinds",		(sA): "windowBlind",	(sC): [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange", "setTiltLevel"],					],
 	windowShade			: [ (sN): "Window Shade",			(sD): "automatic window shades",		(sA): "windowShade",	(sC): [sCLOSE, sOPEN, "setPosition", "startPositionChange", "stopPositionChange"],					],
 ]
 
@@ -3729,7 +3745,7 @@ Map getChildAttributes(){
 	battery				: [ (sN): "battery",			(sT): sINT,	(sR): [0, 100],		u: "%",							],
 	camera				: [ (sN): "camera",				(sT): sENUM,		(sO): [sON, sOFF, "restarting", "unavailable"],				],
 	carbonDioxide		: [ (sN): "carbon dioxide",		(sT): sDEC,	(sR): [0, null],									],
-	carbonMonoxide		: [ (sN): "carbon monoxide",	(sT): sENUM,		(sO): ["clear", "detected", "tested"],					],
+	carbonMonoxide		: [ (sN): "carbon monoxide",	(sT): sENUM,		(sO): [sCLEAR, sDETECTED, "tested"],					],
 	codeChanged			: [ (sN): "lock code",			(sT): sENUM,		(sO): ["added", "changed", "deleted", "failed"],				],
 //	codeLength			: [ (sN): "Lock code length",	(sT): sINT,											],
 	(sCOLOR)			: [ (sN): sCOLOR,				(sT): sCOLOR,											],
@@ -3737,11 +3753,11 @@ Map getChildAttributes(){
 	colorMode			: [ (sN): "color mode",			(sT): sENUM,		(sO): ["CT", "RGB"],							],
 	colorTemperature	: [ (sN): "color temperature",	(sT): sINT,	(sR): [1000, 30000],	u: "°K",						],
 	consumableStatus	: [ (sN): "consumable status",	(sT): sENUM,		(sO): ["good", "maintenance_required", "missing", "order", "replace"],	],
-	contact				: [ (sN): "contact",			(sT): sENUM,		(sO): ["closed", sOPEN],							],
+	contact				: [ (sN): "contact",			(sT): sENUM,		(sO): [sCLOSED, sOPEN],							],
 	coolingSetpoint		: [ (sN): "cooling setpoint",	(sT): sDEC,	(sR): [-127, 127],		u: '°?',						],
 	currentActivity		: [ (sN): "current activity",	(sT): sSTR,											],
 //	p: is interaction type
-	door				: [ (sN): "door",				(sT): sENUM,		(sO): ["closed", "closing", sOPEN, "opening", "unknown"],		(sP): true,	],
+	door				: [ (sN): "door",				(sT): sENUM,		(sO): [sCLOSED, "closing", sOPEN, "opening", "unknown"],		(sP): true,	],
 	energy				: [ (sN): "energy",				(sT): sDEC,	(sR): [0, null],		u: "kWh",						],
 	eta					: [ (sN): "ETA",				(sT): sDTIME,											],
 	effectName			: [ (sN): "effect name",		(sT): sSTR,											],
@@ -3768,7 +3784,7 @@ Map getChildAttributes(){
 //	momentary			: [ (sN): "momentary",			(sT): sENUM,		(sO): ["pushed"],								],
 	motion				: [ (sN): "motion",				(sT): sENUM,		(sO): [sACT, sINACT],						],
 	mute				: [ (sN): "mute",				(sT): sENUM,		(sO): ["muted", "unmuted"],						],
-	naturalGas			: [ (sN): "natural gas",		(sT): sENUM,		(sO): ["clear", "detected", "tested"],					],
+	naturalGas			: [ (sN): "natural gas",		(sT): sENUM,		(sO): [sCLEAR, sDETECTED, "tested"],					],
 	orientation			: [ (sN): "orientation",		(sT): sENUM,		(sO): ["rear side up", "down side up", "left side up", "front side up", "up side up", "right side up"],	],
 	pH					: [ (sN): "pH level",			(sT): sDEC,	(sR): [0, 14],									],
 	phraseSpoken		: [ (sN): "phrase",				(sT): sSTR,											],
@@ -3783,10 +3799,10 @@ Map getChildAttributes(){
 //	schedule			: [ (sN): "schedule",			(sT): "object",											],
 	securityKeypad		: [ (sN): "security keypad",	(sT): sENUM,		(sO): [sDISARMD, "armed home", "armed away", "unknown"],			],
 	sessionStatus		: [ (sN): "session status",		(sT): sENUM,		(sO): ["canceled", "paused", "running", "stopped"],			],
-	shock				: [ (sN): "shock",				(sT): sENUM,		(sO): ["clear", "detected"],						],
+	shock				: [ (sN): "shock",				(sT): sENUM,		(sO): [sCLEAR, sDETECTED],						],
 	sleeping			: [ (sN): "sleeping",			(sT): sENUM,		(sO): ["not sleeping", "sleeping"],					],
-	smoke				: [ (sN): "smoke",				(sT): sENUM,		(sO): ["clear", "detected", "tested"],					],
-	sound				: [ (sN): "sound",				(sT): sENUM,		(sO): ["detected", "not detected"],					],
+	smoke				: [ (sN): "smoke",				(sT): sENUM,		(sO): [sCLEAR, sDETECTED, "tested"],					],
+	sound				: [ (sN): "sound",				(sT): sENUM,		(sO): [sDETECTED, "not detected"],					],
 	soundEffects		: [ (sN): "sound effects",		(sT): "object",											],
 	soundName			: [ (sN): "sound name",			(sT): sSTR,											],
 	soundPressureLevel	: [ (sN): "sound pressure level",		(sT): sINT,	(sR): [0, null],		u: "dB",						],
@@ -3795,7 +3811,7 @@ Map getChildAttributes(){
 //	status				: [ (sN): "status",				(sT): sSTR,											],
 	steps				: [ (sN): "steps",				(sT): sINT,		(sR): [0, null],									],
 	(sSWITCH)			: [ (sN): sSWITCH,				(sT): sENUM,		(sO): [sOFF, sON],		(sP): true,					],
-	tamper				: [ (sN): "tamper",				(sT): sENUM,		(sO): ["clear", "detected"],						],
+	tamper				: [ (sN): "tamper",				(sT): sENUM,		(sO): [sCLEAR, sDETECTED],						],
 	temperature			: [ (sN): "temperature",		(sT): sDEC,		(sR): [-460, 10000],	u: '°?',						],
 	thermostatFanMode	: [ (sN): "fan mode",			(sT): sENUM,		(sO): ["auto", "circulate", sON],						],
 	thermostatMode		: [ (sN): "thermostat mode",	(sT): sENUM,		(sO): ["auto", "cool", "eco", "emergency heat", "heat", sOFF],		],
@@ -3809,13 +3825,14 @@ Map getChildAttributes(){
 	trackDescription	: [ (sN): "track description",		(sT): sSTR,											],
 	ultravioletIndex	: [ (sN): "UV index",			(sT): sINT,		(sR): [0, null],									],
 // custom for Leak sensor
-	underHeat			: [ (sN): "under heat",			(sT): sENUM,		(sO): ["clear", "detected"],						],
-	valve				: [ (sN): "valve",				(sT): sENUM,		(sO): ["closed", sOPEN],							],
+	underHeat			: [ (sN): "under heat",			(sT): sENUM,		(sO): [sCLEAR, sDETECTED],						],
+	valve				: [ (sN): "valve",				(sT): sENUM,		(sO): [sCLOSED, sOPEN],							],
 //	variable			: [ (sN): "variable value",	(sT): sSTR,											],
 	voltage				: [ (sN): "voltage",			(sT): sDEC,		(sR): [null, null],	u: "V",							],
 	volume				: [ (sN): "volume",				(sT): sINT,		(sR): [0, 100],		u: "%",							],
 	water				: [ (sN): "water",				(sT): sENUM,		(sO): ["dry", "wet"],							],
-	windowShade			: [ (sN): "window shade",		(sT): sENUM,		(sO): ["closed", "closing", sOPEN, "opening", "partially open", "unknown"],	],
+	windowShade			: [ (sN): "window shade",		(sT): sENUM,		(sO): [sCLOSED, "closing", sOPEN, "opening", "partially open", "unknown"],	],
+	windowBlind			: [ (sN): "window blind",		(sT): sENUM,		(sO): [sCLOSED, "closing", sOPEN, "opening", "partially open", "unknown"],	],
 //webCoRE Presence Sensor
 	altitude			: [ (sN): "altitude (usc)",		(sT): sDEC,	(sR): [null, null],	u: "ft",						],
 	altitudeMetric		: [ (sN): "altitude (metric)",	(sT): sDEC,	(sR): [null, null],	u: sM,							],
@@ -3882,7 +3899,7 @@ Map getChildCommands(){
 	beep				: [ (sN): "Beep",																				],
 	both				: [ (sN): "Strobe and Siren",		(sA): "alarm",					(sV): "both",						],
 	(sCANCEL)			: [ (sN): "Cancel",																			],
-	close				: [ (sN): "Close",					(sA): "door",					(sV): sCLOSE,						],
+	close				: [ (sN): "Close",					(sA): "door",					(sV): sCLOSED,						],
 	configure			: [ (sN): "Configure",		(sI): 'cog',															],
 	cool				: [ (sN): "Set to Cool",		(sI): 'snowflake', is: 'l',	(sA): sTHERM,		(sV): "cool",			],
 	cycleSpeed			: [ (sN): "Cycle speed",																	],
@@ -4674,7 +4691,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 					if(aaa<lMSDAY && aaa>=0L) {
 						Long t0=getMidnightTime()
 						Long aa=t0+aaa
-						TimeZone tz=(TimeZone)location.timeZone
+						TimeZone tz=mTZ()
 						myv=aa+(tz.getOffset(t0)-tz.getOffset(aa))
 						if(eric())warn "extended midnight time by $aaa  +($t0) $myv"
 					} else {
@@ -4688,14 +4705,14 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 			case sDTIME: //@@
 				//if(eric())warn "found myv is $myv"
 				Date nTime=new Date((Long)myv)
-				/*TimeZone aa=(TimeZone)location.timeZone
+				/*TimeZone aa=mTZ()
 				Boolean a= aa.inDaylightTime(nTime)
 				if(eric())warn "found inDaylight  $a"
 				if(eric())warn "found current offset is  ${aa.getOffset(now())}"
 				if(eric())warn "found rawoffset is  ${aa.rawOffset}"*/
 				String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
 				SimpleDateFormat formatter=new SimpleDateFormat(format)
-				formatter.setTimeZone((TimeZone)location.timeZone)
+				formatter.setTimeZone(mTZ())
 				String tt=(String) formatter.format(nTime)
 				if(eric())warn "found time tt is $tt"
 				String[] t1=tt.split('T')
@@ -4753,7 +4770,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 					Date nTime=new Date()
 					String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
 					SimpleDateFormat formatter=new SimpleDateFormat(format)
-					formatter.setTimeZone((TimeZone)location.timeZone)
+					formatter.setTimeZone(mTZ())
 					String tt= (String)formatter.format(nTime)
 					String[] mystart=tt.split('T')
 
@@ -4787,8 +4804,8 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 	return ret
 }
 
-private String generateMD5_A(String s){
-	MessageDigest.getInstance("MD5").digest(s.bytes).encodeHex().toString()
+private static String generateMD5_A(String s){
+	MessageDigest.getInstance('MD5').digest(s.bytes).encodeHex().toString()
 }
 
 private static String md5(String md5){
@@ -4797,7 +4814,7 @@ private static String md5(String md5){
 	String result=sBLK
 	Integer l=array.size()
 	for(Integer i=0; i<l; ++i){
-		result += Integer.toHexString((array[i] & 0xFF)| 0x100).substring(1,3)
+		result += Integer.toHexString((array[i] & 0xFF)| 0x100).substring(i1,i3)
 	}
 	return result
 }
@@ -4853,6 +4870,7 @@ static void mb(String meth=sNULL){
 @Field static final String sSPORNG="<span style='color:orange'>"
 @Field static final Integer iZ=0
 @Field static final Integer i1=1
+@Field static final Integer i3=3
 
 static String dumpListDesc(data,final Integer level,List<Boolean> lastLevel,final String listLabel,Boolean html=false){
 	String str=sBLK
