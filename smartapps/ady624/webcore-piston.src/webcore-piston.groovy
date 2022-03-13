@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update March 11, 2022 for Hubitat
+ * Last update March 12, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -1006,7 +1006,7 @@ private void cleanCode(item,Boolean inMem){
 
 	String av='avg'
 	String ty=(String)item.t
-	if(inMem && ty==sNULL && item.size()==i4 && item.d instanceof List && !item.d && (String)item.g==av && item.f==sL && item.vt){
+	if(inMem && ty==sNULL && item.size()==i4 && item.d instanceof List && !item.d && (String)item.g==av && item.f==sL && item.vt!=null){
 		a=item.remove(sD); a=item.remove(sG)
 	}
 	if(ty in ListAL){ // cleanup operands
@@ -1020,17 +1020,17 @@ private void cleanCode(item,Boolean inMem){
 				if((String)item.g in [av,sANY])a=item.remove(sG)
 			if(!LT1)LT1=fill_TIM()
 			if(ty==sC && !((String)item.vt in LT1))a=item.remove(sC)
-			if(ty==sE && item.e)a=item.remove(sE)
+			if(ty==sE && item.e!=null)a=item.remove(sE)
 		}
 		// cruft when editing operands
 		if(ty in ListC2 && item.d instanceof List)a=item.remove(sD)
 		if(!(ty in [sE,sC]) && item.exp)a=item.remove('exp') // evaluateOperand
-		if(ty!=sX && item.x){ a=item.remove(sX);a=item.remove('xi')}
-		if(ty!=sE && item.e)a=item.remove(sE)
-		if(ty!=sC && item.c)a=item.remove(sC)
-		if(ty!=sV && item.v)a=item.remove(sV)
-		if(ty!=sS && item.s)a=item.remove(sS)
-		if(ty!=sP && item.a)a=item.remove(sA)
+		if(ty!=sX && item.x!=null){ a=item.remove(sX);a=item.remove('xi')}
+		if(ty!=sE && item.e!=null)a=item.remove(sE)
+		if(ty!=sC && item.c!=null)a=item.remove(sC)
+		if(ty!=sV && item.v!=null)a=item.remove(sV)
+		if(ty!=sS && item.s!=null)a=item.remove(sS)
+		if(ty!=sP && item.a!=null)a=item.remove(sA)
 	}
 	if(inMem && ty==sEXPR && item.i && ((List)item.i).size()==i1){ // simplify un-needed nesting
 		List<Map> bb=(List<Map>)item.i
@@ -3245,7 +3245,7 @@ private Boolean executeAction(Map r9,Map statement,Boolean async){
 		cancelStatementSchedules(r9,stmtNm)
 	Boolean result=true
 	List<String> deviceIds=expandDeviceList(r9,(List)statement.d)
-	List devices=deviceIds.collect{ String it -> getDevice(r9,it)}
+	List devices= deviceIds ? deviceIds.collect{ String it -> getDevice(r9,it)}:[]
 	r9.currentAction=statement
 	for(Map task in (List<Map>)statement.k){
 		Integer tskNm=stmtNum(task)
@@ -3258,7 +3258,7 @@ private Boolean executeAction(Map r9,Map statement,Boolean async){
 				if(es.stack.devices instanceof List){
 					deviceIds=(List)es.stack.devices
 					r9.systemVars[sDLLRDEVS].v=deviceIds
-					devices=deviceIds.collect{ getDevice(r9,(String)it) }
+					devices= deviceIds ? deviceIds.collect{ String it -> getDevice(r9,it)}:[]
 				}
 			}
 		}
@@ -5368,7 +5368,7 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 					//noinspection GroovyFallthrough
 					switch(value){
 						case null:
-							//we need to exit time events set to work out the timeouts...
+							//we need to exit time events set to work out the timeouts
 							if(currun(r9)==myC)r9.terminated=true
 							break
 						case true:
@@ -5463,7 +5463,7 @@ private evaluateOperand(Map r9,Map node,Map oper,index=null,Boolean trigger=fals
 			}
 			if(values.size()>i1 && !((String)operand.g in [sANY,sALL])){
 				//if we have multiple values and a grouping other than any or all we need to apply that function
-				// count, avg, median, least, most, stdev, min, max, variance etc..
+				// count, avg, median, least, most, stdev, min, max, variance etc
 				try{
 					mv=(Map)"func_${(String)operand.g}"(r9,values*.v)+movt
 				}catch(ignored){
@@ -5903,7 +5903,7 @@ private Boolean evaluateComparison(Map r9,String comparison,Map lo,Map ro=null,M
 
 			if(res && (String)lo.operand.t==sV && (String)lo.operand.v in LT1){
 				Boolean pass=(checkTimeRestrictions(r9,(Map)lo.operand,(Long)now(),5,i1)==lZ)
-				if(lg)debug "Time restriction check ${pass ? 'passed' : 'failed'}",r9
+				if(lg)debug "Time restriction check ${pass ? 'passed':'failed'}",r9
 				if(!pass)res=false
 			}
 		}
@@ -6048,7 +6048,8 @@ private static Boolean okComp(Map comparisonValue,Map timeValue){
 
 private Boolean valueWas(Map r9,Map comparisonValue,Map rightValue,Map rightValue2,Map timeValue,String func){
 	if(!okComp(comparisonValue,timeValue)) return false
-	def device=getDevice(r9,(String)comparisonValue.v.d)
+	String t=(String)comparisonValue.v.d
+	def device=t?getDevice(r9,t):null
 	if(device==null)return false
 	String attr=(String)comparisonValue.v.a
 	Long threshold=(Long)evaluateExpression(r9,rtnMap1(timeValue.v,(String)timeValue.vt)).v
@@ -6075,7 +6076,8 @@ private Boolean valueWas(Map r9,Map comparisonValue,Map rightValue,Map rightValu
 
 private Boolean valueChanged(Map r9,Map comparisonValue,Map timeValue){
 	if(!okComp(comparisonValue,timeValue)) return false
-	def device=getDevice(r9,(String)comparisonValue.v.d)
+	String t=(String)comparisonValue.v.d
+	def device=t?getDevice(r9,t):null
 	if(device==null)return false
 	String attr=(String)comparisonValue.v.a
 	Long threshold=(Long)evaluateExpression(r9,rtnMap1(timeValue.v,(String)timeValue.vt)).v
@@ -6876,7 +6878,7 @@ private List<String> expandDeviceList(Map r9,List devs,Boolean localVarsOnly=fal
 						//noinspection GroovyAssignabilityCheck
 						result+= (var.v instanceof List) ? (List)var.v:[]
 					else{
-						def device=getDevice(r9,scast(r9,var.v))
+						def device=var.v ? getDevice(r9,scast(r9,var.v)):null
 						if(device!=null)result+= [hashId(r9,device.id)]
 					}
 				}
@@ -6896,6 +6898,7 @@ private static String sanitizeVariableName(String name){
 
 private getDevice(Map r9,String idOrName){
 	if(idOrName in (List<String>)r9.allLocations) return location
+	if(!idOrName)return null
 	r9.devices= r9.devices ?:[:]
 	Map<String,Object> dM=(Map<String,Object>)r9.devices
 	def t0=dM[idOrName]
@@ -7726,7 +7729,7 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNULL){
 						if((String)var.t==sDEV) //noinspection GroovyAssignabilityCheck
 							deviceIds=(List)var.v
 						else{
-							def device=getDevice(r9,(String)var.v)
+							def device=var.v ? getDevice(r9,(String)var.v):null
 							if(device!=null)deviceIds=[hashId(r9,device.id)]
 						}
 					}else{
@@ -7985,13 +7988,15 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNULL){
 				//fix-ups
 				if(t1==sDEV && a1!=sNULL && a1.length()>iZ){
 					List lv1=(v1 instanceof List)? (List)v1:[v1]
-					def device= (String)lv1[iZ] ? getDevice(r9,(String)lv1[iZ]):null
+					String tm=(String)lv1[iZ]
+					def device= tm?getDevice(r9,tm):null
 					Map attr=devAttrT(r9,a1,device)
 					t1=(String)attr.t
 				}
 				if(t2==sDEV && a2!=sNULL && a2.length()>iZ){
 					List lv2=(v2 instanceof List)? (List)v2:[v2]
-					def device= (String)lv2[iZ] ? getDevice(r9,(String)lv2[iZ]):null
+					String tm=(String)lv2[iZ]
+					def device= tm?getDevice(r9,tm):null
 					Map attr=devAttrT(r9,a2,device)
 					t2=(String)attr.t
 				}
@@ -9361,7 +9366,7 @@ private static Map func_json(Map r9,List<Map> prms){
 	JsonBuilder builder=new JsonBuilder([((Map)prms[iZ]).v])
 	String op=prms[i1] ? 'toPrettyString':'toString'
 	String json=builder."${op}"()
-	rtnMapS(json[1..-2].trim())
+	rtnMapS(json[i1..-i2].trim())
 }
 
 /** urlencode encodes data for use in a URL						**/
@@ -9786,10 +9791,10 @@ private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 			cnt=i8
 			try{
 				TimeZone tz=mTZ()
-				if(sdate =~ /\s[A-Z]{3}$/){ // is not the timezone... strings like CET are not unique.
+				if(sdate =~ /\s[A-Z]{3}$/){ // is not the timezone  strings like CET are not unique.
 					try{
-						tz=TimeZone.getTimeZone(sdate[-3..-1])
-						sdate=sdate[iZ..sdate.size()-3].trim()
+						tz=TimeZone.getTimeZone(sdate[-i3..-i1])
+						sdate=sdate[iZ..sdate.size()-i3].trim()
 					}catch(ignored){}
 				}
 
@@ -9813,7 +9818,7 @@ private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 					hasPM=true
 				}
 				Long time=lnull
-				if(hasMeridian)t0=t0[iZ..-3].trim()
+				if(hasMeridian)t0=t0[iZ..-i3].trim()
 
 				try{
 					if(t0.length()==i8){
@@ -10822,8 +10827,8 @@ Map<String,Object> fixHeGType(Boolean toHubV,String typ,v,String dtyp){
 					}else if(iD.startsWith(s9s)){
 						mtyp=sTIME
 						// we are ignoring the -0000 offset at end and using our current one
-						String withOutEnd=t1[i1][iZ..-6]
-						String myend=tt[-5..-1]
+						String withOutEnd=t1[i1][iZ..-i6]
+						String myend=tt[-i5..-i1]
 						res=mystart[iZ]+T+withOutEnd+myend
 					}
 				}
