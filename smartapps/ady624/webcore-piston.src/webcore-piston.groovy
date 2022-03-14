@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update March 12, 2022 for Hubitat
+ * Last update March 14, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -1009,6 +1009,9 @@ private void cleanCode(item,Boolean inMem){
 	if(inMem && ty==sNULL && item.size()==i4 && item.d instanceof List && !item.d && (String)item.g==av && item.f==sL && item.vt!=null){
 		a=item.remove(sD); a=item.remove(sG)
 	}
+	//tasks with empty mode restriction
+	if(ty==sNULL && item.c && item.m instanceof List && !item.m) a=item.remove(sM)
+
 	if(ty in ListAL){ // cleanup operands
 		// UI important data
 		if(inMem){
@@ -3363,7 +3366,7 @@ private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean a
 			//schedule a wake up
 			if(isTrc(r9))trace "Requesting a wake up for ${formatLocalTime(Math.round((Long)now()*d1+delay))} (in ${delay}ms) statement: ${stmtNum(statement)} start: ${stmtNum(task)}",r9
 			tracePoint(r9,myS,elapseT(t),-delay) //timers need to show the remaining time
-			requestWakeUp(r9,statement,task,delay,(String)task.c,!async)
+			requestWakeUp(r9,statement,task,delay,(String)task.c)
 			if(isEric(r9))myDetail r9,mySt+"result:FALSE"
 			return false
 		}else doPause(pStr+"${delay}ms",delay,r9,true)
@@ -3690,7 +3693,7 @@ private void scheduleTimer(Map r9,Map timer,Long lastRun=lZ){
 
 	if(nxtSchd>lastR){
 		Boolean a=((List<Map>)r9.schedules).removeAll{ Map it -> (Integer)it.s==iTD }
-		requestWakeUp(r9,timer,[(sDLR):iN1],nxtSchd)
+		requestWakeUp(r9,timer,[(sDLR):iN1],nxtSchd,sNULL,false)
 	}
 	if(isEric(r9))myDetail r9,mySt
 }
@@ -3742,7 +3745,7 @@ private void scheduleTimeCondition(Map r9,Map cndtn){
 	n=v1<v2 ? v1:v2
 	if(n>(Long)now()){
 		if(isDbg(r9))debug "Requesting time schedule wake up at ${formatLocalTime(n)} statement: ${stmtNum(cndtn)} start: 0",r9
-		requestWakeUp(r9,cndtn,[(sDLR):iZ],n)
+		requestWakeUp(r9,cndtn,[(sDLR):iZ],n,sNULL,false)
 	}
 	if(isEric(r9))myDetail r9,mySt
 }
@@ -3892,46 +3895,46 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 	Map mmschedule=[
 		(sT):time,
 		(sS):stmtNum(statement),
-		(sI):stmtNum(task),
+		(sI):stmtNum(task), // timers start at .i
 		cs:cs,
 		ps:ps
 	]
 	if(data!=sNULL) mmschedule.d=data
 	//not all wakeups are suspend/resume
-	if(toResume){ // state to save across an sleep
+	if(toResume){ // state to save across a sleep
 		Map es=r9.event?.schedule
 		if((String)r9.event.name==sTIME && es!=null && (Integer)es.s && stmtNum(task)>=0 && data!=sNULL && !data.startsWith(sCLN))
 			mmschedule.svs=(Integer)es.s // dealing a sleep before r9.wakingUp
-	}
 
-	Boolean fnd=false
-	def myResp=r9.response
-	if(myResp.toString().size()>10000){ myResp=[:]; fnd=true } // state can only be total 100KB
-	def myJson=r9.json
-	if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
-	if(fnd)debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',r9
+		Boolean fnd=false
+		def myResp=r9.response
+		if(myResp.toString().size()>10000){ myResp=[:]; fnd=true } // state can only be total 100KB
+		def myJson=r9.json
+		if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
+		if(fnd)debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',r9
 
-	Map<String,Map>sysV=(Map<String,Map>)r9.systemVars
-	fnd=false
-	Map mstk=[:]
-	def a=(Double)sysV[sDLLRINDX].v; if(a!=null) fnd=true
-	mstk.index=a
-	a=(List)sysV[sDLLRDEVICE].v; if(a!=null) fnd=true
-	mstk.device=a
-	a=(List)sysV[sDLLRDEVS].v; if(a) fnd=true
-	mstk.devices=a
-	if(myJson) fnd=true
-	mstk.json=myJson
-	if(myResp) fnd=true
-	mstk.response=myResp
-	if(fnd) mmschedule.stack=mstk
+		Map<String,Map>sysV=(Map<String,Map>)r9.systemVars
+		fnd=false
+		Map mstk=[:]
+		def a=(Double)sysV[sDLLRINDX].v; if(a!=null)fnd=true
+		mstk.index=a
+		a=(List)sysV[sDLLRDEVICE].v; if(a!=null)fnd=true
+		mstk.device=a
+		a=(List)sysV[sDLLRDEVS].v; if(a)fnd=true
+		mstk.devices=a
+		if(myJson)fnd=true
+		mstk.json=myJson
+		if(myResp)fnd=true
+		mstk.response=myResp
+		if(fnd)mmschedule.stack=mstk
 // what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
 
-	Map evt=[:]+(Map)r9.currentEvent
-	if(evt) evt=cleanEvt(evt)
-	mmschedule.evt=evt
-	def ttt=r9.systemVars[sDARGS].v
-	if(ttt) mmschedule.args=ttt
+		Map evt=[:]+(Map)r9.currentEvent
+		if(evt) evt=cleanEvt(evt)
+		mmschedule.evt=evt
+		def ttt=r9.systemVars[sDARGS].v
+		if(ttt)mmschedule.args=ttt
+	}
 
 	a=spshSch(r9,mmschedule)
 }
