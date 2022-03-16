@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update March 14, 2022 for Hubitat
+ * Last update March 15, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -3028,7 +3028,8 @@ private Boolean executeStatement(Map r9,Map statement,Boolean asynch=false){
 						Double t0=evalDecimalOperand(r9,(Map)statement.lo3)
 						stepValue=t0 ?: d1
 					}
-					String cntrVar=(String)getVariable(r9,(String)statement.x).t!=sERROR ? (String)statement.x:sNULL
+					String ts=(String)statement.x
+					String cntrVar=ts && (String)getVariable(r9,ts).t!=sERROR ? ts:sNULL
 					String sidx='f:'+stmtNm.toString()
 					if( (startValue<=endValue && stepValue>dZ) || (startValue>=endValue && stepValue<dZ) || ffwd(r9)){
 						//initialize the for loop
@@ -3039,8 +3040,12 @@ private Boolean executeStatement(Map r9,Map statement,Boolean asynch=false){
 							r9.cache[sidx]=index
 						}
 						r9.systemVars[sDLLRINDX].v=index
-						if(isEach && currun(r9) in [iZ,iN9])setSystemVariableValue(r9,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
-						if(cntrVar!=sNULL && prun(r9))Map m=setVariable(r9,cntrVar,isEach ? (index<dsiz ? [devices[index.toInteger()]]:[]):index)
+						List dvcs=[]
+						if(isEach){
+							dvcs= index<dsiz ? [devices[index.toInteger()]]:[]
+							if(currun(r9) in [iZ,iN9])r9.systemVars[sDLLRDEVICE].v=dvcs
+						}
+						if(cntrVar!=sNULL && prun(r9))Map m=setVariable(r9,cntrVar,isEach ? dvcs:index)
 						//do the loop
 						perform=executeStatements(r9,(List)statement.s,async)
 						if(!perform){
@@ -3058,8 +3063,12 @@ private Boolean executeStatement(Map r9,Map statement,Boolean asynch=false){
 						if(ffwd(r9))break
 						index=index+stepValue
 						r9.systemVars[sDLLRINDX].v=index
-						if(isEach && prun(r9))setSystemVariableValue(r9,sDLLRDEVICE,index<dsiz ? [devices[index.toInteger()]]:[])
-						if(cntrVar!=sNULL && prun(r9))Map n=setVariable(r9,cntrVar,isEach ? (index<dsiz ? [devices[index.toInteger()]]:[]):index)
+						dvcs=[]
+						if(isEach){
+							dvcs= index<dsiz ? [devices[index.toInteger()]]:[]
+							if(prun(r9))r9.systemVars[sDLLRDEVICE].v=dvcs
+						}
+						if(cntrVar!=sNULL && prun(r9))Map m=setVariable(r9,cntrVar,isEach ? dvcs:index)
 						r9.cache[sidx]=index
 						if((stepValue>dZ && index>endValue) || (stepValue<dZ && index<endValue)){
 							perform=false
@@ -3260,7 +3269,6 @@ private Boolean executeAction(Map r9,Map statement,Boolean async){
 				r9.systemVars[sDLLRDEVICE].v=(List)es.stack.device
 				if(es.stack.devices instanceof List){
 					deviceIds=(List)es.stack.devices
-					r9.systemVars[sDLLRDEVS].v=deviceIds
 					devices= deviceIds ? deviceIds.collect{ String it -> getDevice(r9,it)}:[]
 				}
 			}
@@ -5398,6 +5406,7 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 				i++
 			}
 		}
+		if(isEric(r9)) myS+="cto: $canopt "
 		Boolean res
 		for(Map cndtn in (List<Map>)cndtns[collection]){
 			res=evaluateCondition(r9,cndtn,collection,async) //run through all to update stuff
