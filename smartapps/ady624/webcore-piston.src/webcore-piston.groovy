@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update March 15, 2022 for Hubitat
+ * Last update March 16, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -463,7 +463,7 @@ void clear1(Boolean ccache=false,Boolean some=true,Boolean most=false,Boolean al
 		}
 	}
 	clearMyCache(meth)
-	if(ccache) clearMyPiston(meth)
+	if(ccache)clearMyPiston(meth)
 }
 
 def pageClearAll(){
@@ -520,7 +520,7 @@ static String dumpListDesc(data,final Integer level,List<Boolean> lastLevel,fina
 			str+=dumpMapDesc(newmap,level,newLevel,!t1,html)
 		}else{
 			String lineStrt=sNL
-			for(Integer i=iZ; i<level; i++) lineStrt+=(i+i1<level)? (!lastLevel[i] ? sSPCSB:sSPCS6):sSPCS6
+			for(Integer i=iZ; i<level; i++)lineStrt+=(i+i1<level)? (!lastLevel[i] ? sSPCSB:sSPCS6):sSPCS6
 			lineStrt+=cnt==i1 && sz>i1 ? sSPCST:(cnt<sz ? sSPCSM:sSPCSE)
 			if(html)str+=sSP
 			str+=lineStrt+lbl+": ${par} (${objType(par)})".toString()
@@ -554,13 +554,13 @@ static String dumpMapDesc(data,final Integer level,List<Boolean> lastLevel,Boole
 		String lineStrt
 		List<Boolean> newLevel=lastLevel
 		final Boolean thisIsLast=cnt==sz && !listCall
-		if(level>iZ) newLevel[(level-i1)]=thisIsLast
+		if(level>iZ)newLevel[(level-i1)]=thisIsLast
 		Boolean theLast=thisIsLast
-		if(level==iZ) lineStrt=sDBNL
+		if(level==iZ)lineStrt=sDBNL
 		else{
 			theLast=theLast && thisIsLast
 			lineStrt=sNL
-			for(Integer i=iZ; i<level; i++) lineStrt+=(i+i1<level)? (!newLevel[i] ? sSPCSB:sSPCS6):sSPCS6
+			for(Integer i=iZ; i<level; i++)lineStrt+=(i+i1<level)? (!newLevel[i] ? sSPCSB:sSPCS6):sSPCS6
 			lineStrt+=((cnt<sz || listCall) && !thisIsLast) ? sSPCSM:sSPCSE
 		}
 		String objType=objType(par.value)
@@ -1010,7 +1010,7 @@ private void cleanCode(item,Boolean inMem){
 		a=item.remove(sD); a=item.remove(sG)
 	}
 	//tasks with empty mode restriction
-	if(ty==sNULL && item.c && item.m instanceof List && !item.m) a=item.remove(sM)
+	if(ty==sNULL && item.c && item.m instanceof List && !item.m)a=item.remove(sM)
 
 	if(ty in ListAL){ // cleanup operands
 		// UI important data
@@ -1840,7 +1840,7 @@ private LinkedHashMap<String,Object> getRunTimeData(LinkedHashMap<String,Object>
 	}else r9=getTemporaryRunTimeData(started)
 	Long timestamp=(Long)r9.timestamp
 
-	if(r9.temporary!=null) def a=r9.remove('temporary')
+	if(r9.temporary!=null)def a=r9.remove('temporary')
 
 	LinkedHashMap<String,Object> m1=[:]
 	Boolean b=retSt!=null
@@ -1995,7 +1995,7 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 		recStr+=(Boolean)event.physical ? '/physical':sBLK
 		String valStr=evntVal+(evntName==sHSMALRT && evntVal==sRULE ? sCOMMA+(String)event.descriptionText:sBLK)
 		String mymsg='Received event ['+devStr+'].'+evntName+recStr+' = '+valStr+" with a delay of ${eventDelay}ms"
-		if(lg>i1) mymsg+=", canQueue: ${queue}, calledMyself: ${callMySelf}"
+		if(lg>i1)mymsg+=", canQueue: ${queue}, calledMyself: ${callMySelf}"
 		mymsg=mymsg.toString()
 		info mymsg,tmpRtD,iZ
 	}
@@ -2173,9 +2173,10 @@ void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 				event.t=(Long)sch.t
 			}
 
+			if(isEric(r9))myDetail r9,"async/timer event $event",iN2
+
 			if(evntName==sASYNCREP){
 				syncTime=false
-				if(isEric(r9))myDetail r9,"async event $event",iN2
 				Integer rCode=(Integer)event.responseCode
 				Boolean sOk=rCode>=200 && rCode<=299
 				switch(evntVal){
@@ -2420,6 +2421,12 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		r9.terminated=false
 		if(evntName==sTIME)chgRun(r9,(Integer)event.schedule.i)
 
+		if(isEric(r9)){
+			myDetail r9,"currentEvent $mEvt",iN2
+			myDetail r9,"event ${r9.event}",iN2
+			myDetail r9,"currun is ${currun(r9)}",iN2
+		}
+
 		r9.stack=[(sC):iZ,(sS):iZ,cs:[],ss:[]]
 		try{
 			final Boolean allowed=!r9.piston.r || ((List)r9.piston.r).size()==iZ || evaluateConditions(r9,(Map)r9.piston,sR,true)
@@ -2438,7 +2445,9 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 									//executing scheduled physical command
 									//used by command execution delay, fades, flashes,etc.
 									Boolean dco=data.dc!=null ? (Boolean)data.dc:true
+									r9.curTsk=[$:data.task]
 									executePhysicalCommand(r9,device,(String)data.c,data.p,lZ,sNULL,dco,false,false)
+									r9.remove('curTsk')
 								}else{
 									if(lg)debug 'Piston device timer execution aborted due to restrictions in effect',r9
 								}
@@ -2450,12 +2459,15 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 							if(jq!=null){
 								Map statement=[$:jq.$]
 								if(jq.tcp)statement+=[tcp:jq.tcp]
-								r9.currentAction=statement
+								Map task=[$:jq.task]
+								r9.curActn=statement
+								r9.curTsk=task
 								def ta=r9.stack.cs
 								r9.stack.cs=jq.cs
 								runRepeat(r9,jq)
 								r9.stack.cs=ta
-								r9.remove('currentAction')
+								r9.remove('curTsk')
+								r9.remove('curActn')
 							}
 						}else{
 							if(lg)debug 'Piston repeat task timer execution aborted due to restrictions in effect',r9
@@ -2477,10 +2489,10 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 				tracePoint(r9,sEND,lZ,iZ)
 				processSchedules r9
 			}
-			if(!ended){ ended=true; tracePoint(r9,sBREAK,lZ,iZ) }
 		}catch(all){
 			error 'An error occurred while executing event:',r9,iN2,all
 		}
+		if(!ended){ ended=true; tracePoint(r9,sBREAK,lZ,iZ); processSchedules r9 }
 		if(isEric(r9))myDetail r9,myS+' Result:TRUE'
 		return true
 	}catch(all){
@@ -2492,7 +2504,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 	return false
 }
 
-@Field static final List<String> cleanData=['allDevices','cachePersist','mem','break','powerSource','oldLocations','allLocations','incidents','semaphoreDelay','vars','stateAccess','author','bin','build','newCache','mediaData','weather','logs','trace','systemVars','localVars','currentAction','previousEvent','json','response','cache','store','settings','locationModeId','locationId','coreVersion','hcoreVersion','cancelations','cndtnStChgd','pstnStChgd','ffTo','running','resumed','terminated','instanceId','wakingUp','stmtLvl','args','nfl','temp']
+@Field static final List<String> cleanData=['allDevices','cachePersist','mem','break','powerSource','oldLocations','allLocations','incidents','semaphoreDelay','vars','stateAccess','author','bin','build','newCache','mediaData','weather','logs','trace','systemVars','localVars','previousEvent','json','response','cache','store','settings','locationModeId','locationId','coreVersion','hcoreVersion','cancelations','cndtnStChgd','pstnStChgd','ffTo','running','resumed','terminated','instanceId','wakingUp','stmtLvl','args','nfl','temp']
 
 @Field static final String sFINLZ='finalize'
 private void finalizeEvent(Map r9,Map initialMsg,Boolean success=true){
@@ -2663,7 +2675,7 @@ private static Map initCncl(){ return [statements:[],conditions:[],all:false] }
 @Field static final String sPROCS='processSchedules'
 private void processSchedules(Map r9,Boolean scheduleJob=false){
 	//if automatic piston states set it based on the autoNew - if any
-	if(!(Integer)r9.piston.o?.mps) r9.state.new=(String)r9.state.autoNew ?: sTRUE
+	if(!(Integer)r9.piston.o?.mps)r9.state.new=(String)r9.state.autoNew ?: sTRUE
 //	r9.state.old=(String)r9.state.new
 
 	Boolean myPep=isPep(r9)
@@ -2708,9 +2720,9 @@ private void processSchedules(Map r9,Boolean scheduleJob=false){
 			t=(t<sVariance ? sVariance:t)
 			runInMillis(t,timeHandler,[data: tnext])
 
-			if(isInf(r9)) info 'Setting up scheduled job for '+formatLocalTime(nextT)+' (in '+t.toString()+'ms)'+(ssz>i1 ? ',with '+(ssz-i1).toString()+' more job'+(ssz>i2 ? sS:sBLK)+' pending':sBLK),r9
+			if(isInf(r9))info 'Setting up scheduled job for '+formatLocalTime(nextT)+' (in '+t.toString()+'ms)'+(ssz>i1 ? ',with '+(ssz-i1).toString()+' more job'+(ssz>i2 ? sS:sBLK)+' pending':sBLK),r9
 		}
-		if(nextT==lZ && (Long)r9.nextSchedule!=lZ) unschedule(timeHandler)
+		if(nextT==lZ && (Long)r9.nextSchedule!=lZ)unschedule(timeHandler)
 
 		r9.stats.nextSchedule=nextT
 		r9.nextSchedule=nextT
@@ -2821,7 +2833,7 @@ private static void chgRun(Map r9,Integer num){
 	r9.running=num==iZ
 }
 
-private static Integer stmtNum(Map stmt){ return stmt.$!=null ? (Integer)stmt.$:iZ }
+private static Integer stmtNum(Map stmt){ return stmt?.$!=null ? (Integer)stmt.$:iZ }
 
 @SuppressWarnings('GroovyAssignabilityCheck')
 @Field static final String sEXST='executeStatement '
@@ -2993,14 +3005,14 @@ private Boolean executeStatement(Map r9,Map statement,Boolean asynch=false){
 							if(operand!=null && (String)operand.t){
 								switch((String)operand.t){
 									case sP:
-										if(deviceId!=sNULL && evntName==(String)operand.a && (List)operand.d!=[] && deviceId in expandDeviceList(r9,(List)operand.d,true)) perform=true
+										if(deviceId!=sNULL && evntName==(String)operand.a && (List)operand.d!=[] && deviceId in expandDeviceList(r9,(List)operand.d,true))perform=true
 										break
 									case sV:
-										if(evntName==(String)operand.v) perform=true
+										if(evntName==(String)operand.v)perform=true
 										break
 									case sX:
 										String operX=(String)operand.x
-										if(r9.currentEvent.value==operX && evntName==(String)r9.instanceId+sDOT+operX) perform=true
+										if(r9.currentEvent.value==operX && evntName==(String)r9.instanceId+sDOT+operX)perform=true
 										break
 								}
 							}
@@ -3258,7 +3270,7 @@ private Boolean executeAction(Map r9,Map statement,Boolean async){
 	Boolean result=true
 	List<String> deviceIds=expandDeviceList(r9,(List)statement.d)
 	List devices= deviceIds ? deviceIds.collect{ String it -> getDevice(r9,it)}:[]
-	r9.currentAction=statement
+	r9.curActn=statement
 	for(Map task in (List<Map>)statement.k){
 		Integer tskNm=stmtNum(task)
 		if(tskNm!=null && tskNm==currun(r9)){
@@ -3274,12 +3286,14 @@ private Boolean executeAction(Map r9,Map statement,Boolean async){
 			}
 		}
 		r9.systemVars[sDLLRDEVS].v=deviceIds
+		r9.curTsk=[$:stmtNum(task)]
 		result=executeTask(r9,devices,statement,task,async)
+		r9.remove('curTsk')
 		if(!result && prun(r9))break
 	}
-	r9.remove('currentAction')
+	r9.remove('curActn')
 	r9.systemVars[sDLLRDEVS].v=svDevices
-	if(isEric(r9))myDetail r9,mySt+"resumed: ${r9.resumed} result:$result".toString()
+	if(isEric(r9))myDetail r9,mySt+"resumed: ${r9Is(r9,'resumed')} result:$result".toString()
 	return result
 }
 
@@ -3372,7 +3386,7 @@ private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean a
 		//get remaining piston time
 		if(reschedule || async || delay>(Long)getPistonLimits.taskMaxDelay){
 			//schedule a wake up
-			if(isTrc(r9))trace "Requesting a wake up for ${formatLocalTime(Math.round((Long)now()*d1+delay))} (in ${delay}ms) statement: ${stmtNum(statement)} start: ${stmtNum(task)}",r9
+			if(isTrc(r9))trace "Requesting a wake up for ${formatLocalTime(Math.round((Long)now()*d1+delay))} (in ${delay}ms) statement: ${stmtNum(statement)} start/task: ${stmtNum(task)}",r9
 			tracePoint(r9,myS,elapseT(t),-delay) //timers need to show the remaining time
 			requestWakeUp(r9,statement,task,delay,(String)task.c)
 			if(isEric(r9))myDetail r9,mySt+"result:FALSE"
@@ -3459,7 +3473,8 @@ private void executePhysicalCommand(Map r9,device,String command,prms=[],Long id
 	}
 
 	if(willQ && canq){
-		Map statement=(Map)r9.currentAction
+		Map statement=(Map)r9.curActn
+		Map task=(Map)r9.curTsk
 		List<Integer> cs=svCS(r9,statement)
 		Integer ps=svPS(statement)
 		Long ttt=Math.round((Long)now()*d1+delay)
@@ -3473,14 +3488,15 @@ private void executePhysicalCommand(Map r9,device,String command,prms=[],Long id
 			(sD):[
 				(sD):scheduleDevice,
 				(sC):command,
-				(sP):prms
+				(sP):prms,
+				task:stmtNum(task)
 			]
 		]
 		if(ignRest){
 			schedule.d.dc=dco
 			schedule.d.ig=ignRest
 		}
-		if(doL)debug s+"Requesting a physical command wake up for ${formatLocalTime(ttt)}",r9
+		if(doL)debug s+"Requesting a physical command wake up for ${formatLocalTime(ttt)}, for statement ${stmtNum(statement)} task ${stmtNum(task)}",r9
 		a=spshSch(r9,schedule)
 	}else{
 		List nprms=(prms instanceof List) ? (List)prms:(prms!=null ? [prms]:[])
@@ -3634,7 +3650,7 @@ private void scheduleTimer(Map r9,Map timer,Long lastRun=lZ){
 					if(currentDay>requiredDay)requiredDay+=i7
 					//move to first matching day
 					nxtSchd=time+Math.round(dMSDAY*(requiredDay-currentDay))
-					if(nxtSchd<rightNow) nxtSchd+=Math.round(604800000.0D*interval)
+					if(nxtSchd<rightNow)nxtSchd+=Math.round(604800000.0D*interval)
 					break
 				case sN:
 				case 'y':
@@ -3656,7 +3672,7 @@ private void scheduleTimer(Map r9,Map timer,Long lastRun=lZ){
 
 					Integer lastDayOfMonth= (new Date(date.year,date.month+i1,0)).date
 					if(odw==sD){
-						if(odm>iZ) day=(odm<=lastDayOfMonth)? odm:iZ
+						if(odm>iZ)day=(odm<=lastDayOfMonth)? odm:iZ
 						else{
 							day=lastDayOfMonth+i1+odm
 							day=(day>=i1)? day:iZ
@@ -3907,7 +3923,7 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 		cs:cs,
 		ps:ps
 	]
-	if(data!=sNULL) mmschedule.d=data
+	if(data!=sNULL)mmschedule.d=data
 	//not all wakeups are suspend/resume
 	if(toResume){ // state to save across a sleep
 		Map es=r9.event?.schedule
@@ -3938,7 +3954,7 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 // what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
 
 		Map evt=[:]+(Map)r9.currentEvent
-		if(evt) evt=cleanEvt(evt)
+		if(evt)evt=cleanEvt(evt)
 		mmschedule.evt=evt
 		def ttt=r9.systemVars[sDARGS].v
 		if(ttt)mmschedule.args=ttt
@@ -3952,7 +3968,7 @@ private Long do_setLevel(Map r9,device,List prms,String attr,Integer val=null){
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNULL
 	Integer delay=iZ
-	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat) return lZ
+	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat)return lZ
 	if(attr==sSCLRTEMP && psz>i2){ // setColorTemp takes level and seconds duration arguments (optional)
 		Integer lvl=(Integer)prms[i2]
 		delay=psz>i3 ? (Integer)prms[i3]:iZ
@@ -4015,7 +4031,7 @@ private Long cmd_setColor(Map r9,device,List prms){
 	}
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNULL
-	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat) return lZ
+	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat)return lZ
 	Long delay=psz>i2 ? (Long)prms[i2]:lZ
 	executePhysicalCommand(r9,device,sSCLR,color,delay)
 	if(delay>=lZ)return delay
@@ -4030,7 +4046,7 @@ private Long cmd_setAdjustedColor(Map r9,device,List prms){
 	}
 	Integer psz=prms.size()
 	String mat=psz>i2 ? (String)prms[i2]:sNULL
-	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat) return lZ
+	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat)return lZ
 	Long duration=matchCastL(r9,prms[i1])
 	Long delay=psz>i3 ? (Long)prms[i3]:lZ
 	executePhysicalCommand(r9,device,'setAdjustedColor',[color,duration],delay)
@@ -4041,7 +4057,7 @@ private Long cmd_setAdjustedColor(Map r9,device,List prms){
 private Long cmd_setAdjustedHSLColor(Map r9,device,List prms){
 	Integer psz=prms.size()
 	String mat=psz>i4 ? (String)prms[i4]:sNULL
-	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat) return lZ
+	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat)return lZ
 
 	Long duration=matchCastL(r9,prms[i3])
 	Integer hue=Math.round((Integer)prms[iZ]/d3d6).toInteger()
@@ -4289,7 +4305,7 @@ private Long do_adjustLevel(Map r9,device,List prms,String attr,String attr1,Int
 	Integer arg=val!=null ? val:matchCastI(r9,prms[iZ])
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNULL
-	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat) return lZ
+	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat)return lZ
 	Long delay=psz>i2 ? (Long)prms[i2]:lZ
 	arg=arg+matchCastI(r9,getDeviceAttributeValue(r9,device,attr))
 	Integer low=big ? 1000:iZ
@@ -4326,7 +4342,7 @@ private Long do_fadeLevel(Map r9,device,List prms,String attr,String attr1,Integ
 		endLevel=val1
 	}
 	String mat=prms.size()>i3 ? (String)prms[i3]:sNULL
-	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat) return lZ
+	if(mat!=sNULL && (String)getDeviceAttributeValue(r9,device,sSWITCH)!=mat)return lZ
 	Long duration=matchCastL(r9,prms[i2])
 	Integer low=big ? 1000:iZ
 	Integer hi=big ? 30000:100
@@ -4407,9 +4423,9 @@ private Long vcmd_flash(Map r9,device,List prms){
 	Integer cycles=matchCastI(r9,prms[i2])
 	String mat=prms.size()>i3 ? (String)prms[i3]:sNULL
 	String currentState=(String)getDeviceAttributeValue(r9,device,sSWITCH)
-	if(mat!=sNULL && currentState!=mat) return lZ
+	if(mat!=sNULL && currentState!=mat)return lZ
 	//if the flash is too fast, ignore it
-	if((onDuration+offDuration)<500L) return lZ
+	if((onDuration+offDuration)<500L)return lZ
 	String firstCommand=currentState==sON ? sOFF:sON
 	Long firstDuration=firstCommand==sON ? onDuration:offDuration
 	String secondCommand=firstCommand==sON ? sOFF:sON
@@ -4481,7 +4497,7 @@ void runRepeat(Map r9,Map ijq){
 			Integer oldL=Math.round(p+i*(start-i1)).toInteger()
 			Integer newL=Math.round(p+i*start).toInteger()
 			p1=newL
-			if(oldL==newL) doNotSend=true
+			if(oldL==newL)doNotSend=true
 		}
 
 		Long firstDuration=(Long)jq.f1D
@@ -4521,12 +4537,14 @@ void runRepeat(Map r9,Map ijq){
 
 void qrunRepeat(Map r9,Long dur,Map jq){
 	//void executePhysicalCo iN3
-	Map statement=(Map)r9.currentAction
+	Map statement=(Map)r9.curActn
+	Map task=(Map)r9.curTsk
 
 	List<Integer> cs=svCS(r9,statement)
 	Map jq1=[ // items to save for later requeues
 		$:stmtNum(statement),
-		cs:cs
+		cs:cs,
+		task:stmtNum(task)
 	]+jq
 	if(statement.tcp) jq1+=[tcp:statement.tcp]
 
@@ -4540,7 +4558,7 @@ void qrunRepeat(Map r9,Long dur,Map jq){
 		ps:ps,
 		jq:jq1,
 	]
-	if(isEric(r9))trace "Requesting a repeat task wake up for ${formatLocalTime(ttt)}",r9
+	if(isEric(r9))trace "Requesting a repeat task wake up for ${formatLocalTime(ttt)}, for statement ${stmtNum(statement)} task ${stmtNum(task)}",r9
 	a=spshSch(r9,schedule)
 }
 
@@ -4552,9 +4570,9 @@ private Long vcmd_flashLevel(Map r9,device,List prms){
 	Integer cycles=matchCastI(r9,prms[i4])
 	String mat=prms.size()>i5 ? (String)prms[i5]:sNULL
 	String currentState=(String)getDeviceAttributeValue(r9,device,sSWITCH)
-	if(mat!=sNULL && currentState!=mat) return lZ
+	if(mat!=sNULL && currentState!=mat)return lZ
 	//if the flash is too fast, ignore it
-	if((duration1+duration2)<500L) return lZ
+	if((duration1+duration2)<500L)return lZ
 	Integer currentLevel=(Integer)getDeviceAttributeValue(r9,device,sLVL)
 	String scheduleDevice=hashId(r9,device.id)
 	Map jq=[
@@ -4587,9 +4605,9 @@ private Long vcmd_flashColor(Map r9,device,List prms){
 	Integer cycles=matchCastI(r9,prms[i4])
 	String mat=prms.size()>i5 ? (String)prms[i5]:sNULL
 	String currentState=(String)getDeviceAttributeValue(r9,device,sSWITCH)
-	if(mat!=sNULL && currentState!=mat) return lZ
+	if(mat!=sNULL && currentState!=mat)return lZ
 	//if the flash is too fast, ignore it
-	if((duration1+duration2)<500L) return lZ
+	if((duration1+duration2)<500L)return lZ
 	String scheduleDevice=hashId(r9,device.id)
 	Map jq=[
 		s:i1,
@@ -5772,7 +5790,7 @@ private Boolean evaluateCondition(Map r9,Map cndtn,String collection,Boolean asy
 		if(!LT1) LT1=fill_TIM()
 		if((String)cndtn.lo.v in LT1) scheduleTimeCondition(r9,cndtn)
 	}
-	if(isEric(r9))myDetail r9,myS+" resumed: ${r9.resumed} result:$result"
+	if(isEric(r9))myDetail r9,myS+" resumed: ${r9Is(r9,'resumed')} result:$result"
 	return result
 }
 
@@ -6059,7 +6077,7 @@ private static Boolean okComp(Map comparisonValue,Map timeValue){
 }
 
 private Boolean valueWas(Map r9,Map comparisonValue,Map rightValue,Map rightValue2,Map timeValue,String func){
-	if(!okComp(comparisonValue,timeValue)) return false
+	if(!okComp(comparisonValue,timeValue))return false
 	String t=(String)comparisonValue.v.d
 	def device=t?getDevice(r9,t):null
 	if(device==null)return false
@@ -6087,7 +6105,7 @@ private Boolean valueWas(Map r9,Map comparisonValue,Map rightValue,Map rightValu
 }
 
 private Boolean valueChanged(Map r9,Map comparisonValue,Map timeValue){
-	if(!okComp(comparisonValue,timeValue)) return false
+	if(!okComp(comparisonValue,timeValue))return false
 	String t=(String)comparisonValue.v.d
 	def device=t?getDevice(r9,t):null
 	if(device==null)return false
@@ -6129,7 +6147,7 @@ private Boolean comp_is_outside_of_range	(Map r9,Map lv,Map rv=null,Map rv2=null
 private Boolean comp_is_any_of			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){
 	String v=(String)evaluateExpression(r9,(Map)lv.v,sSTR).v
 	for(String vi in ((String)rv.v.v).tokenize(sCOMMA))
-		if(v==(String)evaluateExpression(r9,[(sT):(String)rv.v.t,(sV):"$vi".toString().trim(),(sI):rv.v.i,(sA):rv.v.a,(sVT):(String)rv.v.vt],sSTR).v) return true
+		if(v==(String)evaluateExpression(r9,[(sT):(String)rv.v.t,(sV):"$vi".toString().trim(),(sI):rv.v.i,(sA):rv.v.a,(sVT):(String)rv.v.vt],sSTR).v)return true
 	return false
 }
 private Boolean comp_is_not_any_of		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is_any_of(r9,lv,rv,rv2,tv,tv2)}
@@ -6371,7 +6389,7 @@ private void updateCacheFld(Map r9,String nm,v,String s,Boolean gm){
 }
 
 private static addWarning(Map node,String msg){
-	if(!node) return
+	if(!node)return
 	node.w=node.w ? (List)node.w:[]
 	((List)node.w).push(msg) // modifies the code
 }
@@ -6909,7 +6927,7 @@ private static String sanitizeVariableName(String name){
 }
 
 private getDevice(Map r9,String idOrName){
-	if(idOrName in (List<String>)r9.allLocations) return location
+	if(idOrName in (List<String>)r9.allLocations)return location
 	if(!idOrName)return null
 	r9.devices= r9.devices ?:[:]
 	Map<String,Object> dM=(Map<String,Object>)r9.devices
@@ -6942,7 +6960,7 @@ private getDevice(Map r9,String idOrName){
 private getDeviceAttributeValue(Map r9,device,String attr){
 	String r9EvN=r9.event!=null ? (String)r9.event.name:sBLK
 	Boolean r9EdID=r9.event!=null ? (String)r9.event.device==hashId(r9,device.id):false
-	if(r9EvN==attr && r9EdID) return r9.event.value
+	if(r9EvN==attr && r9EdID)return r9.event.value
 	else{
 		def result
 		String msg="Error reading current value for ${device}.".toString()
@@ -7470,7 +7488,7 @@ private Map setVariable(Map r9,String name,value){
 							if(isEric(r9))myDetail r9,"setVariable returning ${result} to webcore",iN2
 						}else err.v='setGlobal failed'
 					}
-					if(result) return result
+					if(result)return result
 				}else err.v='setGlobal unknown wctyp'
 			}
 		}else{
@@ -8298,7 +8316,7 @@ private String buildDeviceAttributeList(Map r9,List<String> devices,String attr,
 }
 
 private static Boolean checkParams(Map r9,List prms,Integer minParams){
-	if(prms==null || !(prms instanceof List) || prms.size()<minParams) return false
+	if(prms==null || !(prms instanceof List) || prms.size()<minParams)return false
 	return true
 }
 
@@ -8318,7 +8336,7 @@ private static Map rtnMap1(v,String vt){ return [(sT):sDURATION,(sV):v,(sVT):vt]
 /** dewPoint returns the calculated dew point temperature			**/
 /** Usage: dewPoint(temperature,relativeHumidity[, scale])			**/
 private Map func_dewpoint(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('dewPoint(temperature,relativeHumidity[, scale])')
+	if(!checkParams(r9,prms,i2))return rtnErr('dewPoint(temperature,relativeHumidity[, scale])')
 	Double t=(Double)evaluateExpression(r9,prms[iZ],sDEC).v
 	Double rh=(Double)evaluateExpression(r9,prms[i1],sDEC).v
 	//if no temperature scale is provided we assume the location's temperature scale
@@ -8335,7 +8353,7 @@ private Map func_dewpoint(Map r9,List<Map> prms){
 /** celsius converts temperature from Fahrenheit to Celsius			**/
 /** Usage: celsius(temperature)							**/
 private Map func_celsius(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('celsius(temperature)')
+	if(!checkParams(r9,prms,i1))return rtnErr('celsius(temperature)')
 	Double t=(Double)evaluateExpression(r9,prms[iZ],sDEC).v
 	rtnMapD((Double)((t-32.0D)*5.0D/9.0D))
 }
@@ -8343,7 +8361,7 @@ private Map func_celsius(Map r9,List<Map> prms){
 /** fahrenheit converts temperature from Celsius to Fahrenheit			**/
 /** Usage: fahrenheit(temperature)						**/
 private Map func_fahrenheit(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('fahrenheit(temperature)')
+	if(!checkParams(r9,prms,i1))return rtnErr('fahrenheit(temperature)')
 	Double t=(Double)evaluateExpression(r9,prms[iZ],sDEC).v
 	rtnMapD((Double)(t*9.0D/5.0D+32.0D))
 }
@@ -8352,7 +8370,7 @@ private Map func_fahrenheit(Map r9,List<Map> prms){
 /** units differ from location.temperatureScale					**/
 /** Usage: convertTemperatureIfNeeded(celsiusTemperature,'C')			**/
 private Map func_converttemperatureifneeded(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('convertTemperatureIfNeeded(temperature,unit)')
+	if(!checkParams(r9,prms,i2))return rtnErr('convertTemperatureIfNeeded(temperature,unit)')
 	String u=((String)evaluateExpression(r9,prms[i1],sSTR).v).toUpperCase()
 	switch((String)location.temperatureScale){
 		case u: // matches return value
@@ -8367,7 +8385,7 @@ private Map func_converttemperatureifneeded(Map r9,List<Map> prms){
 /** integer converts a decimal to integer value			**/
 /** Usage: integer(decimal or string)				**/
 private Map func_integer(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('integer(decimal or string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('integer(decimal or string)')
 	rtnMapI((Integer)evaluateExpression(r9,prms[iZ],sINT).v)
 }
 private Map func_int(Map r9,List<Map> prms){ return func_integer(r9,prms)}
@@ -8375,7 +8393,7 @@ private Map func_int(Map r9,List<Map> prms){ return func_integer(r9,prms)}
 /** decimal/float converts an integer value to it's decimal value		**/
 /** Usage: decimal(integer or string)						**/
 private Map func_decimal(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('decimal(integer or string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('decimal(integer or string)')
 	rtnMapD((Double)evaluateExpression(r9,prms[iZ],sDEC).v)
 }
 private Map func_float(Map r9,List<Map> prms){ return func_decimal(r9,prms)}
@@ -8384,7 +8402,7 @@ private Map func_number(Map r9,List<Map> prms){ return func_decimal(r9,prms)}
 /** string converts an value to it's string value				**/
 /** Usage: string(anything)							**/
 private Map func_string(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('string(anything)')
+	if(!checkParams(r9,prms,i1))return rtnErr('string(anything)')
 	String result=sBLK
 	for(Map prm in prms) result+=(String)evaluateExpression(r9,prm,sSTR).v
 	rtnMapS(result)
@@ -8395,7 +8413,7 @@ private Map func_text(Map r9,List<Map> prms){ return func_string(r9,prms)}
 /** Boolean converts a value to it's Boolean value				**/
 /** Usage: boolean(anything)							**/
 private Map func_boolean(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('boolean(anything)')
+	if(!checkParams(r9,prms,i1))return rtnErr('boolean(anything)')
 	rtnMapB((Boolean)evaluateExpression(r9,prms[iZ],sBOOLN).v)
 }
 private Map func_bool(Map r9,List<Map> prms){ return func_boolean(r9,prms)}
@@ -8403,28 +8421,28 @@ private Map func_bool(Map r9,List<Map> prms){ return func_boolean(r9,prms)}
 /** sqr converts a decimal to square decimal value			**/
 /** Usage: sqr(integer or decimal or string)				**/
 private Map func_sqr(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('sqr(integer or decimal or string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('sqr(integer or decimal or string)')
 	rtnMapD((Double)evaluateExpression(r9,prms[iZ],sDEC).v**i2)
 }
 
 /** sqrt converts a decimal to square root decimal value		**/
 /** Usage: sqrt(integer or decimal or string)				**/
 private Map func_sqrt(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('sqrt(integer or decimal or string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('sqrt(integer or decimal or string)')
 	rtnMapD(Math.sqrt((Double)evaluateExpression(r9,prms[iZ],sDEC).v))
 }
 
 /** power converts a decimal to power decimal value			**/
 /** Usage: power(integer or decimal or string, power)			**/
 private Map func_power(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('sqrt(integer or decimal or string, power)')
+	if(!checkParams(r9,prms,i2))return rtnErr('sqrt(integer or decimal or string, power)')
 	rtnMapD((Double)evaluateExpression(r9,prms[iZ],sDEC).v ** (Double)evaluateExpression(r9,prms[i1],sDEC).v)
 }
 
 /** round converts a decimal to rounded value			**/
 /** Usage: round(decimal or string[, precision])		**/
 private Map func_round(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('round(decimal or string[, precision])')
+	if(!checkParams(r9,prms,i1))return rtnErr('round(decimal or string[, precision])')
 	Integer precision=prms.size()>i1 ? (Integer)evaluateExpression(r9,prms[i1],sINT).v:iZ
 	rtnMapD(Math.round((Double)evaluateExpression(r9,prms[iZ],sDEC).v * (i10 ** precision))/(i10 ** precision))
 }
@@ -8432,14 +8450,14 @@ private Map func_round(Map r9,List<Map> prms){
 /** floor converts a decimal to closest lower integer value		**/
 /** Usage: floor(decimal or string)					**/
 private Map func_floor(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('floor(decimal or string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('floor(decimal or string)')
 	rtnMapI(icast(r9,Math.floor((Double)evaluateExpression(r9,prms[iZ],sDEC).v)))
 }
 
 /** ceiling converts a decimal to closest higher integer value	**/
 /** Usage: ceiling(decimal or string)						**/
 private Map func_ceiling(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('ceiling(decimal or string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('ceiling(decimal or string)')
 	rtnMapI(icast(r9,Math.ceil((Double)evaluateExpression(r9,prms[iZ],sDEC).v)))
 }
 private Map func_ceil(Map r9,List<Map> prms){ return func_ceiling(r9,prms)}
@@ -8448,7 +8466,7 @@ private Map func_ceil(Map r9,List<Map> prms){ return func_ceiling(r9,prms)}
 /** sprintf converts formats a series of values into a string			**/
 /** Usage: sprintf(format, arguments)						**/
 private Map func_sprintf(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('sprintf(format, arguments)')
+	if(!checkParams(r9,prms,i2))return rtnErr('sprintf(format, arguments)')
 	String format=sNULL
 	List args=[]
 	Boolean a
@@ -8466,7 +8484,7 @@ private Map func_format(Map r9,List<Map> prms){ return func_sprintf(r9,prms)}
 /** left returns a substring of a value					**/
 /** Usage: left(string, count)						**/
 private Map func_left(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('left(string, count)')
+	if(!checkParams(r9,prms,i2))return rtnErr('left(string, count)')
 	String value=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	Integer cnt=(Integer)evaluateExpression(r9,prms[i1],sINT).v
 	Integer sz=value.size()
@@ -8477,7 +8495,7 @@ private Map func_left(Map r9,List<Map> prms){
 /** right returns a substring of a value				**/
 /** Usage: right(string, count)						**/
 private Map func_right(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('right(string, count)')
+	if(!checkParams(r9,prms,i2))return rtnErr('right(string, count)')
 	String value=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	Integer cnt=(Integer)evaluateExpression(r9,prms[i1],sINT).v
 	Integer sz=value.size()
@@ -8488,7 +8506,7 @@ private Map func_right(Map r9,List<Map> prms){
 /** strlen returns the length of a string value				**/
 /** Usage: strlen(string)						**/
 private Map func_strlen(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('strlen(string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('strlen(string)')
 	String value=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	rtnMapI(value.size())
 }
@@ -8497,7 +8515,7 @@ private Map func_length(Map r9,List<Map> prms){ return func_strlen(r9,prms)}
 /** coalesce returns the first non-empty parameter				**/
 /** Usage: coalesce(value1[, value2[, ..., valueN]])				**/
 private Map func_coalesce(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('coalesce(value1[, value2[, ..., valueN]])')
+	if(!checkParams(r9,prms,i1))return rtnErr('coalesce(value1[, value2[, ..., valueN]])')
 	Integer sz=prms.size()
 	for(Integer i=iZ; i<sz; i++){
 		Map value=evaluateExpression(r9,prms[i])
@@ -8511,7 +8529,7 @@ private Map func_coalesce(Map r9,List<Map> prms){
 /** trim removes leading and trailing spaces from a string			**/
 /** Usage: trim(value)								**/
 private Map func_trim(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('trim(value)')
+	if(!checkParams(r9,prms,i1))return rtnErr('trim(value)')
 	String t0=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	String value=t0.trim()
 	rtnMapS(value)
@@ -8520,7 +8538,7 @@ private Map func_trim(Map r9,List<Map> prms){
 /** trimleft removes leading spaces from a string				**/
 /** Usage: trimLeft(value)							**/
 private Map func_trimleft(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('trimLeft(value)')
+	if(!checkParams(r9,prms,i1))return rtnErr('trimLeft(value)')
 	String t0=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	String value=t0.replaceAll('^\\s+',sBLK)
 	rtnMapS(value)
@@ -8530,7 +8548,7 @@ private Map func_ltrim(Map r9,List<Map> prms){ return func_trimleft(r9,prms)}
 /** trimright removes trailing spaces from a string				**/
 /** Usage: trimRight(value)							**/
 private Map func_trimright(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('trimRight(value)')
+	if(!checkParams(r9,prms,i1))return rtnErr('trimRight(value)')
 	String t0=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	String value=t0.replaceAll('\\s+$',sBLK)
 	rtnMapS(value)
@@ -8540,7 +8558,7 @@ private Map func_rtrim(Map r9,List<Map> prms){ return func_trimright(r9,prms)}
 /** substring returns a substring of a value					**/
 /** Usage: substring(string, start, count)					**/
 private Map func_substring(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('substring(string, start, count)')
+	if(!checkParams(r9,prms,i2))return rtnErr('substring(string, start, count)')
 	String value=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	Integer start=(Integer)evaluateExpression(r9,prms[i1],sINT).v
 	Integer cnt=prms.size()>i2 ? (Integer)evaluateExpression(r9,prms[i2],sINT).v:null
@@ -8572,7 +8590,7 @@ private Map func_mid(Map r9,List<Map> prms){ return func_substring(r9,prms)}
 /** Usage: replace(string, search, replace[, [..],search, replace])		**/
 private Map func_replace(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i3) || sz%i2!=i1) return rtnErr('replace(string, search, replace[, [..],search, replace])')
+	if(!checkParams(r9,prms,i3) || sz%i2!=i1)return rtnErr('replace(string, search, replace[, [..],search, replace])')
 	String value=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	Integer cnt=Math.floor((sz-i1)/i2).toInteger()
 	for(Integer i=iZ; i<cnt; i++){
@@ -8591,7 +8609,7 @@ private Map func_replace(Map r9,List<Map> prms){
 /** Usage: rangeValue(input, defaultValue,point1, value1[, [..],pointN, valueN])	**/
 private Map func_rangevalue(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i2) || sz%i2!=iZ) return rtnErr('rangeValue(input, defaultValue,point1, value1[, [..],pointN, valueN])')
+	if(!checkParams(r9,prms,i2) || sz%i2!=iZ)return rtnErr('rangeValue(input, defaultValue,point1, value1[, [..],pointN, valueN])')
 	Double input=(Double)evaluateExpression(r9,prms[iZ],sDEC).v
 	Map value=prms[i1]
 	Integer cnt=Math.floor((sz-i2)/i2).toInteger()
@@ -8605,7 +8623,7 @@ private Map func_rangevalue(Map r9,List<Map> prms){
 /** rainbowValue returns the matching value in a range				**/
 /** Usage: rainbowValue(input, minInput, minColor,maxInput, maxColor)		**/
 private Map func_rainbowvalue(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i5)) return rtnErr('rainbowValue(input, minColor,minValue,maxInput, maxColor)')
+	if(!checkParams(r9,prms,i5))return rtnErr('rainbowValue(input, minColor,minValue,maxInput, maxColor)')
 	Integer input=(Integer)evaluateExpression(r9,prms[iZ],sINT).v
 	Integer minInput=(Integer)evaluateExpression(r9,prms[i1],sINT).v
 	Map minColor=getColor(r9,(String)evaluateExpression(r9,prms[i2],sSTR).v)
@@ -8635,13 +8653,13 @@ private Map func_rainbowvalue(Map r9,List<Map> prms){
 /** Usage: indexOf(stringOrDeviceOrList, substringOrItem)			**/
 private Map func_indexof(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i2) || ((String)prms[iZ].t!=sDEV && sz!=i2)) return rtnErr('indexOf(stringOrDeviceOrList, substringOrItem)')
+	if(!checkParams(r9,prms,i2) || ((String)prms[iZ].t!=sDEV && sz!=i2))return rtnErr('indexOf(stringOrDeviceOrList, substringOrItem)')
 	if((String)prms[iZ].t==sDEV && sz>i2){
 		Integer t0=sz-i1
 		String item=(String)evaluateExpression(r9,prms[t0],sSTR).v
 		for(Integer idx=iZ; idx<t0; idx++){
 			Map it=evaluateExpression(r9,prms[idx],sSTR)
-			if((String)it.v==item) return rtnMapI(idx)
+			if((String)it.v==item)return rtnMapI(idx)
 		}
 		return rtnMapI(iN1)
 	}else if(prms[iZ].v instanceof Map){
@@ -8659,7 +8677,7 @@ private Map func_indexof(Map r9,List<Map> prms){
 /** Usage: lastIndexOf(string, substring)					**/
 private Map func_lastindexof(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i2) || ((String)prms[iZ].t!=sDEV && sz!=i2)) return rtnErr('lastIndexOf(string, substring)')
+	if(!checkParams(r9,prms,i2) || ((String)prms[iZ].t!=sDEV && sz!=i2))return rtnErr('lastIndexOf(string, substring)')
 	if((String)prms[iZ].t==sDEV && sz>i2){
 		String item=(String)evaluateExpression(r9,prms[sz-i1],sSTR).v
 		for(Integer idx=sz-i2; idx>=iZ; idx--){
@@ -8684,7 +8702,7 @@ private Map func_lastindexof(Map r9,List<Map> prms){
 /** lower returns a lower case value of a string				**/
 /** Usage: lower(string)							**/
 private Map func_lower(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('lower(string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('lower(string)')
 	String result=sBLK
 	for(Map prm in prms) result+=(String)evaluateExpression(r9,prm,sSTR).v
 	rtnMapS(result.toLowerCase())
@@ -8693,7 +8711,7 @@ private Map func_lower(Map r9,List<Map> prms){
 /** upper returns a upper case value of a string				**/
 /** Usage: upper(string)							**/
 private Map func_upper(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('upper(string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('upper(string)')
 	String result=sBLK
 	for(Map prm in prms) result+=(String)evaluateExpression(r9,prm,sSTR).v
 	rtnMapS(result.toUpperCase())
@@ -8702,7 +8720,7 @@ private Map func_upper(Map r9,List<Map> prms){
 /** title returns a title case value of a string				**/
 /** Usage: title(string)							**/
 private Map func_title(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('title(string)')
+	if(!checkParams(r9,prms,i1))return rtnErr('title(string)')
 	String result=sBLK
 	for(Map prm in prms) result+=(String)evaluateExpression(r9,prm,sSTR).v
 	//noinspection GroovyAssignabilityCheck
@@ -8712,7 +8730,7 @@ private Map func_title(Map r9,List<Map> prms){
 /** avg calculates the average of a series of numeric values			**/
 /** Usage: avg(values)								**/
 private Map func_avg(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('avg'+sVALUEN)
+	if(!checkParams(r9,prms,i1))return rtnErr('avg'+sVALUEN)
 	Double sum=dZ
 	for(Map prm in prms) sum+=(Double)evaluateExpression(r9,prm,sDEC).v
 	rtnMapD(sum/prms.size())
@@ -8721,17 +8739,17 @@ private Map func_avg(Map r9,List<Map> prms){
 /** median returns the value in the middle of a sorted array			**/
 /** Usage: median(values)							**/
 private Map func_median(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('median'+sVALUEN)
+	if(!checkParams(r9,prms,i1))return rtnErr('median'+sVALUEN)
 	List<Map> data=prms.collect{ Map it -> evaluateExpression(r9,it,sDYN)}.sort{ Map it -> it.v }
 	Integer i=Math.floor(data.size()/i2).toInteger()
-	if(data) return data[i]
+	if(data)return data[i]
 	rtnMap(sDYN,sBLK)
 }
 
 /** least returns the value that is least found a series of numeric values	**/
 /** Usage: least(values)							**/
 private Map func_least(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('least'+sVALUEN)
+	if(!checkParams(r9,prms,i1))return rtnErr('least'+sVALUEN)
 	Map<Object,Map> data=[:]
 	for(Map prm in prms){
 		Map value=evaluateExpression(r9,prm,sDYN)
@@ -8744,7 +8762,7 @@ private Map func_least(Map r9,List<Map> prms){
 /** most returns the value that is most found a series of numeric values	**/
 /** Usage: most(values)								**/
 private Map func_most(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('most'+sVALUEN)
+	if(!checkParams(r9,prms,i1))return rtnErr('most'+sVALUEN)
 	Map<Object,Map> data=[:]
 	for(Map prm in prms){
 		Map value=evaluateExpression(r9,prm,sDYN)
@@ -8757,7 +8775,7 @@ private Map func_most(Map r9,List<Map> prms){
 /** sum calculates the sum of a series of numeric values			**/
 /** Usage: sum(values)								**/
 private Map func_sum(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('sum'+sVALUEN)
+	if(!checkParams(r9,prms,i1))return rtnErr('sum'+sVALUEN)
 	Double sum=dZ
 	for(Map prm in prms) sum+=(Double)evaluateExpression(r9,prm,sDEC).v
 	rtnMapD(sum)
@@ -8766,7 +8784,7 @@ private Map func_sum(Map r9,List<Map> prms){
 /** variance calculates the variance of a series of numeric values	**/
 /** Usage: variance(values)							**/
 private Map func_variance(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('variance'+sVALUEN)
+	if(!checkParams(r9,prms,i2))return rtnErr('variance'+sVALUEN)
 	Double sum=dZ
 	List values=[]
 	for(Map prm in prms){
@@ -8784,7 +8802,7 @@ private Map func_variance(Map r9,List<Map> prms){
 /** stdev calculates the [population] standard deviation of a series of numeric values	**/
 /** Usage: stdev(values)							**/
 private Map func_stdev(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('stdev'+sVALUEN)
+	if(!checkParams(r9,prms,i2))return rtnErr('stdev'+sVALUEN)
 	Map result=func_variance(r9,prms)
 	rtnMapD(Math.sqrt((Double)result.v))
 }
@@ -8792,26 +8810,26 @@ private Map func_stdev(Map r9,List<Map> prms){
 /** min calculates the minimum of a series of numeric values			**/
 /** Usage: min(values)								**/
 private Map func_min(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('min'+sVALUEN)
+	if(!checkParams(r9,prms,i1))return rtnErr('min'+sVALUEN)
 	List<Map> data=prms.collect{ Map it -> evaluateExpression(r9,(Map)it,sDYN)}.sort{ Map it -> it.v }
-	if(data) return data[iZ]
+	if(data)return data[iZ]
 	rtnMap(sDYN,sBLK)
 }
 
 /** max calculates the maximum of a series of numeric values			**/
 /** Usage: max(values)								**/
 private Map func_max(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('max'+sVALUEN)
+	if(!checkParams(r9,prms,i1))return rtnErr('max'+sVALUEN)
 	List<Map> data=prms.collect{ Map it -> evaluateExpression(r9,it,sDYN)}.sort{ Map it -> it.v }
 	Integer sz=data.size()
-	if(sz) return data[sz-i1]
+	if(sz)return data[sz-i1]
 	rtnMap(sDYN,sBLK)
 }
 
 /** abs calculates the absolute value of a number				**/
 /** Usage: abs(number)								**/
 private Map func_abs(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('abs(value)')
+	if(!checkParams(r9,prms,i1))return rtnErr('abs(value)')
 	Double value=(Double)evaluateExpression(r9,prms[iZ],sDEC).v
 	String dataType=(value==Math.round(value).toDouble() ? sINT:sDEC)
 	rtnMap(dataType,cast(r9,Math.abs(value),dataType,sDEC))
@@ -8820,7 +8838,7 @@ private Map func_abs(Map r9,List<Map> prms){
 /** hslToHex converts a hue/saturation/level trio to it hex #rrggbb representation	**/
 /** Usage: hslToHex(hue,saturation, level)						**/
 private Map func_hsltohex(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i3)) return rtnErr('hsl(hue,saturation, level)')
+	if(!checkParams(r9,prms,i3))return rtnErr('hsl(hue,saturation, level)')
 	Double hue=(Double)evaluateExpression(r9,prms[iZ],sDEC).v
 	Double saturation=(Double)evaluateExpression(r9,prms[i1],sDEC).v
 	Double level=(Double)evaluateExpression(r9,prms[i2],sDEC).v
@@ -8830,7 +8848,7 @@ private Map func_hsltohex(Map r9,List<Map> prms){
 /** count calculates the number of true/non-zero/non-empty items in a series of numeric values		**/
 /** Usage: count(values)										**/
 private Map func_count(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnMapI(iZ)
+	if(!checkParams(r9,prms,i1))return rtnMapI(iZ)
 	Integer cnt=iZ
 	if(prms.size()==i1 && ((String)prms[iZ].t in [sSTR,sDYN])){
 		String[] list=((String)evaluateExpression(r9,prms[iZ],sSTR).v).split(sCOMMA)
@@ -8846,7 +8864,7 @@ private Map func_count(Map r9,List<Map> prms){
 /** size returns the number of values provided				**/
 /** Usage: size(values)							**/
 private Map func_size(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnMapI(iZ)
+	if(!checkParams(r9,prms,i1))return rtnMapI(iZ)
 	Integer cnt
 	Integer sz=prms.size()
 	if(sz==i1 && ((String)prms[iZ].t in [sSTR,sDYN])){
@@ -8859,7 +8877,7 @@ private Map func_size(Map r9,List<Map> prms){
 /** age returns the number of milliseconds an attribute had the current value	**/
 /** Usage: age([device:attribute])						**/
 private Map func_age(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('age'+sDATTRH)
+	if(!checkParams(r9,prms,i1))return rtnErr('age'+sDATTRH)
 	Map prm=evaluateExpression(r9,prms[iZ],sDEV)
 	if((String)prm.t==sDEV && (String)prm.a && ((List)prm.v).size()){
 		def device=getDevice(r9,(String)((List)prm.v)[iZ])
@@ -8877,7 +8895,7 @@ private Map func_age(Map r9,List<Map> prms){
 /** previousAge returns the number of milliseconds an attribute had the previous value		**/
 /** Usage: previousAge([device:attribute])							**/
 private Map func_previousage(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('previousAge'+sDATTRH)
+	if(!checkParams(r9,prms,i1))return rtnErr('previousAge'+sDATTRH)
 	Map prm=evaluateExpression(r9,prms[iZ],sDEV)
 	if((String)prm.t==sDEV && (String)prm.a && ((List)prm.v).size()){
 		def device=getDevice(r9,(String)((List)prm.v)[iZ])
@@ -8904,7 +8922,7 @@ private Map func_previousage(Map r9,List<Map> prms){
 /** previousValue returns the previous value of the attribute				**/
 /** Usage: previousValue([device:attribute])						**/
 private Map func_previousvalue(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('previousValue'+sDATTRH)
+	if(!checkParams(r9,prms,i1))return rtnErr('previousValue'+sDATTRH)
 	Map prm=evaluateExpression(r9,prms[iZ],sDEV)
 	if((String)prm.t==sDEV && (String)prm.a && ((List)prm.v).size()){
 		def device=getDevice(r9,(String)((List)prm.v)[iZ])
@@ -8934,7 +8952,7 @@ private Map func_previousvalue(Map r9,List<Map> prms){
 /** value for less than the specified number of milliseconds			**/
 /** Usage: newer([device:attribute] [,.., [device:attribute]],threshold)	**/
 private Map func_newer(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('newer'+sDATTRHT)
+	if(!checkParams(r9,prms,i2))return rtnErr('newer'+sDATTRHT)
 	Integer t0=prms.size()-i1
 	Long threshold=(Long)evaluateExpression(r9,prms[t0],sLONG).v
 	Integer result=iZ
@@ -8949,7 +8967,7 @@ private Map func_newer(Map r9,List<Map> prms){
 /** value for more than the specified number of milliseconds			**/
 /** Usage: older([device:attribute] [,.., [device:attribute]],threshold)	**/
 private Map func_older(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('older'+sDATTRHT)
+	if(!checkParams(r9,prms,i2))return rtnErr('older'+sDATTRHT)
 	Integer t0=prms.size()-i1
 	Long threshold=(Long)evaluateExpression(r9,prms[t0],sLONG).v
 	Integer result=iZ
@@ -8963,7 +8981,7 @@ private Map func_older(Map r9,List<Map> prms){
 /** startsWith returns true if a string starts with a substring			**/
 /** Usage: startsWith(string, substring)					**/
 private Map func_startswith(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('startsWith(string, substring)')
+	if(!checkParams(r9,prms,i2))return rtnErr('startsWith(string, substring)')
 	String string=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	String substring=(String)evaluateExpression(r9,prms[i1],sSTR).v
 	rtnMapB(string.startsWith(substring))
@@ -8972,7 +8990,7 @@ private Map func_startswith(Map r9,List<Map> prms){
 /** endsWith returns true if a string ends with a substring				**/
 /** Usage: endsWith(string, substring)							**/
 private Map func_endswith(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('endsWith(string, substring)')
+	if(!checkParams(r9,prms,i2))return rtnErr('endsWith(string, substring)')
 	String string=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	String substring=(String)evaluateExpression(r9,prms[i1],sSTR).v
 	rtnMapB(string.endsWith(substring))
@@ -8982,13 +9000,13 @@ private Map func_endswith(Map r9,List<Map> prms){
 /** Usage: contains(string, substring)							**/
 private Map func_contains(Map r9,List<Map> prms){
 	Integer t0=prms.size()
-	if(!checkParams(r9,prms,i2) || ((String)prms[iZ].t!=sDEV && t0!=i2)) return rtnErr('contains(string, substring)')
+	if(!checkParams(r9,prms,i2) || ((String)prms[iZ].t!=sDEV && t0!=i2))return rtnErr('contains(string, substring)')
 	if((String)prms[iZ].t==sDEV && t0>i2){
 		t0=t0-i1
 		String item=evaluateExpression(r9,prms[t0],sSTR).v
 		for(Integer idx=iZ; idx<t0; idx++){
 			Map it=evaluateExpression(r9,prms[idx],sSTR)
-			if(it.v==item) return rtnMapB(true)
+			if(it.v==item)return rtnMapB(true)
 		}
 		return rtnMapB(false)
 	}else{
@@ -9001,7 +9019,7 @@ private Map func_contains(Map r9,List<Map> prms){
 /** matches returns true if a string matches a pattern					**/
 /** Usage: matches(string, pattern)							**/
 private Map func_matches(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('matches(string, pattern)')
+	if(!checkParams(r9,prms,i2))return rtnErr('matches(string, pattern)')
 	String string=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	String pattern=(String)evaluateExpression(r9,prms[i1],sSTR).v
 	Boolean r=match(string,pattern)
@@ -9011,7 +9029,7 @@ private Map func_matches(Map r9,List<Map> prms){
 /** eq returns true if two values are equal					**/
 /** Usage: eq(value1, value2)							**/
 private Map func_eq(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('eq(value1, value2)')
+	if(!checkParams(r9,prms,i2))return rtnErr('eq(value1, value2)')
 	String t=(String)prms[iZ].t==sDEV ? (String)prms[i1].t:(String)prms[iZ].t
 	Map value1=evaluateExpression(r9,prms[iZ],t)
 	Map value2=evaluateExpression(r9,prms[i1],t)
@@ -9021,7 +9039,7 @@ private Map func_eq(Map r9,List<Map> prms){
 /** lt returns true if value1<value2						**/
 /** Usage: lt(value1, value2)							**/
 private Map func_lt(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('lt(value1, value2)')
+	if(!checkParams(r9,prms,i2))return rtnErr('lt(value1, value2)')
 	Map value1=evaluateExpression(r9,prms[iZ])
 	Map value2=evaluateExpression(r9,prms[i1],(String)value1.t)
 	rtnMapB(value1.v<value2.v)
@@ -9030,7 +9048,7 @@ private Map func_lt(Map r9,List<Map> prms){
 /** le returns true if value1<=value2						**/
 /** Usage: le(value1, value2)							**/
 private Map func_le(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('le(value1, value2)')
+	if(!checkParams(r9,prms,i2))return rtnErr('le(value1, value2)')
 	Map value1=evaluateExpression(r9,prms[iZ])
 	Map value2=evaluateExpression(r9,prms[i1],(String)value1.t)
 	rtnMapB(value1.v<=value2.v)
@@ -9039,7 +9057,7 @@ private Map func_le(Map r9,List<Map> prms){
 /** gt returns true if value1>value2						**/
 /** Usage: gt(value1, value2)							**/
 private Map func_gt(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('gt(value1, value2)')
+	if(!checkParams(r9,prms,i2))return rtnErr('gt(value1, value2)')
 	Map value1=evaluateExpression(r9,prms[iZ])
 	Map value2=evaluateExpression(r9,prms[i1],(String)value1.t)
 	rtnMapB(value1.v>value2.v)
@@ -9048,7 +9066,7 @@ private Map func_gt(Map r9,List<Map> prms){
 /** ge returns true if value1>=value2						**/
 /** Usage: ge(value1, value2)							**/
 private Map func_ge(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('ge(value1, value2)')
+	if(!checkParams(r9,prms,i2))return rtnErr('ge(value1, value2)')
 	Map value1=evaluateExpression(r9,prms[iZ])
 	Map value2=evaluateExpression(r9,prms[i1],(String)value1.t)
 	rtnMapB(value1.v>=value2.v)
@@ -9057,7 +9075,7 @@ private Map func_ge(Map r9,List<Map> prms){
 /** not returns the negative Boolean value					**/
 /** Usage: not(value)								**/
 private Map func_not(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('not(value)')
+	if(!checkParams(r9,prms,i1))return rtnErr('not(value)')
 	Boolean value=(Boolean)evaluateExpression(r9,prms[iZ],sBOOLN).v
 	rtnMapB(!value)
 }
@@ -9065,7 +9083,7 @@ private Map func_not(Map r9,List<Map> prms){
 /** if evaluates a Boolean and returns value1 if true,otherwise value2		**/
 /** Usage: if(condition, valueIfTrue,valueIfFalse)				**/
 private Map func_if(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i3)) return rtnErr('if(condition, valueIfTrue,valueIfFalse)')
+	if(!checkParams(r9,prms,i3))return rtnErr('if(condition, valueIfTrue,valueIfFalse)')
 	Boolean value=(Boolean)evaluateExpression(r9,prms[iZ],sBOOLN).v
 	return value ? evaluateExpression(r9,prms[i1]):evaluateExpression(r9,prms[i2])
 }
@@ -9073,7 +9091,7 @@ private Map func_if(Map r9,List<Map> prms){
 /** isEmpty returns true if the value is empty					**/
 /** Usage: isEmpty(value)							**/
 private Map func_isempty(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('isEmpty(value)')
+	if(!checkParams(r9,prms,i1))return rtnErr('isEmpty(value)')
 	Map value=evaluateExpression(r9,prms[iZ])
 	Boolean result=value.v==null || (value.v instanceof List ? value.v==[null] || value.v==[] || value.v==[sSNULL]:false) || (String)value.t==sERROR || value.v==sSNULL || scast(r9,value.v)==sBLK || "$value.v".toString()==sBLK
 	rtnMapB(result)
@@ -9083,7 +9101,7 @@ private Map func_isempty(Map r9,List<Map> prms){
 /** Usage: datetime([value])							**/
 private Map func_datetime(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,iZ) || sz>i1) return rtnErr('datetime([value])')
+	if(!checkParams(r9,prms,iZ) || sz>i1)return rtnErr('datetime([value])')
 	Long value=sz>iZ ? (Long)evaluateExpression(r9,prms[iZ],sDTIME).v:(Long)now()
 	rtnMap(sDTIME,value)
 }
@@ -9092,7 +9110,7 @@ private Map func_datetime(Map r9,List<Map> prms){
 /** Usage: date([value])							**/
 private Map func_date(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,iZ) || sz>i1) return rtnErr('date([value])')
+	if(!checkParams(r9,prms,iZ) || sz>i1)return rtnErr('date([value])')
 	Long value=sz>iZ ? (Long)evaluateExpression(r9,prms[iZ],sDATE).v:(Long)cast(r9,(Long)now(),sDATE,sDTIME)
 	rtnMap(sDATE,value)
 }
@@ -9101,14 +9119,14 @@ private Map func_date(Map r9,List<Map> prms){
 /** Usage: time([value])							**/
 private Map func_time(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,iZ) || sz>i1) return rtnErr('time([value])')
+	if(!checkParams(r9,prms,iZ) || sz>i1)return rtnErr('time([value])')
 	Long value=sz>iZ ? (Long)evaluateExpression(r9,prms[iZ],sTIME).v:(Long)cast(r9,(Long)now(),sTIME,sDTIME)
 	rtnMap(sTIME,value)
 }
 
 private Map addtimeHelper(Map r9,List<Map> prms,Long mulp,String msg){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i1) || sz>i2) return rtnErr(msg)
+	if(!checkParams(r9,prms,i1) || sz>i2)return rtnErr(msg)
 	Long value=sz==i2 ? (Long)evaluateExpression(r9,prms[iZ],sDTIME).v:(Long)now()
 	Long delta=(Long)evaluateExpression(r9,(sz==i2 ? prms[i1]:prms[iZ]),sLONG).v*mulp
 	Long res=value+delta
@@ -9140,7 +9158,7 @@ private Map func_addweeks(Map r9,List<Map> prms){ return addtimeHelper(r9,prms,6
 /** weekDayName returns the name of the week day					**/
 /** Usage: weekDayName(dateTimeOrWeekDayIndex)						**/
 private Map func_weekdayname(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('weekDayName(dateTimeOrWeekDayIndex)')
+	if(!checkParams(r9,prms,i1))return rtnErr('weekDayName(dateTimeOrWeekDayIndex)')
 	Long value=(Long)evaluateExpression(r9,prms[iZ],sLONG).v
 	Integer index=((value>=lMSDAY)? utcToLocalDate(value).day:value.toInteger()) % i7
 	rtnMapS(weekDaysFLD[index])
@@ -9149,7 +9167,7 @@ private Map func_weekdayname(Map r9,List<Map> prms){
 /** monthName returns the name of the month						**/
 /** Usage: monthName(dateTimeOrMonthNumber)						**/
 private Map func_monthname(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('monthName(dateTimeOrMonthNumber)')
+	if(!checkParams(r9,prms,i1))return rtnErr('monthName(dateTimeOrMonthNumber)')
 	Long value=(Long)evaluateExpression(r9,prms[iZ],sLONG).v
 	Integer index=((value>=lMSDAY)? utcToLocalDate(value).month: (value-1L).toInteger())%i12+i1
 	rtnMapS(yearMonthsFLD[index])
@@ -9158,23 +9176,23 @@ private Map func_monthname(Map r9,List<Map> prms){
 /** arrayItem returns the nth item in the parameter list				**/
 /** Usage: arrayItem(index, item0[, item1[, .., itemN]])				**/
 private Map func_arrayitem(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i2)) return rtnErr('arrayItem(index, item0[, item1[, .., itemN]])')
+	if(!checkParams(r9,prms,i2))return rtnErr('arrayItem(index, item0[, item1[, .., itemN]])')
 	Map serr=rtnMapE('Array item index is outside of bounds.')
 	Integer index=(Integer)evaluateExpression(r9,prms[iZ],sINT).v
 	Integer sz=prms.size()
 	if(sz==i2 && ((String)prms[i1].t in [sSTR,sDYN])){
 		String[] list=((String)evaluateExpression(r9,prms[i1],sSTR).v).split(sCOMMA)
-		if(index<iZ || index>=list.size()) return serr
+		if(index<iZ || index>=list.size())return serr
 		return rtnMapS(list[index])
 	}
-	if(index<iZ || index>=sz-i1) return serr
+	if(index<iZ || index>=sz-i1)return serr
 	return prms[index+i1]
 }
 
 /** isBetween returns true if value>=startValue and value<=endValue		**/
 /** Usage: isBetween(value,startValue,endValue)				**/
 private Map func_isbetween(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i3)) return rtnErr('isBetween(value,startValue,endValue)')
+	if(!checkParams(r9,prms,i3))return rtnErr('isBetween(value,startValue,endValue)')
 	Map value=evaluateExpression(r9,prms[iZ])
 	Map startValue=evaluateExpression(r9,prms[i1],(String)value.t)
 	Map endValue=evaluateExpression(r9,prms[i2],(String)value.t)
@@ -9185,7 +9203,7 @@ private Map func_isbetween(Map r9,List<Map> prms){
 /** Usage: formatDuration(value[, friendly=false[, granularity='s'[, showAdverbs=false]]])	**/
 private Map func_formatduration(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i1) || sz>i4) return rtnErr("formatDuration(value[, friendly=false[, granularity='s'[, showAdverbs=false]]])")
+	if(!checkParams(r9,prms,i1) || sz>i4)return rtnErr("formatDuration(value[, friendly=false[, granularity='s'[, showAdverbs=false]]])")
 	Long value=(Long)evaluateExpression(r9,prms[iZ],sLONG).v
 	Boolean friendly=sz>i1 ? (Boolean)evaluateExpression(r9,prms[i1],sBOOLN).v:false
 	String granularity=sz>i2 ? (String)evaluateExpression(r9,prms[i2],sSTR).v:sS
@@ -9247,7 +9265,7 @@ private Map func_formatduration(Map r9,List<Map> prms){
 /** Usage: formatDateTime(value[, format])						**/
 private Map func_formatdatetime(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i1) || sz>i2) return rtnErr('formatDateTime(value[, format])')
+	if(!checkParams(r9,prms,i1) || sz>i2)return rtnErr('formatDateTime(value[, format])')
 	Long value=(Long)evaluateExpression(r9,prms[iZ],sDTIME).v
 	String format=sz>i1 ? (String)evaluateExpression(r9,prms[i1],sSTR).v:sNULL
 	rtnMapS((format ? formatLocalTime(value,format):formatLocalTime(value)))
@@ -9286,7 +9304,7 @@ private Map func_random(Map r9,List<Map> prms){
 @SuppressWarnings(['GroovyVariableNotAssigned', 'GroovyFallthrough'])
 private Map func_distance(Map r9,List<Map> prms){
 	Integer sz=prms.size()
-	if(!checkParams(r9,prms,i2) || sz>i5) return rtnErr('distance((device | latitude,longitude),(device | latitude,longitude)[, unit])')
+	if(!checkParams(r9,prms,i2) || sz>i5)return rtnErr('distance((device | latitude,longitude),(device | latitude,longitude)[, unit])')
 	Double lat1,lng1,lat2,lng2
 	String unit
 	Integer idx=iZ
@@ -9374,7 +9392,7 @@ private Map func_distance(Map r9,List<Map> prms){
 /** json encodes data as a JSON string							**/
 /** Usage: json(value[, pretty])							**/
 private static Map func_json(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1) || prms.size()>i2) return rtnErr('json(value[, format])')
+	if(!checkParams(r9,prms,i1) || prms.size()>i2)return rtnErr('json(value[, format])')
 	JsonBuilder builder=new JsonBuilder([((Map)prms[iZ]).v])
 	String op=prms[i1] ? 'toPrettyString':'toString'
 	String json=builder."${op}"()
@@ -9384,7 +9402,7 @@ private static Map func_json(Map r9,List<Map> prms){
 /** urlencode encodes data for use in a URL						**/
 /** Usage: urlencode(value)								**/
 private Map func_urlencode(Map r9,List<Map> prms){
-	if(!checkParams(r9,prms,i1)) return rtnErr('urlencode(value])')
+	if(!checkParams(r9,prms,i1))return rtnErr('urlencode(value])')
 	String t0=(String)evaluateExpression(r9,prms[iZ],sSTR).v
 	String value=(t0!=sNULL ? t0:sBLK)
 	rtnMapS(encodeURIComponent(value))
@@ -9499,7 +9517,7 @@ private static Boolean bcast(Map r9,ival){
 }
 
 private String scast(Map r9,sval){
-	if(matchCast(r9,sval,sSTR)) return sval
+	if(matchCast(r9,sval,sSTR))return sval
 	Map rr=dataT(sval,sNULL)
 	String srcDt=(String)rr.s
 	def value=rr.v
@@ -9643,7 +9661,7 @@ private cast(Map r9,ival,String dataTT,String isrcDT=sNULL){
 			return (Double)com_cast(r9,value,dataType,srcDt)
 		case sTIME:
 			Long d=srcDt==sSTR ? stringToTime(value):value.toLong()
-			if(d<lMSDAY) return d
+			if(d<lMSDAY)return d
 			Date t1=new Date(d)
 			d=Math.round((t1.hours*dSECHR+(Integer)t1.minutes*d60+t1.seconds)*d1000)
 			return d
@@ -10409,7 +10427,7 @@ private static LinkedHashMap<String,LinkedHashMap> getSystemVariables(){
 }
 
 private static rtnStr(v){
-	if(v!=null && v!=[:] && v!=[] && v!=sBLK) return "${v}".toString()
+	if(v!=null && v!=[:] && v!=[] && v!=sBLK)return "${v}".toString()
 	return null
 }
 
@@ -10880,7 +10898,7 @@ private String sPAppId(){ return ((Long)parent.id).toString() }
 
 private String hashPID(id){
 	LinkedHashMap<String,Object> pC=getParentCache()
-	if((Boolean)pC.newAcctSid) return hashId3((String)pC.locationId+id.toString())
+	if((Boolean)pC.newAcctSid)return hashId3((String)pC.locationId+id.toString())
 	return hashId3(id)
 }
 
