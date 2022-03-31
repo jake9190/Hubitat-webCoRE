@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update March 9, 2022 for Hubitat
+ * Last update March 30, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -28,7 +28,7 @@
 //file:noinspection GroovyPointlessBoolean
 
 @Field static final String sVER='v0.3.114.20220203'
-@Field static final String sHVER='v0.3.114.20220307_HE'
+@Field static final String sHVER='v0.3.114.20220323_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -72,6 +72,7 @@ definition(
 import java.text.SimpleDateFormat
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import groovy.transform.CompileStatic
 import groovy.transform.Field
 import java.security.MessageDigest
 import java.util.concurrent.Semaphore
@@ -93,10 +94,12 @@ preferences{
 	page((sNM): "pageCleanups")
 	page((sNM): "pageLogCleanups")
 	page((sNM): "pageUberCleanups")
+	page((sNM): "pageDumpR")
 	page((sNM): "pageRemove")
 	page((sNM):sPDPC)
 }
 
+@CompileStatic
 private static Boolean eric(){ return false }
 
 //#include ady624.webCoRElib1
@@ -149,9 +152,6 @@ private static Boolean eric(){ return false }
 @Field static final String sR='r'
 @Field static final String sV='v'
 @Field static final String sO='o'
-@Field static final String sDD='dd'
-@Field static final String sDI='di'
-@Field static final String sBVB='{v}'
 
 
 /******************************************************************************/
@@ -527,6 +527,9 @@ def pageSettings(){
 			section("Piston Uber Cleanups"){
 				href "pageUberCleanups", (sTIT): "Danger: Clear all piston variables, piston caches, and logs", (sDESC): a, state: b
 			}
+			section("Dump dashload cache"){
+				href "pageDumpR",(sTIT):'Dump dashload Cache',description:sBLK
+			}
 		}
 
 		section("Uninstall"){
@@ -678,6 +681,16 @@ def pageUberCleanups(){
 	return dynamicPage((sNM):'pageUberCleanups', install: false, uninstall:false){
 		section('Uber Clear'){
 			paragraph 'Everything has been cleared.'
+		}
+	}
+}
+
+def pageDumpR(){
+	Map<String,Object> t0 =api_get_base_result(true)
+	String message=getMapDescStr(t0)
+	return dynamicPage((sNM):"pageDumpR",(sTIT):sBLK,uninstall:false){
+		section('Dashboard Data Cache dump'){
+			paragraph message
 		}
 	}
 }
@@ -836,11 +849,11 @@ void clearChldCaches(Boolean all=false, Boolean clrLogs=false, Boolean uber=fals
 // clear child caches if has not run in 61 mins
 	String wName=sAppId()
 	String n=handlePistn()
-	if(all||clrLogs){
+	if(all||clrLogs||uber){
 		pStateFLD[wName]=(Map)[:]
 		mb()
 	}
-	Long t1=now()
+	Long t1=wnow()
 	List t0=getChildApps().findAll{ (String)it.name==n }
 	if(t0){
 		if(!cldClearFLD[wName]){ cldClearFLD[wName]=(Map)[:]; cldClearFLD=cldClearFLD }
@@ -977,8 +990,8 @@ Map getWCendpoints(){
 	epl=localApiServerUrl("${app.id}".toString())
 
 	if(isCustomEndpoint()) ep=epl
-	if(ep.endsWith(sDIV))ep=ep.substring(0,ep.length()-1)
-	if(epl.endsWith(sDIV))epl=epl.substring(0,epl.length()-1)
+	if(ep.endsWith(sDIV))ep=ep.substring(iZ,ep.length()-i1)
+	if(epl.endsWith(sDIV))epl=epl.substring(iZ,epl.length()-i1)
 
 	t0.ep=ep
 	t0.epl=epl
@@ -1110,7 +1123,7 @@ private Map api_get_error_result(String error,String m=sNULL){
 	return [
 		(sNM): (String)location.name + ' \\ ' + appName(),
 		(sERR): error,
-		now: now()
+		now: wnow()
 	]
 }
 
@@ -1127,30 +1140,33 @@ private static String normalizeLabel(pisN){
 
 @Field static Semaphore theSerialLockFLD=new Semaphore(1)
 @Field volatile static Long lockTimeFLD
+private void wpauseExecution(Long t){ pauseExecution(t) }
 
+@CompileStatic
 Boolean getTheLock(String meth=sNULL){
 	Long waitT=1600L
 	Boolean wait=false
 	Semaphore sema=theSerialLockFLD
 	while(!((Boolean)sema.tryAcquire())){
 		// did not get the lock
-		Long timeL=lockTimeFLD
-		if(timeL==null){
-			timeL=now()
-			lockTimeFLD=timeL
+		Long t=lockTimeFLD
+		if(t==null){
+			t=wnow()
+			lockTimeFLD=t
 		}
 		//if(eric())log.warn "waiting for ${qname} lock access $meth"
-		pauseExecution(waitT)
+		wpauseExecution(waitT)
 		wait=true
-		if((now() - timeL) > 30000L){
+		if((wnow()-t) > 30000L){
 			releaseTheLock('getLock')
 			warn "overriding lock $meth"
 		}
 	}
-	lockTimeFLD=now()
+	lockTimeFLD=wnow()
 	return wait
 }
 
+@CompileStatic
 static void releaseTheLock(String meth=sNULL){
 	lockTimeFLD=null
 	Semaphore sema=theSerialLockFLD
@@ -1158,16 +1174,18 @@ static void releaseTheLock(String meth=sNULL){
 }
 
 @Field static final String sCB='clearB'
+@CompileStatic
 private void clearBaseResult(String meth=sNULL,String wNi=sNULL){
 	String wName= wNi ?: sAppId()
 	Boolean didw=getTheLock(sCB)
-	base_resultFLD[wName]=null
+	Map a=null
+	base_resultFLD[wName]=a
 	base_resultFLD=base_resultFLD
 	lastActivityFLD=sNULL
 	lastActivityTOKFLD=sNULL
 	tlastActivityFLD=0L
 	releaseTheLock(sCB)
-	if(eric())debug "clearBaseResult "+meth
+	//if(eric())debug "clearBaseResult "+meth
 }
 
 @Field volatile static Map<String,Map<String,Object>> base_resultFLD= [:]
@@ -1196,14 +1214,14 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 
 	Boolean didw=getTheLock(t)
 
-	Long lnow=now()
+	Long lnow=wnow()
 	if(base_resultFLD[wName]!=null){
-		cntbase_resultFLD[wName]=cntbase_resultFLD[wName]+1
+		cntbase_resultFLD[wName]=cntbase_resultFLD[wName]+i1
 		if(cntbase_resultFLD[wName]>200){
 			base_resultFLD[wName]=null
 		}else{
 			Map<String,Object> result=[:]+base_resultFLD[wName]
-			result.instance.pistons= presult(wName)
+			((Map)result.instance).pistons= presult(wName)
 			base_resultFLD[wName]=[:]+result
 			base_resultFLD=base_resultFLD
 			releaseTheLock(t)
@@ -1216,9 +1234,9 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 	//log.warn "filling in"
 
 	TimeZone tz=mTZ()
-	String currentDeviceVersion=(String)state.deviceVersion
+	String currentDeviceVersion=(String)gtSt('deviceVersion')
 	Long incidentThreshold=Math.round(lnow - 604800000.0D)
-	def a=state.hsmAlerts
+	def a=gtSt('hsmAlerts')
 	List<Map> alerts= a ? (List<Map>)a : []
 
 	String instanceId=getInstanceSid()
@@ -1233,13 +1251,13 @@ private Map<String,Object> api_get_base_result(Boolean updateCache=false){
 			id: instanceId,
 			locationId: locationId,
 			(sNM): myN,
-			uri: (String)state.endpoint,
+			uri: (String)gtSt('endpoint'),
 			deviceVersion: currentDeviceVersion,
 			coreVersion: sVER,
 			heVersion: sHVER,
-			enabled: !settings.disabled,
-			settings: state.settings ?: [:],
-			lifx: state.lifx ?: [:],
+			enabled: !gtSetting('disabled'),
+			settings: gtSt('settings') ?: [:],
+			lifx: gtSt('lifx') ?: [:],
 			virtualDevices: virtualDevices(updateCache),
 			globalVars: listAvailableVariables1(),
 			fuelStreamUrls: getFuelStreamUrls(instanceId),
@@ -1299,6 +1317,7 @@ Boolean useLocalFuelStreams(){
 }
 
 @SuppressWarnings('GroovyFallthrough')
+@CompileStatic
 private static String transformHsmStatus(String status){
 	if(status==sNULL) return "unconfigured"
 	switch(status){
@@ -1321,10 +1340,9 @@ private static String transformHsmStatus(String status){
 private TimeZone mTZ() { return (TimeZone)location.timeZone }
 
 private api_intf_dashboard_load(){
-	Map<String,Object> result
+	Map result
 //	debug "Dashboard: load ${params}"
 	recoveryHandler()
-	//debug "Dashboard: Request received to initialize instance"
 	String s='dashLoad'
 	String tok=(String)params.token
 	if(verifySecurityToken(tok)){
@@ -1350,7 +1368,7 @@ private api_intf_dashboard_load(){
 	if(result)result.remove('now')
 	String jsonData= JsonOutput.toJson(result)
 	String rl=generateMD5_A(jsonData)
-	Long t=(Long)now()
+	Long t=wnow()
 	if(tlastActivityFLD < (t-11000L) || rl!=lastActivityFLD || tok!=lastActivityTOKFLD){
 		//log.warn "rl: $rl lastAct: $lastActivityFLD"
 		lastActivityFLD=rl
@@ -1361,7 +1379,7 @@ private api_intf_dashboard_load(){
 	if((Boolean)getLogging().debug) checkResultSize(result, false, s)
 
 	//for accuracy, use the time as close as possible to the render
-	result.now=now()
+	result.now=wnow()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1376,7 +1394,7 @@ private api_intf_dashboard_devices(){
 				[ deviceVersion: (String)atomicState.deviceVersion ]
 	}else{ result=api_get_error_result(sERRTOK,s) }
 	//for accuracy, use the time as close as possible to the render
-	result.now=now()
+	result.now=wnow()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1390,12 +1408,12 @@ private api_intf_dashboard_refresh(){
 		if(result==null) result=api_get_error_result(sERRTOK)
 	}
 	//for accuracy, use the time as close as possible to the render
-	result.now=now()
+	result.now=wnow()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
 private Map getDashboardData(){
-//	def start=now()
+//	def start=wnow()
 	Map result
 	def storageApp //= getStorageApp()
 	if(storageApp!=null){
@@ -1498,7 +1516,7 @@ private api_intf_dashboard_piston_getDb() {
 	}else{ result=api_get_error_result(sERRTOK,'getDb') }
 	String wName=sAppId()
 	clearBaseResult('get Db',wName)
-	result.now=now()
+	result.now=wnow()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1549,7 +1567,7 @@ private api_intf_dashboard_piston_get(){
 	}
 
 	//for accuracy, use the time as close as possible to the render
-	result.now=now()
+	result.now=wnow()
 
 	//def jsonData=JsonOutput.toJson(result)
 	//log.debug "Trimmed resonse length: ${jsonData.getBytes("UTF-8").length}"
@@ -1563,7 +1581,7 @@ private void checkResultSize(Map result, Boolean requireDb=false, String caller=
 		//data saver for Hubitat ~100K limit
 		Integer responseLength=jsonData.getBytes("UTF-8").length
 		Integer resl= (Integer)(responseLength / 1024)
-		debug "Check size found ${resl}KB response requireDb: (${requireDb}) caller: ${caller}"
+		//debug "Check size found ${resl}KB response requireDb: (${requireDb}) caller: ${caller}"
 		if(resl > 95){ //these are loaded anyway right after loading the piston
 			warn "Trimming ${resl}KB response to smaller size (${requireDb}) caller: ${caller}"
 
@@ -1603,7 +1621,10 @@ private void checkResultSize(Map result, Boolean requireDb=false, String caller=
 }
 
 private api_intf_dashboard_piston_backup(){
-	Map result=[pistons: []]
+	Map result=[
+		pistons: [],
+		now:0L
+	]
 	debug "Dashboard: Request received to backup pistons ${params?.ids}"
 	if(verifySecurityToken((String)params.token)){
 		List pistonIds=((String)params.ids ?: sBLK).tokenize(',')
@@ -1627,7 +1648,7 @@ private api_intf_dashboard_piston_backup(){
 		}
 	}else{ result=api_get_error_result(sERRTOK,'piston_backup') }
 	//for accuracy, use the time as close as possible to the render
-	result.now=now()
+	result.now=wnow()
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(result)})"
 }
 
@@ -1703,7 +1724,7 @@ private api_intf_dashboard_piston_set_chunk(){
 	Map result
 	String wName=sAppId()
 	String mchunk="${params?.chunk}".toString()
-	Integer chunk=mchunk.isInteger() ? mchunk.toInteger() : -1
+	Integer chunk=mchunk.isInteger() ? mchunk.toInteger() : -i1
 	//debug "Dashboard: Request received to set a piston chunk (#${1 + chunk}/${atomicState.chunks?.count})"
 	debug "Dashboard: Request received to set a piston chunk (#${1 + chunk}/${pPistonChunksFLD[wName]?.count})"
 	if(verifySecurityToken((String)params.token)){
@@ -1819,7 +1840,7 @@ private api_intf_dashboard_presence_create(){
 	Map result
 	if(verifySecurityToken((String)params.token)){
 		String dni=(String)params.dni
-		def sensor=(dni ? getChildDevices().find{ (String)it.getDeviceNetworkId()==dni } : null) ?: addChildDevice("ady624", handlePres(), dni ?: hashId("${now()}"), null, [label: params.name])
+		def sensor=(dni ? getChildDevices().find{ (String)it.getDeviceNetworkId()==dni } : null) ?: addChildDevice("ady624", handlePres(), dni ?: hashId("${wnow()}"), null, [label: params.name])
 		if(sensor){
 			sensor.label=(String)params.name
 			result=[
@@ -2017,7 +2038,7 @@ private api_intf_variable_set(){
 							vl=vl - mmtvl
 						}
 						Map ta=fixHeGType(true, (String)value.t, vl, sNULL)
-						ta.each{
+						for(it in ta){
 							String typ=(String)it.key
 							vl=it.value
 							meth1=meth+"CREATE HE global $vln ${value.t} ${typ} ${vl} "
@@ -2042,7 +2063,7 @@ private api_intf_variable_set(){
 									if(eric())debug "aa is $aa"
 									// the browser is in local zone but internally HE is utc
 									if(vl instanceof Long){
-										Integer mtvl=mTZ().getOffset((Long)now())
+										Integer mtvl=mTZ().getOffset(wnow())
 										Integer mmtvl=mTZ().rawOffset
 										if(eric()) debug "btt is adjustment is ${mmtvl} - ${mtvl}"
 										vl=vl-mmtvl-mtvl
@@ -2050,8 +2071,9 @@ private api_intf_variable_set(){
 									if(eric()) debug "found time $vl"
 								}
 								Map ta=fixHeGType(true, (String)value.t, vl, (String)hg.type)
-								ta.each{
-									String typ=(String)it.key
+								String typ
+								for(it in ta){
+									typ=(String)it.key
 									vl=it.value
 									chgd=false
 									try{ chgd=setGlobalVar(vln, vl) }catch(ignored){}
@@ -2251,7 +2273,7 @@ private api_intf_dashboard_piston_activity(){
 				lastActivityTOKFLD=tok
 				result=[(sSTS):sSUCC, activity: (t0 ?: [:]) + [globalVars: listAvailableVariables1()/*, mode: hashId(location.getCurrentMode().id), shm: location.currentState("alarmSystemStatus")?.value, hubs: location.getHubs().collect{ [id: hashId(it.id), (sNM): it.name, firmware: it.getFirmwareVersionString(), physical: it.getType().toString().contains('PHYSICAL'), powerSource: it.isBatteryInUse() ? 'battery' : 'mains' ]}*/]]
 			} else result=[(sSTS):sSUCC, activity: [:]]
-			tlastActivityFLD=(Long)now()
+			tlastActivityFLD=wnow()
 		}else{ result=api_get_error_result(sERRID) }
 	}else{ result=api_get_error_result(sERRTOK) }
 	if((Boolean)getLogging().debug) checkResultSize(result, false, "piston activity")
@@ -2389,10 +2411,11 @@ void resetMemSt(String meth,String wName){
 }
 
 @Field static final String sVC='ver check'
+@CompileStatic
 void verCheck(String wName){
 	if(verFLD[wName]==sVER && HverFLD[wName]==sHVER) return
 	if(verFLD[wName]==sNULL || HverFLD[wName]==sNULL){
-		if((String)state.cV==sVER && (String)state.hV==sHVER){
+		if((String)gtSt('cV')==sVER && (String)gtSt('hV')==sHVER){
 			resetMemSt(sVC,wName)
 			clearBaseResult(sVC,wName)
 		}
@@ -2408,7 +2431,7 @@ void recoveryHandler(){
 	String wName=sAppId()
 	verCheck(wName)
 
-	Long t=now()
+	Long t=wnow()
 	Long lastRecovered=lastRecoveredFLD[wName]
 	lastRecovered=lastRecovered ?: 0L
 	Long recTime=900000L // 15 min in ms
@@ -2422,7 +2445,7 @@ void finishRecovery(){
 	registerInstance(false)
 	Long recTime=300000L  // 5 min in ms
 	String n=handlePistn()
-	Long lnow=now()
+	Long lnow=wnow()
 	Long threshold= lnow-recTime
 	String wName=sAppId()
 	if(pStateFLD[wName]==null){ pStateFLD[wName]= (Map)[:]; pStateFLD=pStateFLD }
@@ -2467,13 +2490,14 @@ private void cleanUp(){
 			state.remove(item.key)
 		}
 
-		List data=[ 'version', 'versionHE', 'chunks', 'hash', 'virtualDevices', 'updateDevices', 'semaphore', 'pong', 'modules', 'globalVars', 'devices', 'migratedStorage', 'lastRecovered', 'lastReg', 'lastRegTry']
+		List data=['version','versionHE','chunks','hash','virtualDevices','updateDevices',
+				   'semaphore','pong','modules','globalVars','devices','migratedStorage','lastRecovered','lastReg','lastRegTry']
 		for(String foo in data)state.remove(foo)
 
 		String n=handlePistn()
 		String myId
 		List t0=getChildApps().findAll{ (String)it.name==n }
-		t0.each{
+		for(it in t0){
 			myId=hashId(it.id)
 			state.remove(myId)
 			myId=hashPID(it.id)
@@ -2526,7 +2550,7 @@ private getStorageApp(Boolean install=false){
 		}
 		if(weatDev==null){
 			try{
-				weatDev=addChildDevice("ady624", n1, hashId("${now()}"), null, [label: label1])
+				weatDev=addChildDevice("ady624", n1, hashId("${wnow()}"), null, [label: label1])
 			}catch(ignored){
 //				error "Please install the webCoRE Weather Devicefor \$weather notification to work"
 //				return null
@@ -2648,7 +2672,7 @@ private String getDashboardRegistrationUrl(){
 }
 
 Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer offset=0){
-	Long time=(Long)now()
+	Long time=wnow()
 	def storageApp //=getStorageApp()
 	Map result=[:]
 	if(storageApp){
@@ -2662,7 +2686,7 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 			Integer deviceCount=devices.size()
 			result.devices=[:]
 			if(devices){
-				devices=devices[offset..-1]
+				devices=devices[offset..-i1]
 				Integer dsz=devices.size()
 				result.complete=!devices.indexed().find{ Integer idx, dev ->
 //				log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${result.toString().size()}"
@@ -2671,15 +2695,15 @@ Map listAvailableDevices(Boolean raw=false, Boolean updateCache=false, Integer o
 					Boolean stop=false
 					String jsonData=JsonOutput.toJson(result)
 					Integer responseLength=jsonData.getBytes("UTF-8").length
-					if(responseLength > 50000 || (Long)now()-time > 4000) stop=true
-					if(stop && idx < dsz-1 ){
-						result.nextOffset= offset+idx+1
+					if(responseLength > 50000 || wnow()-time > 4000) stop=true
+					if(stop && idx < dsz-i1 ){
+						result.nextOffset= offset+idx+i1
 						return true
 					}
 					false
 				}
 			}else result.complete=true
-			debug "Generated list of ${offset}-${offset + ((Map)result.devices).size()-1} of ${deviceCount} devices in ${now() - time}ms. Data size is ${result.toString().size()}"
+			debug "Generated list of ${offset}-${offset + ((Map)result.devices).size()-i1} of ${deviceCount} devices in ${wnow() - time}ms. Data size is ${result.toString().size()}"
 		}
 		myDevices=null
 		devices=null
@@ -2707,7 +2731,7 @@ Map getDevDetails(dev, Boolean addtransform=false){
 	List cmdL=dev.getSupportedCommands()
 	cmdL=cmdL.unique{ (String)it.getName() }
 	List newCL=[]
-	cmdL.each{ cmd->
+	for(cmd in cmdL){
 		Map mycmd=[:]
 		mycmd.n=cmd.getName()
 		mycmd.p=cmd.getArguments()
@@ -2789,9 +2813,9 @@ private Map AddHeGlobals(Map<String,Map> globalVars, String meth){
 	heV?.each{
 		nm='@@'+(String)it.key
 		ta=fixHeGType(false, (String)it.value.type, it.value.value, sNULL)
-		ta.each{
-			typ=(String)it.key
-			vl=it.value
+		for(iit in ta){
+			typ=(String)iit.key
+			vl=iit.value
 		}
 		res[nm]=[(sT):typ,(sV): vl]
 	}
@@ -2799,12 +2823,12 @@ private Map AddHeGlobals(Map<String,Map> globalVars, String meth){
 }
 
 Map listAvailableVariables(){
-	Map myV=(Map)atomicState.vars
+	Map myV=(Map)gtAS('vars')
 	return listAV(myV, 'list variables')
 }
 
 private Map listAvailableVariables1(){
-	Map myV=(Map)state.vars
+	Map myV=(Map)gtSt('vars')
 	return listAV(myV, 'list variables1')
 }
 
@@ -2834,7 +2858,7 @@ private Boolean verifySecurityToken(String tokenId){
 	//trace "verifySecurityToken ${tokenId}"
 	LinkedHashMap<String,Long> tokens=state.securityTokens
 	if(!tokens || !tokenId) return false
-	Long threshold=now()
+	Long threshold=wnow()
 	Boolean modified=false
 	//remove all expired tokens
 	for (token in tokens.findAll{ (Long)it.value < threshold }){
@@ -2845,7 +2869,7 @@ private Boolean verifySecurityToken(String tokenId){
 		atomicState.securityTokens=tokens
 	}
 	Long token=(Long)tokens[tokenId]
-	Long lnow=now()
+	Long lnow=wnow()
 	if(token && token < lnow){
 		if(tokens) error "Dashboard: Authentication failed due to an invalid token"
 	}
@@ -2867,7 +2891,7 @@ private String createSecurityToken(){
 		case "three months": mexpiry=7776000L; break
 		case "never": mexpiry=3110400000L; break //never means 100 years, okay?
 	}
-	tokens[token]=(Long)Math.round((Long)now() + (mexpiry * 1000.0D))
+	tokens[token]=(Long)Math.round(wnow() + (mexpiry * 1000.0D))
 	atomicState.securityTokens=tokens
 	return token
 }
@@ -2975,7 +2999,7 @@ private void testLifx1(Boolean first=false){
 private void registerInstance(Boolean force=true){
 	//if((Boolean)state.installed && (Boolean)settings.agreement && !isCustomEndpoint()){
 	String wName=sAppId()
-	Long lnow=now()
+	Long lnow=wnow()
 	if((Boolean)state.installed && (Boolean)settings.agreement){
 		if(!force){
 			Long lastReg=lastRegFLD[wName]
@@ -3047,7 +3071,7 @@ void myDone(resp, data){
 	if(eric())debug "register resp: ${resp?.status} using api-${region}-${instanceId[32]}.webcore.co:9247"
 	if(resp?.status==200){
 		String wName=sAppId()
-		lastRegFLD[wName]=(Long)now()
+		lastRegFLD[wName]=wnow()
 	}
 }
 
@@ -3062,7 +3086,7 @@ Boolean isInstalled(){
 
 String generatePistonName(){
 	def apps=getChildApps()
-	Integer i=1
+	Integer i=i1
 	String bname= handlePistn()+' #'
 	while (true){
 		String name=bname + i.toString()
@@ -3083,7 +3107,7 @@ String generatePistonName(){
 }
 
 void refreshDevices(){
-	state.deviceVersion=now().toString()
+	state.deviceVersion=wnow().toString()
 	atomicState.deviceVersion=(String)state.deviceVersion
 	clearParentPistonCache("refreshDevices") // force virtual device to update
 	clearBaseResult('refreshDevices')
@@ -3101,53 +3125,63 @@ private String mem(Boolean showBytes=true){
 
 @Field volatile static Map<String,Map<String,Long>> p_executionFLD=[:]
 
+@CompileStatic
 void pCallupdateRunTimeData(Map data){
 	if(!data || !data.id) return
 	String id=(String)data.id
 	String wName=sAppId()
 	if(p_executionFLD[wName]==null){ p_executionFLD[wName]=(Map)[:]; p_executionFLD=p_executionFLD }
-	Long cnt=p_executionFLD[wName]."${id}"!=null ? (Long)p_executionFLD[wName][id] : 0L
+	Long cnt=p_executionFLD[wName][id]!=null ? (Long)p_executionFLD[wName][id] : 0L
 	cnt +=1L
-	p_executionFLD[wName]."${id}"=cnt
+	p_executionFLD[wName][id]=cnt
 	p_executionFLD=p_executionFLD
 	updateRunTimeData(data,wName,id)
 }
 
 @Field volatile static Map<String,Map<String,Map>> pStateFLD=[:]
 
+private gtSetting(String nm){ return settings."${nm}" }
+private gtSt(String nm){ return state."${nm}" }
+private gtAS(String nm){ return atomicState."${nm}" }
+private void assignSt(String nm,v){ state."${nm}"=v }
+private void assignAS(String nm,v){ atomicState."${nm}"=v }
+Long wnow(){ return (Long)now() }
+
 @Field static final String sURT='updateRunTimeData'
+@CompileStatic
 void updateRunTimeData(Map data, String wNi=sNULL, String idi=sNULL){
 	if(!data || !data.id) return
 	List<Map> variableEvents=[]
 	if(data.gvCache!=null){
 		Boolean didw=getTheLock(sURT)
 
-		def am=atomicState.vars
+		def am=gtAS('vars')
 		Map<String,Map> vars= am? (Map<String,Map>)am : [:]
 		Boolean mdfd=false
 		for(var in (Map<String,Map>)data.gvCache){
-			String varName=(String)var.key
-			if(varName!=sNULL && varName.startsWith('@') && vars[varName] && var.value.v!=vars[varName].v ){
-				Boolean a=variableEvents.push([(sNM): varName, oldValue: vars[varName].v, (sVAL): var.value.v, type: var.value.t])
-				vars[varName].v=var.value.v
+			String k=(String)var.key
+			if(k!=sNULL && k.startsWith('@') && vars[k] && var.value.v!=vars[k].v ){
+				Boolean a=variableEvents.push([(sNM): k, oldValue: vars[k].v, (sVAL): var.value.v, type: var.value.t])
+				vars[k].v=var.value.v
 				mdfd=true
 			}
 		}
-		if(mdfd) atomicState.vars=vars
+		if(mdfd)assignAS('vars',vars)
 		releaseTheLock(sURT)
 	}
 	if(data.gvStoreCache!=null){
 		Boolean didw=getTheLock(sURT)
 
-		def am=atomicState.store
+		def am=gtAS('store')
 		Map<String,Object> store= am? (Map<String,Object>)am : [:]
 		Boolean mdfd=false
 		for(var in (Map<String,Object>)data.gvStoreCache){
-			if(var.value==null) store.remove((String)var.key)
-			else store[(String)var.key]=var.value
+			String k=(String)var.key
+			if(var.value==null) store.remove(k)
+			else store[k]=var.value
 			mdfd=true
 		}
-		if(mdfd) atomicState.store=store
+		if(mdfd)assignAS('store',store)
 		releaseTheLock(sURT)
 	}
 
@@ -3158,21 +3192,21 @@ void updateRunTimeData(Map data, String wNi=sNULL, String idi=sNULL){
 		Map st=[:]+(Map)data.state
 		st.remove('old') //remove the old state as we don't need it
 		Map piston=[
-				(sA): (Boolean)data.active,
-				(sC): data.category,
-				(sT): data.t ?:now(), //last run
-				(sN): (Long)data.stats.nextSchedule,
-				z: (String)data.piston.z, //description
-				(sS): st,
-				heCached:(Boolean)data.Cached
+			(sA): (Boolean)data.active,
+			(sC): data.category,
+			(sT): data.timestamp ?:wnow(), //last run
+			(sN): (Long)((Map)data.stats).nextSchedule,
+			z: (String)((Map)data.piston).z, //description
+			(sS): st,
+			heCached:(Boolean)data.Cached
 		]
 		//log.warn "data: $data piston: $piston old: ${pStateFLD[wName][id]}"
 		if(id){
 			pStateFLD[wName][id]=piston
 			pStateFLD=pStateFLD
-		} else log.error "no id"
+		} else error "no id"
 		clearBaseResult(sURT,wName)
-	} else log.error "no wName"
+	} else error "no wName"
 
 	//broadcast variable change events
 	for (Map variable in variableEvents){ // this notifies the other webCoRE master instances and children
@@ -3396,7 +3430,7 @@ List t1=getLocationEventsSince('hsmAlert', new Date() - 10)
 }
 
 private List<Map> getIncidents(){
-	Long incidentThreshold=Math.round((Long)now() - 604800000.0D) // 1 week
+	Long incidentThreshold=Math.round(wnow() - 604800000.0D) // 1 week
 	String locStat=(String)location.hsmStatus
 	def a=atomicState.hsmAlerts
 	List<Map> alerts= a? (List<Map>)a : []
@@ -3488,7 +3522,7 @@ private Map<String,Boolean> getLogging(){
 }
 
 private Map log(message, Integer shift=-2, err=null, String cmd=sNULL){
-	Long lnow=now()
+	Long lnow=wnow()
 	if(cmd=="timer"){
 		return [(sM): message, (sT): lnow, (sS): shift, e: err]
 	}
@@ -3630,10 +3664,10 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	estimatedTimeOfArrival	: [ (sN): "Estimated Time of Arrival",	(sD): "moving devices (ETA)",		(sA): "eta",									],
 	fanControl			: [ (sN): "Fan Control",			(sD): "fan devices",				(sA): "speed",		(sC): ["setSpeed", "cycleSpeed"],					],
 	filterStatus		: [ (sN): "Filter Status",			(sD): "filters",					(sA): "filterStatus",								],
-//	flash 				: [ (sN): "Flash",					(sD): "flashers",								(sC): ["flash"],					],
+//	flash				: [ (sN): "Flash",					(sD): "flashers",								(sC): ["flash"],					],
 	garageDoorControl	: [ (sN): "Garage Door Control",	(sD): "automatic garage doors",	(sA): "door",		(sC): [sCLOSE, sOPEN],					],
 	gasDetector			: [ (sN): "Gas Detector",			(sD): "gas detectors",				(sA): "naturalGas",							],
-	healthCheck			: [ (sN): "HealthCheck",			(sD): "healthcheck devices",		(sA): "checkInterval",			(sC): ["ping"], 		],
+	healthCheck			: [ (sN): "HealthCheck",			(sD): "healthcheck devices",		(sA): "checkInterval",			(sC): ["ping"],		],
 	holdableButton		: [ (sN): "Holdable Button",		(sD): "holdable buttons",			(sA): "held",		(sM): true,	(sC): ["hold"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/		],
 	illuminanceMeasurement	: [ (sN): "Illuminance Measurement",	(sD): "illuminance sensors",		(sA): "illuminance",										],
 	imageCapture		: [ (sN): "Image Capture",			(sD): "cameras, imaging devices",	(sA): "image",		(sC): ["take"],						],
@@ -3714,7 +3748,7 @@ Map getChildAttributes(){
 	Map<String,Map> result=attributesFLD
 	Map<String,Map> cleanResult=[:]
 	Map defv=[(sN):sA]
-	result.each{
+	for(it in result){
 		Map t0=[:]
 		String hasI=it.value.i
 		Boolean hasP=it.value.p
@@ -3880,10 +3914,12 @@ Map getChildCommands(){
 	Map<String,Map> result=commands()
 	Map<String,Map> cleanResult=[:]
 	Map defv=[(sN):sA]
-	result.each{
-		Map t0=[:]
-		String hasA=it.value.a
-		String hasV=it.value.v
+	Map t0
+	String hasA,hasV
+	for(it in result){
+		t0=[:]
+		hasA=it.value.a
+		hasV=it.value.v
 		if(hasA) t0=t0 + [(sA):hasA]
 		if(hasV) t0=t0 + [(sV):hasV]
 		if(t0==[:]) t0=defv
@@ -4056,10 +4092,12 @@ static Map getChildVirtCommands(){
 	Map<String,Map> result=virtualCommands()
 	Map<String,Map> cleanResult=[:]
 	Map defv=[(sN):sA]
-	result.each{
-		Map t0=[:]
-		Boolean hasA=it.value.a
-		Boolean hasO=it.value.o
+	Map t0
+	Boolean hasA,hasO
+	for(it in result){
+		t0=[:]
+		hasA=it.value.a
+		hasO=it.value.o
 		if(hasA!=null) t0=t0 + [(sA):hasA]
 		if(hasO!=null) t0=t0 + [(sO):hasO]
 		if(t0==[:]) t0=defv
@@ -4068,81 +4106,85 @@ static Map getChildVirtCommands(){
 	return cleanResult
 }
 
-	//a=aggregate
+	//a=aggregate (only execute once for a list of devices)
 	//d=display
 	//n=name
 	//t=type
 	//i=icon
 	//o=override physical with virtual
 	//p=parameters
+@Field static final String sBVB='{v}'
 private static Map<String,Map> virtualCommands(){
 	List<String> tileIndexes=['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16']
 	return [
-		noop				: [ (sN): "No operation",			(sA): true,	(sI): "circle",				(sD): "No operation",						],
-		wait				: [ (sN): "Wait...",			(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait {0}",						(sP): [[(sN):sDURATION, (sT):sDUR]],				],
-		waitRandom			: [ (sN): "Wait randomly...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait randomly between {0} and {1}",									(sP): [[(sN):"At least", (sT):sDUR],[(sN):"At most", (sT):sDUR]],	],
-		waitForTime			: [ (sN): "Wait for time...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait until {0}",													(sP): [[(sN):"Time", (sT):"time"]],	],
-		waitForDateTime		: [ (sN): "Wait for date & time...",	(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait until {0}",													(sP): [[(sN):"Date & Time", (sT):sDTIME]],	],
-		executePiston		: [ (sN): "Execute piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Execute piston \"{0}\"{1}",											(sP): [[(sN):"Piston", (sT):"piston"], [(sN):"Arguments", (sT):"variables", (sD):" with arguments {v}"],[(sN):"Wait for execution", (sT):sBOOLN,(sD):" and wait for execution to finish",w:"webCoRE can only wait on piston executions of pistons within the same instance as the caller. Please note that global variables updated in the callee piston do NOT get reflected immediately in the caller piston, the new values will be available on the next run."]],	],
-		pausePiston			: [ (sN): "Pause piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Pause piston \"{0}\"",												(sP): [[(sN):"Piston", (sT):"piston"]],	],
-		resumePiston		: [ (sN): "Resume piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Resume piston \"{0}\"",												(sP): [[(sN):"Piston", (sT):"piston"]],	],
-		executeRule			: [ (sN): "Execute Rule...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Execute Rule \"{0}\" with action {1}",											(sP): [[(sN):"Rule", (sT):"rule"], [(sN):"Argument", (sT):sENUM, (sO):['Run','Stop','Pause','Resume','Evaluate','Set Boolean True','Set Boolean False']] ]	],
-		toggle				: [ (sN): "Toggle", (sR): [sON, sOFF],			(sI): sTOGON																				],
-		toggleRandom		: [ (sN): "Random toggle", (sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Random toggle{0}",													(sP): [[(sN):"Probability for on", (sT):sLVL, (sD):" with a {v}% probability for on"]],	],
-		setSwitch			: [ (sN): "Set switch...", (sR): [sON, sOFF],		(sI): sTOGON,			(sD): "Set switch to {0}",													(sP): [[(sN):"Switch value", (sT):sSWITCH]],																],
-		setHSLColor			: [ (sN): "Set color... (hsl)",				(sI): "palette", is: "l",				(sD): "Set color to H:{0}° / S:{1}% / L%:{2}{3}",				(sR): ["setColor"],				(sP): [[(sN):"Hue", (sT):"hue"], [(sN):"Saturation", (sT):"saturation"], [(sN):"Level", (sT):sLVL], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],							],
-		toggleLevel			: [ (sN): "Toggle level...",				(sI): "toggle-off",			(sD): "Toggle level between 0% and {0}%",	(sR): [sON, sOFF, "setLevel"],	(sP): [[(sN):"Level", (sT):sLVL]],																																	],
-		sendNotification	: [ (sN): "Send notification...",		(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send notification \"{0}\"",											(sP): [[(sN):"Message", (sT):sSTR]],												],
-		sendPushNotification		: [ (sN): "Send PUSH notification...",	(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send PUSH notification \"{0}\"{1}",									(sP): [[(sN):"Message", (sT):sSTR],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
-		sendSMSNotification	: [ (sN): "Send SMS notification...",	(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send SMS notification \"{0}\" to {1}{2}",							(sP): [[(sN):"Message", (sT):sSTR],[(sN):"Phone number", (sT):"phone",w:"HE requires +countrycode in phone number."],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
-		log					: [ (sN): "Log to console...",		(sA): true,	(sI): "bug",					(sD): "Log {0} \"{1}\"{2}",												(sP): [[(sN):"Log type", (sT):sENUM, (sO):["info","trace","debug","warn","error"]],[(sN):"Message", (sT):sSTR],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
-		httpRequest			: [ (sN): "Make a web request",		(sA): true,	(sI): "anchor", is: sR,				(sD): "Make a {1} request to {0}",					(sP): [[(sN):"URL", (sT):"uri"],[(sN):"Method", (sT):sENUM, (sO):["GET","POST","PUT","DELETE","HEAD"]],[(sN):"Request body type", (sT):sENUM, (sO):["JSON","FORM","CUSTOM"]],[(sN):"Send variables", (sT):"variables", (sD):"data {v}"],[(sN):"Request body", (sT):sSTR, (sD):"data {v}"],[(sN):"Request content type", (sT):sENUM, (sO):["text/plain","text/html",sAPPJSON,"application/x-www-form-urlencoded","application/xml"]],[(sN):"Authorization header", (sT):sSTR, (sD):sBVB]],	],
-		setVariable			: [ (sN): "Set variable...",		(sA): true,	(sI): "superscript", is:sR,			(sD): "Set variable {0} = {1}",											(sP): [[(sN):"Variable", (sT):sVARIABLE],[(sN):"Value", (sT):sDYN]],	],
-		setState			: [ (sN): "Set piston state...",		(sA): true,	(sI): "align-left", is:"l",			(sD): "Set piston state to \"{0}\"",										(sP): [[(sN):"State", (sT):sSTR]],	],
-		setTileColor		: [ (sN): "Set piston tile colors...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} colors to {1} over {2}{3}",					(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Text Color", (sT):sCOLOR],[(sN):"Background Color", (sT):sCOLOR],[(sN):"Flash mode", (sT):sBOOLN,(sD):" (flashing)"]],	],
-		setTileTitle		: [ (sN): "Set piston tile title...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} title to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR]],	],
-		setTileOTitle		: [ (sN): "Set piston tile mouseover title...",	(sA): true,	(sI): "info-square", is:"l",		(sD): "Set piston tile #{0} mouseover title to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR]],	],
-		setTileText			: [ (sN): "Set piston tile text...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} text to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Text", (sT):sSTR]],	],
-		setTileFooter		: [ (sN): "Set piston tile footer...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} footer to \"{1}\"",							(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Footer", (sT):sSTR]],	],
-		setTile				: [ (sN): "Set piston tile...",		(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} title to \"{1}\", text to \"{2}\", footer to \"{3}\", and colors to {4} over {5}{6}",		(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR],[(sN):"Text", (sT):sSTR],[(sN):"Footer", (sT):sSTR],[(sN):"Text Color", (sT):sCOLOR],[(sN):"Background Color", (sT):sCOLOR],[(sN):"Flash mode", (sT):sBOOLN,(sD):" (flashing)"]],	],
-		clearTile			: [ (sN): "Clear piston tile...",		(sA): true,	(sI): "info-square", is:"l",			(sD): "Clear piston tile #{0}",											(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes]],	],
-		setLocationMode		: [ (sN): "Set location mode...",		(sA): true,	(sI): sBLK,						(sD): "Set location mode to {0}",											(sP): [[(sN):"Mode", (sT):"mode"]],																														],
-		sendEmail			: [ (sN): "Send email...",			(sA): true,	(sI): "envelope",				(sD): "Send email with subject \"{1}\" to {0}",							(sP): [[(sN):"Recipient", (sT):"email"],[(sN):"Subject", (sT):sSTR],[(sN):"Message body", (sT):sSTR]],																							],
-		wolRequest			: [ (sN): "Wake a LAN device",		(sA): true,	(sI): sBLK,						(sD): "Wake LAN device at address {0}{1}",									(sP): [[(sN):"MAC address", (sT):sSTR],[(sN):"Secure code", (sT):sSTR,(sD):" with secure code {v}"]],	],
-		adjustLevel			: [ (sN): "Adjust level...",	(sR): ["setLevel"],	(sI): sTOGON,				(sD): "Adjust level by {0}%{1}",											(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		adjustInfraredLevel	: [ (sN): "Adjust infrared level...",	(sR): ["setInfraredLevel"],	(sI): sTOGON,	(sD): "Adjust infrared level by {0}%{1}",								(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		adjustSaturation	: [ (sN): "Adjust saturation...",	(sR): ["setSaturation"],	(sI): sTOGON,		(sD): "Adjust saturation by {0}%{1}",										(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		adjustHue			: [ (sN): "Adjust hue...",	(sR): ["setHue"],		(sI): sTOGON,					(sD): "Adjust hue by {0}°{1}",												(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-360,360]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		adjustColorTemperature		: [ (sN): "Adjust color temperature...",	(sR): ["setColorTemperature"],	(sI): sTOGON,				(sD): "Adjust color temperature by {0}°K%{1}",		(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-29000,29000]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		fadeLevel			: [ (sN): "Fade level...",	(sR): ["setLevel"],		(sI): sTOGON,				(sD): "Fade level{0} to {1}% in {2}{3}",									(sP): [[(sN):"Starting level", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final level", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		fadeInfraredLevel	: [ (sN): "Fade infrared level...",	(sR): ["setInfraredLevel"],		(sI): sTOGON,				(sD): "Fade infrared level{0} to {1}% in {2}{3}",		(sP): [[(sN):"Starting infrared level", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final infrared level", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		fadeSaturation		: [ (sN): "Fade saturation...",	(sR): ["setSaturation"],		(sI): sTOGON,				(sD): "Fade saturation{0} to {1}% in {2}{3}",					(sP): [[(sN):"Starting saturation", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final saturation", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		fadeHue				: [ (sN): "Fade hue...",			(sR): ["setHue"],		(sI): sTOGON,				(sD): "Fade hue{0} to {1}° in {2}{3}",								(sP): [[(sN):"Starting hue", (sT):"hue",(sD):" from {v}°"],[(sN):"Final hue", (sT):"hue"],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		fadeColorTemperature		: [ (sN): "Fade color temperature...",		(sR): ["setColorTemperature"],		(sI): sTOGON,				(sD): "Fade color temperature{0} to {1}°K in {2}{3}",									(sP): [[(sN):"Starting color temperature", (sT):"colorTemperature",(sD):" from {v}°K"],[(sN):"Final color temperature", (sT):"colorTemperature"],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-//		flash				: [ (sN): "Flash...",	(sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		flashLevel			: [ (sN): "Flash (level)...",	(sR): ["setLevel"],	(sI): sTOGON,		(sD): "Flash {0}% {1} / {2}% {3} for {4} times{5}",						(sP): [[(sN):"Level 1", (sT):sLVL],[(sN):"Duration 1", (sT):sDUR],[(sN):"Level 2", (sT):sLVL],[(sN):"Duration 2", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		flashColor			: [ (sN): "Flash (color)...",	(sR): ["setColor"],	(sI): sTOGON,		(sD): "Flash {0} {1} / {2} {3} for {4} times{5}",							(sP): [[(sN):"Color 1", (sT):sCOLOR],[(sN):"Duration 1", (sT):sDUR],[(sN):"Color 2", (sT):sCOLOR],[(sN):"Duration 2", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
-		lifxScene			: [ (sN): "LIFX - Activate scene...",              (sA): true,                        (sD): "Activate LIFX Scene '{0}'{1}",                                                                              (sP): [[(sN): "Scene", (sT):"lifxScene"],[(sN): sDURATION, (sT):sDUR, (sD):" for {v}"]],                                   ],
-		lifxState			: [ (sN): "LIFX - Set State...",                   (sA): true,                        (sD): "Set LIFX lights matching {0} to {1}{2}{3}{4}{5}",                                   (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): "Switch (power)", (sT):sENUM,(sO):[sON,sOFF],(sD):" switch '{v}'"],[(sN): sCCOLOR, (sT):sCOLOR,(sD):" color '{v}'"],[(sN): "Level (brightness)", (sT):sLVL,(sD):" level {v}%"],[(sN): "Infrared level", (sT):"infraredLevel",(sD):" infrared {v}%"],[(sN): sDURATION, (sT):sDUR,(sD):" in {v}"]], ],
-		lifxToggle			: [ (sN): "LIFX - Toggle...",                              (sA): true,                (sD): "Toggle LIFX lights matching {0}{1}",                                                                (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sDURATION, (sT):sDUR,(sD):" in {v}"]], ],
-		lifxBreathe			: [ (sN): "LIFX - Breathe...",                             (sA): true,                (sD): "Breathe LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}{7}",   (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sCCOLOR, (sT):sCOLOR],[(sN): "From color", (sT):sCOLOR,(sD):" from color '{v}'"],[(sN): "Period", (sT):sDUR, (sD):" with a period of {v}"],[(sN): "Cycles", (sT):sINT, (sD):" for {v} cycles"],[(sN):"Peak", (sT):sLVL,(sD):" with a peak at {v}% of the period"],[(sN):"Power on", (sT):sBOOLN,(sD):" and power on at start"],[(sN):"Persist", (sT):sBOOLN,(sD):" and persist"] ], ],
-		lifxPulse			: [ (sN): "LIFX - Pulse...",                               (sA): true,                (sD): "Pulse LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}",                (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sCCOLOR, (sT):sCOLOR],[(sN): "From color", (sT):sCOLOR,(sD):" from color '{v}'"],[(sN): "Period", (sT):sDUR, (sD):" with a period of {v}"],[(sN): "Cycles", (sT):sINT, (sD):" for {v} cycles"],[(sN):"Power on", (sT):sBOOLN,(sD):" and power on at start"],[(sN):"Persist", (sT):sBOOLN,(sD):" and persist"] ], ],
+		noop					: [ (sN): "No operation",			(sA): true,	(sI): "circle",				(sD): "No operation",						],
+		wait					: [ (sN): "Wait...",				(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait {0}",						(sP): [[(sN):sDURATION, (sT):sDUR]],				],
+		waitRandom				: [ (sN): "Wait randomly...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait randomly between {0} and {1}",									(sP): [[(sN):"At least", (sT):sDUR],[(sN):"At most", (sT):sDUR]],	],
+		waitForTime				: [ (sN): "Wait for time...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait until {0}",													(sP): [[(sN):"Time", (sT):"time"]],	],
+		waitForDateTime			: [ (sN): "Wait for date & time...",(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Wait until {0}",													(sP): [[(sN):"Date & Time", (sT):sDTIME]],	],
+		executePiston			: [ (sN): "Execute piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Execute piston \"{0}\"{1}",											(sP): [[(sN):"Piston", (sT):"piston"], [(sN):"Arguments", (sT):"variables", (sD):" with arguments {v}"],[(sN):"Wait for execution", (sT):sBOOLN,(sD):" and wait for execution to finish",w:"webCoRE can only wait on piston executions of pistons within the same instance as the caller. Please note that global variables updated in the callee piston do NOT get reflected immediately in the caller piston, the new values will be available on the next run."]],	],
+		pausePiston				: [ (sN): "Pause piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Pause piston \"{0}\"",												(sP): [[(sN):"Piston", (sT):"piston"]],	],
+		resumePiston			: [ (sN): "Resume piston...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Resume piston \"{0}\"",												(sP): [[(sN):"Piston", (sT):"piston"]],	],
+		executeRule				: [ (sN): "Execute Rule...",		(sA): true,	(sI): sCLOCK, is: sR,				(sD): "Execute Rule \"{0}\" with action {1}",											(sP): [[(sN):"Rule", (sT):"rule"], [(sN):"Argument", (sT):sENUM, (sO):['Run','Stop','Pause','Resume','Evaluate','Set Boolean True','Set Boolean False']] ]	],
+		toggle					: [ (sN): "Toggle", (sR): [sON, sOFF],			(sI): sTOGON																				],
+		toggleRandom			: [ (sN): "Random toggle", (sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Random toggle{0}",													(sP): [[(sN):"Probability for on", (sT):sLVL, (sD):" with a {v}% probability for on"]],	],
+		setSwitch				: [ (sN): "Set switch...", (sR): [sON, sOFF],		(sI): sTOGON,			(sD): "Set switch to {0}",													(sP): [[(sN):"Switch value", (sT):sSWITCH]],																],
+		setHSLColor				: [ (sN): "Set color... (hsl)",				(sI): "palette", is: "l",				(sD): "Set color to H:{0}° / S:{1}% / L%:{2}{3}",				(sR): ["setColor"],				(sP): [[(sN):"Hue", (sT):"hue"], [(sN):"Saturation", (sT):"saturation"], [(sN):"Level", (sT):sLVL], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],							],
+		toggleLevel				: [ (sN): "Toggle level...",				(sI): "toggle-off",			(sD): "Toggle level between 0% and {0}%",	(sR): [sON, sOFF, "setLevel"],	(sP): [[(sN):"Level", (sT):sLVL]],																																	],
+		sendNotification		: [ (sN): "Send notification...",	(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send notification \"{0}\"",											(sP): [[(sN):"Message", (sT):sSTR]],												],
+		sendPushNotification	: [ (sN): "Send PUSH notification...",	(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send PUSH notification \"{0}\"{1}",									(sP): [[(sN):"Message", (sT):sSTR],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
+		sendSMSNotification		: [ (sN): "Send SMS notification...",	(sA): true,	(sI): "comment-alt", is: sR,			(sD): "Send SMS notification \"{0}\" to {1}{2}",							(sP): [[(sN):"Message", (sT):sSTR],[(sN):"Phone number", (sT):"phone",w:"HE requires +countrycode in phone number."],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
+		log						: [ (sN): "Log to console...",		(sA): true,	(sI): "bug",					(sD): "Log {0} \"{1}\"{2}",												(sP): [[(sN):"Log type", (sT):sENUM, (sO):["info","trace","debug","warn","error"]],[(sN):"Message", (sT):sSTR],[(sN):"Store in Messages", (sT):sBOOLN, (sD):" and store in Messages", (sS):1]],	],
+		httpRequest				: [ (sN): "Make a web request",		(sA): true,	(sI): "anchor", is: sR,				(sD): "Make a {1} request to {0}",					(sP): [[(sN):"URL", (sT):"uri"],[(sN):"Method", (sT):sENUM, (sO):["GET","POST","PUT","DELETE","HEAD"]],[(sN):"Request body type", (sT):sENUM, (sO):["JSON","FORM","CUSTOM"]],[(sN):"Send variables", (sT):"variables", (sD):"data {v}"],[(sN):"Request body", (sT):sSTR, (sD):"data {v}"],[(sN):"Request content type", (sT):sENUM, (sO):["text/plain","text/html",sAPPJSON,"application/x-www-form-urlencoded","application/xml"]],[(sN):"Authorization header", (sT):sSTR, (sD):sBVB]],	],
+		setVariable				: [ (sN): "Set variable...",		(sA): true,	(sI): "superscript", is:sR,			(sD): "Set variable {0} = {1}",											(sP): [[(sN):"Variable", (sT):sVARIABLE],[(sN):"Value", (sT):sDYN]],	],
+		setState				: [ (sN): "Set piston state...",		(sA): true,	(sI): "align-left", is:"l",			(sD): "Set piston state to \"{0}\"",										(sP): [[(sN):"State", (sT):sSTR]],	],
+		setTileColor			: [ (sN): "Set piston tile colors...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} colors to {1} over {2}{3}",					(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Text Color", (sT):sCOLOR],[(sN):"Background Color", (sT):sCOLOR],[(sN):"Flash mode", (sT):sBOOLN,(sD):" (flashing)"]],	],
+		setTileTitle			: [ (sN): "Set piston tile title...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} title to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR]],	],
+		setTileOTitle			: [ (sN): "Set piston tile mouseover title...",	(sA): true,	(sI): "info-square", is:"l",		(sD): "Set piston tile #{0} mouseover title to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR]],	],
+		setTileText				: [ (sN): "Set piston tile text...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} text to \"{1}\"",								(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Text", (sT):sSTR]],	],
+		setTileFooter			: [ (sN): "Set piston tile footer...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} footer to \"{1}\"",							(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Footer", (sT):sSTR]],	],
+		setTile					: [ (sN): "Set piston tile...",		(sA): true,	(sI): "info-square", is:"l",			(sD): "Set piston tile #{0} title to \"{1}\", text to \"{2}\", footer to \"{3}\", and colors to {4} over {5}{6}",		(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes],[(sN):"Title", (sT):sSTR],[(sN):"Text", (sT):sSTR],[(sN):"Footer", (sT):sSTR],[(sN):"Text Color", (sT):sCOLOR],[(sN):"Background Color", (sT):sCOLOR],[(sN):"Flash mode", (sT):sBOOLN,(sD):" (flashing)"]],	],
+		clearTile				: [ (sN): "Clear piston tile...",	(sA): true,	(sI): "info-square", is:"l",			(sD): "Clear piston tile #{0}",											(sP): [[(sN):"Tile Index", (sT):sENUM,(sO):tileIndexes]],	],
+		setLocationMode			: [ (sN): "Set location mode...",	(sA): true,	(sI): sBLK,						(sD): "Set location mode to {0}",											(sP): [[(sN):"Mode", (sT):"mode"]],																														],
+		sendEmail				: [ (sN): "Send email...",			(sA): true,	(sI): "envelope",				(sD): "Send email with subject \"{1}\" to {0}",							(sP): [[(sN):"Recipient", (sT):"email"],[(sN):"Subject", (sT):sSTR],[(sN):"Message body", (sT):sSTR]],																							],
+		wolRequest				: [ (sN): "Wake a LAN device",		(sA): true,	(sI): sBLK,						(sD): "Wake LAN device at address {0}{1}",									(sP): [[(sN):"MAC address", (sT):sSTR],[(sN):"Secure code", (sT):sSTR,(sD):" with secure code {v}"]],	],
+		adjustLevel				: [ (sN): "Adjust level...",	(sR): ["setLevel"],	(sI): sTOGON,				(sD): "Adjust level by {0}%{1}",											(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustInfraredLevel		: [ (sN): "Adjust infrared level...",	(sR): ["setInfraredLevel"],	(sI): sTOGON,	(sD): "Adjust infrared level by {0}%{1}",								(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustSaturation		: [ (sN): "Adjust saturation...",	(sR): ["setSaturation"],	(sI): sTOGON,		(sD): "Adjust saturation by {0}%{1}",										(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-100,100]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustHue				: [ (sN): "Adjust hue...",	(sR): ["setHue"],		(sI): sTOGON,					(sD): "Adjust hue by {0}°{1}",												(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-360,360]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		adjustColorTemperature	: [ (sN): "Adjust color temperature...",	(sR): ["setColorTemperature"],	(sI): sTOGON,				(sD): "Adjust color temperature by {0}°K%{1}",		(sP): [[(sN):"Adjustment", (sT):sINT,(sR):[-29000,29000]], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeLevel				: [ (sN): "Fade level...",	(sR): ["setLevel"],		(sI): sTOGON,				(sD): "Fade level{0} to {1}% in {2}{3}",									(sP): [[(sN):"Starting level", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final level", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeInfraredLevel		: [ (sN): "Fade infrared level...",	(sR): ["setInfraredLevel"],		(sI): sTOGON,				(sD): "Fade infrared level{0} to {1}% in {2}{3}",		(sP): [[(sN):"Starting infrared level", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final infrared level", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeSaturation			: [ (sN): "Fade saturation...",	(sR): ["setSaturation"],		(sI): sTOGON,				(sD): "Fade saturation{0} to {1}% in {2}{3}",					(sP): [[(sN):"Starting saturation", (sT):sLVL,(sD):" from {v}%"],[(sN):"Final saturation", (sT):sLVL],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeHue					: [ (sN): "Fade hue...",			(sR): ["setHue"],		(sI): sTOGON,				(sD): "Fade hue{0} to {1}° in {2}{3}",								(sP): [[(sN):"Starting hue", (sT):"hue",(sD):" from {v}°"],[(sN):"Final hue", (sT):"hue"],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		fadeColorTemperature	: [ (sN): "Fade color temperature...",		(sR): ["setColorTemperature"],		(sI): sTOGON,				(sD): "Fade color temperature{0} to {1}°K in {2}{3}",									(sP): [[(sN):"Starting color temperature", (sT):"colorTemperature",(sD):" from {v}°K"],[(sN):"Final color temperature", (sT):"colorTemperature"],[(sN):sDURATION, (sT):sDUR], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+//		flash					: [ (sN): "Flash...",	(sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		flashLevel				: [ (sN): "Flash (level)...",	(sR): ["setLevel"],	(sI): sTOGON,		(sD): "Flash {0}% {1} / {2}% {3} for {4} times{5}",						(sP): [[(sN):"Level 1", (sT):sLVL],[(sN):"Duration 1", (sT):sDUR],[(sN):"Level 2", (sT):sLVL],[(sN):"Duration 2", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		flashColor				: [ (sN): "Flash (color)...",	(sR): ["setColor"],	(sI): sTOGON,		(sD): "Flash {0} {1} / {2} {3} for {4} times{5}",							(sP): [[(sN):"Color 1", (sT):sCOLOR],[(sN):"Duration 1", (sT):sDUR],[(sN):"Color 2", (sT):sCOLOR],[(sN):"Duration 2", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																],
+		lifxScene				: [ (sN): "LIFX - Activate scene...",              (sA): true,                        (sD): "Activate LIFX Scene '{0}'{1}",                                                                              (sP): [[(sN): "Scene", (sT):"lifxScene"],[(sN): sDURATION, (sT):sDUR, (sD):" for {v}"]],                                   ],
+		lifxState				: [ (sN): "LIFX - Set State...",                   (sA): true,                        (sD): "Set LIFX lights matching {0} to {1}{2}{3}{4}{5}",                                   (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): "Switch (power)", (sT):sENUM,(sO):[sON,sOFF],(sD):" switch '{v}'"],[(sN): sCCOLOR, (sT):sCOLOR,(sD):" color '{v}'"],[(sN): "Level (brightness)", (sT):sLVL,(sD):" level {v}%"],[(sN): "Infrared level", (sT):"infraredLevel",(sD):" infrared {v}%"],[(sN): sDURATION, (sT):sDUR,(sD):" in {v}"]], ],
+		lifxToggle				: [ (sN): "LIFX - Toggle...",		(sA): true,                (sD): "Toggle LIFX lights matching {0}{1}",                                                                (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sDURATION, (sT):sDUR,(sD):" in {v}"]], ],
+		lifxBreathe				: [ (sN): "LIFX - Breathe...",		(sA): true,                (sD): "Breathe LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}{7}",   (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sCCOLOR, (sT):sCOLOR],[(sN): "From color", (sT):sCOLOR,(sD):" from color '{v}'"],[(sN): "Period", (sT):sDUR, (sD):" with a period of {v}"],[(sN): "Cycles", (sT):sINT, (sD):" for {v} cycles"],[(sN):"Peak", (sT):sLVL,(sD):" with a peak at {v}% of the period"],[(sN):"Power on", (sT):sBOOLN,(sD):" and power on at start"],[(sN):"Persist", (sT):sBOOLN,(sD):" and persist"] ], ],
+		lifxPulse				: [ (sN): "LIFX - Pulse...",		(sA): true,                (sD): "Pulse LIFX lights matching {0} to color {1}{2}{3}{4}{5}{6}",                (sP): [[(sN): "Selector", (sT):"lifxSelector"],[(sN): sCCOLOR, (sT):sCOLOR],[(sN): "From color", (sT):sCOLOR,(sD):" from color '{v}'"],[(sN): "Period", (sT):sDUR, (sD):" with a period of {v}"],[(sN): "Cycles", (sT):sINT, (sD):" for {v} cycles"],[(sN):"Power on", (sT):sBOOLN,(sD):" and power on at start"],[(sN):"Persist", (sT):sBOOLN,(sD):" and persist"] ], ],
 
-		writeToFuelStream	: [ (sN): "Write to fuel stream...",		(sA): true,							(sD): "Write data point '{2}' to fuel stream {0}{1}{3}",					(sP): [[(sN): "Canister", (sT):sTXT, (sD):"{v} \\ "], [(sN):"Fuel stream name", (sT):sTXT], [(sN): "Data", (sT):sDYN], [(sN): "Data source", (sT):sTXT, (sD):" from source '{v}'"]],					],
-		iftttMaker			: [ (sN): "Send an IFTTT Maker event...",	(sA): true,							(sD): "Send the {0} IFTTT Maker event{1}{2}{3}",							(sP): [[(sN):"Event", (sT):sTXT], [(sN):"Value 1", (sT):sSTR, (sD):", passing value1 = '{v}'"], [(sN):"Value 2", (sT):sSTR, (sD):", passing value2 = '{v}'"], [(sN):"Value 3", (sT):sSTR, (sD):", passing value3 = '{v}'"]],				],
-		storeMedia			: [ (sN): "Store media...",				(sA): true,							(sD): "Store media",														(sP): [],					],
-		saveStateLocally	: [ (sN): "Capture attributes to local store...",								(sD): "Capture attributes {0} to local state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Prevent overwriting existing state', (sT):sENUM, (sO):['true','false'], (sD):' only if store is empty']], ],
-		saveStateGlobally	: [ (sN): "Capture attributes to global store...",								(sD): "Capture attributes {0} to global state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Prevent overwriting existing state', (sT):sENUM, (sO):['true','false'], (sD):' only if store is empty']], ],
-		loadStateLocally	: [ (sN): "Restore attributes from local store...",							(sD): "Restore attributes {0} from local state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Empty state after restore', (sT):sENUM, (sO):['true','false'], (sD):' and empty the store']], ],
-		loadStateGlobally	: [ (sN): "Restore attributes from global store...",							(sD): "Restore attributes {0} from global state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Empty state after restore', (sT):sENUM, (sO):['true','false'], (sD):' and empty the store']], ],
-		parseJson			: [ (sN): "Parse JSON data...",			(sA): true,						(sD): "Parse JSON data {0}",												(sP): [[(sN): "JSON string", (sT):sSTR]],																											],
-		cancelTasks			: [ (sN): "Cancel all pending tasks",		(sA): true,							(sD): "Cancel all pending tasks",											(sP): [],																											],
+		writeToFuelStream		: [ (sN): "Write to fuel stream...",		(sA): true,							(sD): "Write data point '{2}' to fuel stream {0}{1}{3}",					(sP): [[(sN): "Canister", (sT):sTXT, (sD):"{v} \\ "], [(sN):"Fuel stream name", (sT):sTXT], [(sN): "Data", (sT):sDYN], [(sN): "Data source", (sT):sTXT, (sD):" from source '{v}'"]],					],
+		iftttMaker				: [ (sN): "Send an IFTTT Maker event...",	(sA): true,							(sD): "Send the {0} IFTTT Maker event{1}{2}{3}",							(sP): [[(sN):"Event", (sT):sTXT], [(sN):"Value 1", (sT):sSTR, (sD):", passing value1 = '{v}'"], [(sN):"Value 2", (sT):sSTR, (sD):", passing value2 = '{v}'"], [(sN):"Value 3", (sT):sSTR, (sD):", passing value3 = '{v}'"]],				],
+		storeMedia				: [ (sN): "Store media...",				(sA): true,							(sD): "Store media",														(sP): [],					],
+		saveStateLocally		: [ (sN): "Capture attributes to local store...",								(sD): "Capture attributes {0} to local state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Prevent overwriting existing state', (sT):sENUM, (sO):['true','false'], (sD):' only if store is empty']], ],
+		saveStateGlobally		: [ (sN): "Capture attributes to global store...",								(sD): "Capture attributes {0} to global state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Prevent overwriting existing state', (sT):sENUM, (sO):['true','false'], (sD):' only if store is empty']], ],
+		loadStateLocally		: [ (sN): "Restore attributes from local store...",							(sD): "Restore attributes {0} from local state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Empty state after restore', (sT):sENUM, (sO):['true','false'], (sD):' and empty the store']], ],
+		loadStateGlobally		: [ (sN): "Restore attributes from global store...",							(sD): "Restore attributes {0} from global state{1}{2}",						(sP): [[(sN): "Attributes", (sT):"attributes"],[(sN):'State container name', (sT):sSTR,(sD):sSPC+sBVB],[(sN):'Empty state after restore', (sT):sENUM, (sO):['true','false'], (sD):' and empty the store']], ],
+		parseJson				: [ (sN): "Parse JSON data...",			(sA): true,						(sD): "Parse JSON data {0}",												(sP): [[(sN): "JSON string", (sT):sSTR]],																											],
+		cancelTasks				: [ (sN): "Cancel all pending tasks",	(sA): true,							(sD): "Cancel all pending tasks",											(sP): [],																											],
 
+		readFile				: [ (sN): "Read from file...",		(sA): true,							(sD): "Read from file {0}",					(sP): [[(sN): "File name", (sT):sSTR ], [(sN):"Username", (sT):'email', (sD):", username {v}"], [(sN): "Password", (sT):"uri", (sD):", password {v}"] ],					],
+		writeFile				: [ (sN): "Write to file...",		(sA): true,							(sD): "Write to file {0}",					(sP): [[(sN): "File name", (sT):sSTR ], [(sN):"Data", (sT):sSTR, ],[(sN):"Username", (sT):'email', (sD):", username {v}"], [(sN): "Password", (sT):"uri", (sD):", password {v}"] ],					],
+		appendFile				: [ (sN): "Append to file...",		(sA): true,							(sD): "Append to file {0}",					(sP): [[(sN): "File name", (sT):sSTR ], [(sN):"Data", (sT):sSTR, ],[(sN):"Username", (sT):'email', (sD):", username {v}"], [(sN): "Password", (sT):"uri", (sD):", password {v}"] ],					],
 
 		setAlarmSystemStatus	: [ (sN): "Set Hubitat Safety Monitor status...",	(sA): true, (sI): sBLK,				(sD): "Set Hubitat Safety Monitor status to {0}",							(sP): [[(sN):"Status", (sT):sENUM, (sO): getAlarmSystemStatusActions().collect {[(sN): it.value, (sV): it.key]}]],																										],
 		//keep emulated flash to not break old pistons
 		emulatedFlash			: [ (sN): "(Old do not use) Emulated Flash",	(sR): [sON, sOFF],			(sI): sTOGON,				(sD): "(Old do not use)Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],																], //add back emulated flash with "o" option so that it overrides the native flash command
-		flash				: [ (sN): "Flash...",	(sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],		(sO): true /*override physical command*/													]
+		flash					: [ (sN): "Flash...",	(sR): [sON, sOFF],		(sI): sTOGON,				(sD): "Flash on {0} / off {1} for {2} times{3}",							(sP): [[(sN):"On duration", (sT):sDUR],[(sN):"Off duration", (sT):sDUR],[(sN):sNUMFLASH, (sT):sINT], [(sN):sONLYIFSWIS, (sT):sENUM,(sO):[sON,sOFF], (sD):sIFALREADY]],		(sO): true /*override physical command*/													]
 	]
 }
 
@@ -4152,20 +4194,22 @@ Map getChildComparisons(){
 	Map<String,Map<String,Map>> cleanResult=[:]
 	cleanResult.conditions=[:]
 	Map defv=[(sN):sA]
-	result.conditions.each{
-		Map t0=[:]
-		def hasP=it.value.p
-		def hasT=it.value.t
+	Map t0
+	def hasP,hasT
+	for(it in result.conditions){
+		t0=[:]
+		hasP=it.value.p
+		hasT=it.value.t
 		if(hasP!=null) t0=t0+[(sP):hasP.toInteger()]
 		if(hasT!=null) t0=t0+[(sT):hasT.toInteger()]
 		if(t0==[:]) t0=defv
 		cleanResult.conditions[it.key.toString()]=t0
 	}
 	cleanResult.triggers=[:]
-	result.triggers.each{
-		Map t0=[:]
-		def hasP=it.value.p
-		def hasT=it.value.t
+	for(it in result.triggers){
+		t0=[:]
+		hasP=it.value.p
+		hasT=it.value.t
 		if(hasP!=null) t0=t0+[(sP):hasP.toInteger()]
 		if(hasT!=null) t0=t0+[(sT):hasT.toInteger()]
 		if(t0==[:]) t0=defv
@@ -4188,92 +4232,99 @@ Map getChildComparisons(){
 //      i = integer
 //		b = boolean
 //		n = number (decimal)
+//		e = email (not implemented)
+@Field static final String sDD='dd'
+@Field static final String sDI='di'
 @Field final Map<String,Map> comparisonsFLD=[
 	conditions: [
-		changed				: [ (sD): "changed",									(sG):"bdfis",				(sT): 1,	],
-		did_not_change		: [ (sD): "did not change",								(sG):"bdfis",				(sT): 1,	],
-		is					: [ (sD): "is",				(sDD): "are",					(sG):"bs",		(sP): 1					],
-		is_not				: [ (sD): "is not",			(sDD): "are not",					(sG):"bs",		(sP): 1					],
-		is_any_of			: [ (sD): "is any of",			(sDD): "are any of",				(sG):sS,		(sP): 1,	(sM): true,			],
-		is_not_any_of		: [ (sD): "is not any of",			(sDD): "are not any of",				(sG):sS,		(sP): 1,	(sM): true,			],
-		is_equal_to			: [ (sD): "is equal to",			(sDD): "are equal to",				(sG):sDI,		(sP): 1					],
-		is_different_than	: [ (sD): "is different than",		(sDD): "are different than",			(sG):sDI,		(sP): 1					],
-		is_less_than		: [ (sD): "is less than",			(sDD): "are less than",				(sG):sDI,		(sP): 1					],
-		is_less_than_or_equal_to	: [ (sD): "is less than or equal to",	(sDD): "are less than or equal to",		(sG):sDI,		(sP): 1					],
-		is_greater_than		: [ (sD): "is greater than",		(sDD): "are greater than",				(sG):sDI,		(sP): 1					],
-		is_greater_than_or_equal_to	: [ (sD): "is greater than or equal to",	(sDD): "are greater than or equal to",		(sG):sDI,		(sP): 1					],
-		is_inside_of_range	: [ (sD): "is inside of range",		(sDD): "are inside of range",			(sG):sDI,		(sP): 2					],
-		is_outside_of_range	: [ (sD): "is outside of range",		(sDD): "are outside of range",			(sG):sDI,		(sP): 2					],
+		changed				: [ (sD): "changed",									(sG):"bdfis",				(sT): i1	],
+		did_not_change		: [ (sD): "did not change",								(sG):"bdfis",				(sT): i1	],
+		is					: [ (sD): "is",				(sDD): "are",					(sG):"bs",		(sP): i1					],
+		is_not				: [ (sD): "is not",			(sDD): "are not",					(sG):"bs",		(sP): i1					],
+		is_any_of			: [ (sD): "is any of",			(sDD): "are any of",				(sG):sS,		(sP): i1,	(sM): true,			],
+		is_not_any_of		: [ (sD): "is not any of",			(sDD): "are not any of",				(sG):sS,		(sP): i1,	(sM): true,			],
+		is_equal_to			: [ (sD): "is equal to",			(sDD): "are equal to",				(sG):sDI,		(sP): i1					],
+		is_different_than	: [ (sD): "is different than",		(sDD): "are different than",			(sG):sDI,		(sP): i1					],
+		is_less_than		: [ (sD): "is less than",			(sDD): "are less than",				(sG):sDI,		(sP): i1					],
+		is_less_than_or_equal_to	: [ (sD): "is less than or equal to",	(sDD): "are less than or equal to",		(sG):sDI,		(sP): i1					],
+		is_greater_than		: [ (sD): "is greater than",		(sDD): "are greater than",				(sG):sDI,		(sP): i1					],
+		is_greater_than_or_equal_to	: [ (sD): "is greater than or equal to",	(sDD): "are greater than or equal to",		(sG):sDI,		(sP): i1					],
+		is_inside_of_range	: [ (sD): "is inside of range",		(sDD): "are inside of range",			(sG):sDI,		(sP): i2					],
+		is_outside_of_range	: [ (sD): "is outside of range",		(sDD): "are outside of range",			(sG):sDI,		(sP): i2					],
 		is_even				: [ (sD): "is even",			(sDD): "are even",					(sG):sDI,							],
 		is_odd				: [ (sD): "is odd",			(sDD): "are odd",					(sG):sDI,							],
-		was					: [ (sD): "was",				(sDD): "were",					(sG):"bs",		(sP): 1,			(sT): 2,	],
-		was_not				: [ (sD): "was not",			(sDD): "were not",					(sG):"bs",		(sP): 1,			(sT): 2,	],
-		was_any_of			: [ (sD): "was any of",			(sDD): "were any of",				(sG):sS,		(sP): 1,	(sM): true,	(sT): 2,	],
-		was_not_any_of		: [ (sD): "was not any of",		(sDD): "were not any of",				(sG):sS,		(sP): 1,	(sM): true,	(sT): 2,	],
-		was_equal_to		: [ (sD): "was equal to",			(sDD): "were equal to",				(sG):sDI,		(sP): 1,			(sT): 2,	],
-		was_different_than	: [ (sD): "was different than",		(sDD): "were different than",			(sG):sDI,		(sP): 1,			(sT): 2,	],
-		was_less_than		: [ (sD): "was less than",			(sDD): "were less than",				(sG):sDI,		(sP): 1,			(sT): 2,	],
-		was_less_than_or_equal_to	: [ (sD): "was less than or equal to",	(sDD): "were less than or equal to",		(sG):sDI,		(sP): 1,			(sT): 2,	],
-		was_greater_than	: [ (sD): "was greater than",		(sDD): "were greater than",			(sG):sDI,		(sP): 1,			(sT): 2,	],
-		was_greater_than_or_equal_to	: [ (sD): "was greater than or equal to",	(sDD): "were greater than or equal to",		(sG):sDI,		(sP): 1,			(sT): 2,	],
-		was_inside_of_range	: [ (sD): "was inside of range",		(sDD): "were inside of range",			(sG):sDI,		(sP): 2,			(sT): 2,	],
-		was_outside_of_range	: [ (sD): "was outside of range",		(sDD): "were outside of range",			(sG):sDI,		(sP): 2,			(sT): 2,	],
-		was_even			: [ (sD): "was even",			(sDD): "were even",				(sG):sDI,					(sT): 2,	],
-		was_odd				: [ (sD): "was odd",			(sDD): "were odd",					(sG):sDI,					(sT): 2,	],
-		is_any				: [ (sD): "is any",									(sG):sT,		(sP): 0					],
-		is_before			: [ (sD): "is before",									(sG):sT,		(sP): 1					],
-		is_after			: [ (sD): "is after",									(sG):sT,		(sP): 1					],
-		is_between			: [ (sD): "is between",									(sG):sT,		(sP): 2					],
-		is_not_between		: [ (sD): "is not between",								(sG):sT,		(sP): 2					],
+//		is_true				: [ (sD): "is true",			(sDD): "are true",					(sG):"bs",		(sP): iZ					],
+//		is_false			: [ (sD): "is false",			(sDD): "are false",					(sG):"bs",		(sP): iZ					],
+		was					: [ (sD): "was",				(sDD): "were",					(sG):"bs",		(sP): i1,			(sT): i2,	],
+		was_not				: [ (sD): "was not",			(sDD): "were not",					(sG):"bs",		(sP): i1,			(sT): i2,	],
+		was_any_of			: [ (sD): "was any of",			(sDD): "were any of",				(sG):sS,		(sP): i1,	(sM): true,	(sT): i2,	],
+		was_not_any_of		: [ (sD): "was not any of",		(sDD): "were not any of",				(sG):sS,		(sP): i1,	(sM): true,	(sT): i2,	],
+		was_equal_to		: [ (sD): "was equal to",			(sDD): "were equal to",				(sG):sDI,		(sP): i1,			(sT): i2,	],
+		was_different_than	: [ (sD): "was different than",		(sDD): "were different than",			(sG):sDI,		(sP): i1,			(sT): i2,	],
+		was_less_than		: [ (sD): "was less than",			(sDD): "were less than",				(sG):sDI,		(sP): i1,			(sT): i2,	],
+		was_less_than_or_equal_to	: [ (sD): "was less than or equal to",	(sDD): "were less than or equal to",		(sG):sDI,		(sP): i1,			(sT): i2,	],
+		was_greater_than	: [ (sD): "was greater than",		(sDD): "were greater than",			(sG):sDI,		(sP): i1,			(sT): i2,	],
+		was_greater_than_or_equal_to	: [ (sD): "was greater than or equal to",	(sDD): "were greater than or equal to",		(sG):sDI,		(sP): i1,			(sT): i2,	],
+		was_inside_of_range	: [ (sD): "was inside of range",		(sDD): "were inside of range",			(sG):sDI,		(sP): i2,			(sT): i2,	],
+		was_outside_of_range	: [ (sD): "was outside of range",		(sDD): "were outside of range",			(sG):sDI,		(sP): i2,			(sT): i2,	],
+		was_even			: [ (sD): "was even",			(sDD): "were even",				(sG):sDI,					(sT): i2,	],
+		was_odd				: [ (sD): "was odd",			(sDD): "were odd",					(sG):sDI,					(sT): i2,	],
+//		was_true			: [ (sD): "was true",			(sDD): "were true",					(sG):"bs",		(sP): iZ					],
+//		was_false			: [ (sD): "was false",			(sDD): "were false",				(sG):"bs",		(sP): iZ					],
+		is_any				: [ (sD): "is any",									(sG):sT,		(sP): iZ					],
+		is_before			: [ (sD): "is before",									(sG):sT,		(sP): i1					],
+		is_after			: [ (sD): "is after",									(sG):sT,		(sP): i1					],
+		is_between			: [ (sD): "is between",									(sG):sT,		(sP): i2					],
+		is_not_between		: [ (sD): "is not between",								(sG):sT,		(sP): i2					],
 	],
 	triggers: [
-		gets				: [ (sD): "gets",										(sG):sM,		(sP): 1					],
-		happens_daily_at	: [ (sD): "happens daily at",								(sG):sT,		(sP): 1					],
-		arrives				: [ (sD): "arrives",									(sG):"e",		(sP): 2					],
+		gets				: [ (sD): "gets",										(sG):sM,		(sP): i1					],
+		happens_daily_at	: [ (sD): "happens daily at",								(sG):sT,		(sP): i1					],
+		arrives				: [ (sD): "arrives",									(sG):"e",		(sP): i2					],
 		event_occurs		: [ (sD): "event occurs",									(sG):sS,						],
-		executes			: [ (sD): "executes",									(sG):sV,		(sP): 1					],
+		executes			: [ (sD): "executes",									(sG):sV,		(sP): i1					],
 		changes				: [ (sD): "changes",			(sDD): "change",					(sG):"bdfis",						],
-		changes_to			: [ (sD): "changes to",			(sDD): "change to",				(sG):"bdis",	(sP): 1,					],
-		changes_away_from	: [ (sD): "changes away from",		(sDD): "change away from",				(sG):"bdis",	(sP): 1,					],
-		changes_to_any_of	: [ (sD): "changes to any of",		(sDD): "change to any of",				(sG):"dis",	(sP): 1,	(sM): true,			],
-		changes_away_from_any_of	: [ (sD): "changes away from any of",	(sDD): "change away from any of",			(sG):"dis",	(sP): 1,	(sM): true,			],
+		changes_to			: [ (sD): "changes to",			(sDD): "change to",				(sG):"bdis",	(sP): i1,					],
+		changes_away_from	: [ (sD): "changes away from",		(sDD): "change away from",				(sG):"bdis",	(sP): i1,					],
+		changes_to_any_of	: [ (sD): "changes to any of",		(sDD): "change to any of",				(sG):"dis",	(sP): i1,	(sM): true,			],
+		changes_away_from_any_of	: [ (sD): "changes away from any of",	(sDD): "change away from any of",			(sG):"dis",	(sP): i1,	(sM): true,			],
 		drops				: [ (sD): "drops",				(sDD): "drop",					(sG):sDI,							],
 		does_not_drop		: [ (sD): "does not drop",			(sDD): "do not drop",				(sG):sDI,							],
-		drops_below			: [ (sD): "drops below",			(sDD): "drop below",				(sG):sDI,		(sP): 1,					],
-		drops_to_or_below	: [ (sD): "drops to or below",		(sDD): "drop to or below",				(sG):sDI,		(sP): 1,					],
-		remains_below		: [ (sD): "remains below",			(sDD): "remains below",				(sG):sDI,		(sP): 1,					],
-		remains_below_or_equal_to	: [ (sD): "remains below or equal to",	(sDD): "remains below or equal to",		(sG):sDI,		(sP): 1,					],
+		drops_below			: [ (sD): "drops below",			(sDD): "drop below",				(sG):sDI,		(sP): i1,					],
+		drops_to_or_below	: [ (sD): "drops to or below",		(sDD): "drop to or below",				(sG):sDI,		(sP): i1,					],
+		remains_below		: [ (sD): "remains below",			(sDD): "remains below",				(sG):sDI,		(sP): i1,					],
+		remains_below_or_equal_to	: [ (sD): "remains below or equal to",	(sDD): "remains below or equal to",		(sG):sDI,		(sP): i1,					],
 		rises				: [ (sD): "rises",				(sDD): "rise",					(sG):sDI,							],
 		does_not_rise		: [ (sD): "does not rise",			(sDD): "do not rise",				(sG):sDI,							],
-		receives			: [ (sD): "receives",			(sDD): "receive",					(sG):"bdis",	(sP): 1,					],
-		rises_above			: [ (sD): "rises above",			(sDD): "rise above",				(sG):sDI,		(sP): 1,					],
-		rises_to_or_above	: [ (sD): "rises to or above",		(sDD): "rise to or above",				(sG):sDI,		(sP): 1,					],
-		remains_above		: [ (sD): "remains above",			(sDD): "remains above",				(sG):sDI,		(sP): 1,					],
-		remains_above_or_equal_to	: [ (sD): "remains above or equal to",	(sDD): "remains above or equal to",		(sG):sDI,		(sP): 1,					],
-		enters_range		: [ (sD): "enters range",			(sDD): "enter range",				(sG):sDI,		(sP): 2,					],
-		remains_outside_of_range	: [ (sD): "remains outside of range",	(sDD): "remain outside of range",			(sG):sDI,		(sP): 2,					],
-		exits_range			: [ (sD): "exits range",			(sDD): "exit range",				(sG):sDI,		(sP): 2,					],
-		remains_inside_of_range		: [ (sD): "remains inside of range",	(sDD): "remain inside of range",			(sG):sDI,		(sP): 2,					],
+		receives			: [ (sD): "receives",			(sDD): "receive",					(sG):"bdis",	(sP): i1,					],
+		rises_above			: [ (sD): "rises above",			(sDD): "rise above",				(sG):sDI,		(sP): i1,					],
+		rises_to_or_above	: [ (sD): "rises to or above",		(sDD): "rise to or above",				(sG):sDI,		(sP): i1,					],
+		remains_above		: [ (sD): "remains above",			(sDD): "remains above",				(sG):sDI,		(sP): i1,					],
+		remains_above_or_equal_to	: [ (sD): "remains above or equal to",	(sDD): "remains above or equal to",		(sG):sDI,		(sP): i1,					],
+		enters_range		: [ (sD): "enters range",			(sDD): "enter range",				(sG):sDI,		(sP): i2,					],
+		remains_outside_of_range	: [ (sD): "remains outside of range",	(sDD): "remain outside of range",			(sG):sDI,		(sP): i2,					],
+		exits_range			: [ (sD): "exits range",			(sDD): "exit range",				(sG):sDI,		(sP): i2,					],
+		remains_inside_of_range		: [ (sD): "remains inside of range",	(sDD): "remain inside of range",			(sG):sDI,		(sP): i2,					],
 		becomes_even		: [ (sD): "becomes even",			(sDD): "become even",				(sG):sDI,							],
 		remains_even		: [ (sD): "remains even",			(sDD): "remain even",				(sG):sDI,							],
 		becomes_odd			: [ (sD): "becomes odd",			(sDD): "become odd",				(sG):sDI,							],
 		remains_odd			: [ (sD): "remains odd",			(sDD): "remain odd",				(sG):sDI,							],
-		stays_unchanged		: [ (sD): "stays unchanged",	(sDD): "stay unchanged",				(sG):"bdfis",				(sT): 1,	],
-		stays				: [ (sD): "is now and stays",		(sDD): "are now and stay",				(sG):"bdis",	(sP): 1,			(sT): 1,	],
-		stays_not			: [ (sD): "is not and stays not",		(sDD): "are not and stay not",			(sG):"bdis",	(sP): 1,			(sT): 1,	],
-		stays_away_from		: [ (sD): "is away and stays away from",		(sDD): "are away and stay away from",	(sG):"bdis",	(sP): 1,			(sT): 1,	],
-		stays_any_of		: [ (sD): "is any and stays any of",		(sDD): "are any and stay any of",				(sG):"dis",	(sP): 1,	(sM): true,	(sT): 1,	],
-		stays_away_from_any_of		: [ (sD): "is away and stays away from any of",	(sDD): "are away and stay away from any of",		(sG):"bdis",	(sP): 1,	(sM): true,	(sT): 1,	],
-		stays_equal_to		: [ (sD): "is equal to and stays equal to",	(sDD): "are equal or stay equal to",			(sG):sDI,		(sP): 1,			(sT): 1,	],
-		stays_different_than		: [ (sD): "is different and stays different than",	(sDD): "are different and stay different than",		(sG):sDI,		(sP): 1,			(sT): 1,	],
-		stays_less_than		: [ (sD): "is less and stays less than",		(sDD): "are less and stay less than",			(sG):sDI,		(sP): 1,			(sT): 1,	],
-		stays_less_than_or_equal_to	: [ (sD): "is less or equal and stays less than or equal to",	(sDD): "are less or equal and stay less than or equal to",		(sG):sDI,		(sP): 1,			(sT): 1,	],
-		stays_greater_than	: [ (sD): "is greater and stays greater than",	(sDD): "are greater and stay greater than",		(sG):sDI,		(sP): 1,			(sT): 1,	],
-		stays_greater_than_or_equal_to	: [ (sD): "is greater or equal and stays greater than or equal to",	(sDD): "are greater or equal stay greater than or equal to",	(sG):sDI,		(sP): 1,			(sT): 1,	],
-		stays_inside_of_range		: [ (sD): "is inside and stays inside of range",	(sDD): "are inside and stay inside of range",		(sG):sDI,		(sP): 2,			(sT): 1,	],
-		stays_outside_of_range		: [ (sD): "is outside and stays outside of range",	(sDD): "stay outside of range",		(sG):sDI,		(sP): 2,			(sT): 1,	],
-		stays_even			: [ (sD): "is even and stays even",		(sDD): "are even and stay even",		(sG):sDI,					(sT): 1,	],
-		stays_odd			: [ (sD): "is odd and stays odd",			(sDD): "are odd and stay odd",		(sG):sDI,					(sT): 1,	],
+		stays_unchanged		: [ (sD): "stays unchanged",	(sDD): "stay unchanged",				(sG):"bdfis",				(sT): i1,	],
+		stays				: [ (sD): "is now and stays",		(sDD): "are now and stay",				(sG):"bdis",	(sP): i1,			(sT): i1,	],
+		stays_not			: [ (sD): "is not and stays not",		(sDD): "are not and stay not",			(sG):"bdis",	(sP): i1,			(sT): i1,	],
+		stays_away_from		: [ (sD): "is away and stays away from",		(sDD): "are away and stay away from",	(sG):"bdis",	(sP): i1,			(sT): i1,	],
+		stays_any_of		: [ (sD): "is any and stays any of",		(sDD): "are any and stay any of",				(sG):"dis",	(sP): i1,	(sM): true,	(sT): i1,	],
+		stays_away_from_any_of		: [ (sD): "is away and stays away from any of",	(sDD): "are away and stay away from any of",		(sG):"bdis",	(sP): i1,	(sM): true,	(sT): i1,	],
+		stays_equal_to		: [ (sD): "is equal to and stays equal to",	(sDD): "are equal or stay equal to",			(sG):sDI,		(sP): i1,			(sT): i1,	],
+		stays_different_than		: [ (sD): "is different and stays different than",	(sDD): "are different and stay different than",		(sG):sDI,		(sP): i1,			(sT): i1,	],
+		stays_less_than		: [ (sD): "is less and stays less than",		(sDD): "are less and stay less than",			(sG):sDI,		(sP): i1,			(sT): i1,	],
+		stays_less_than_or_equal_to	: [ (sD): "is less or equal and stays less than or equal to",	(sDD): "are less or equal and stay less than or equal to",		(sG):sDI,		(sP): i1,			(sT): i1,	],
+		stays_greater_than	: [ (sD): "is greater and stays greater than",	(sDD): "are greater and stay greater than",		(sG):sDI,		(sP): i1,			(sT): i1,	],
+		stays_greater_than_or_equal_to	: [ (sD): "is greater or equal and stays greater than or equal to",	(sDD): "are greater or equal stay greater than or equal to",	(sG):sDI,		(sP): i1,			(sT): i1,	],
+		stays_inside_of_range		: [ (sD): "is inside and stays inside of range",	(sDD): "are inside and stay inside of range",		(sG):sDI,		(sP): i2,			(sT): i1,	],
+		stays_outside_of_range		: [ (sD): "is outside and stays outside of range",	(sDD): "stay outside of range",		(sG):sDI,		(sP): i2,			(sT): i1,	],
+		stays_even			: [ (sD): "is even and stays even",		(sDD): "are even and stay even",		(sG):sDI,					(sT): i1,	],
+		stays_odd			: [ (sD): "is odd and stays odd",			(sDD): "are odd and stay odd",		(sG):sDI,					(sT): i1,	],
 	]
 ]
 
@@ -4336,6 +4387,7 @@ Map getChildComparisons(){
 	endswith		: [ (sT): sBOOLN,	(sD): "endsWith",		],
 	contains		: [ (sT): sBOOLN,					],
 	matches			: [ (sT): sBOOLN,					],
+	exists			: [ (sT): sBOOLN,					],
 	eq				: [ (sT): sBOOLN,					],
 	lt				: [ (sT): sBOOLN,					],
 	le				: [ (sT): sBOOLN,					],
@@ -4498,10 +4550,13 @@ Map getChildVirtDevices(){
 	Map<String,Map> result=virtualDevices()
 	Map cleanResult=[:]
 	Map defv=[(sN):sA]
-	result.each{
-		Map t0=[:]
-		def hasAC=it.value.ac
-		def hasO=it.value.o
+	Map t0
+	def hasAC, hasO
+	//result.each{
+	for(it in result){
+		t0=[:]
+		hasAC=it.value.ac
+		hasO=it.value.o
 		if(hasAC!=null) t0=t0+[ac:hasAC]
 		if(hasO!=null) t0=t0+[(sO):hasO]
 		if(t0==[:]) t0=defv
@@ -4543,42 +4598,42 @@ private Map<String,Map> virtualDevices(Boolean updateCache=false){
 		[(sNM): "Azure", (sRGB): "#F0FFFF", (sH): 180, (sS): 100, (sL): 97], [(sNM): "Beige", (sRGB): "#F5F5DC", (sH): 60, (sS): 56, (sL): 91],
 		[(sNM): "Bisque", (sRGB): "#FFE4C4", (sH): 33, (sS): 100, (sL): 88], [(sNM): "Blanched Almond", (sRGB): "#FFEBCD", (sH): 36, (sS): 100, (sL): 90],
 		[(sNM): "Blue", (sRGB): "#0000FF", (sH): 240, (sS): 100, (sL): 50], [(sNM): "Blue Violet", (sRGB): "#8A2BE2", (sH): 271, (sS): 76, (sL): 53],
-		[(sNM): "Brown", (sRGB): "#A52A2A", (sH): 0, (sS): 59, (sL): 41], [(sNM): "Burly Wood", (sRGB): "#DEB887", (sH): 34, (sS): 57, (sL): 70],
+		[(sNM): "Brown", (sRGB): "#A52A2A", (sH): iZ, (sS): 59, (sL): 41], [(sNM): "Burly Wood", (sRGB): "#DEB887", (sH): 34, (sS): 57, (sL): 70],
 		[(sNM): "Cadet Blue", (sRGB): "#5F9EA0", (sH): 182, (sS): 25, (sL): 50], [(sNM): "Chartreuse", (sRGB): "#7FFF00", (sH): 90, (sS): 100, (sL): 50],
 		[(sNM): "Chocolate", (sRGB): "#D2691E", (sH): 25, (sS): 75, (sL): 47], [(sNM): "Cool White", (sRGB): "#F3F6F7", (sH): 187, (sS): 19, (sL): 96],
 		[(sNM): "Coral", (sRGB): "#FF7F50", (sH): 16, (sS): 100, (sL): 66], [(sNM): "Corn Flower Blue", (sRGB): "#6495ED", (sH): 219, (sS): 79, (sL): 66],
 		[(sNM): "Corn Silk", (sRGB): "#FFF8DC", (sH): 48, (sS): 100, (sL): 93], [(sNM): "Crimson", (sRGB): "#DC143C", (sH): 348, (sS): 83, (sL): 58],
 		[(sNM): "Cyan", (sRGB): "#00FFFF", (sH): 180, (sS): 100, (sL): 50], [(sNM): "Dark Blue", (sRGB): "#00008B", (sH): 240, (sS): 100, (sL): 27],
 		[(sNM): "Dark Cyan", (sRGB): "#008B8B", (sH): 180, (sS): 100, (sL): 27], [(sNM): "Dark Golden Rod", (sRGB): "#B8860B", (sH): 43, (sS): 89, (sL): 38],
-		[(sNM): "Dark Gray", (sRGB): "#A9A9A9", (sH): 0, (sS): 0, (sL): 66], [(sNM): "Dark Green", (sRGB): "#006400", (sH): 120, (sS): 100, (sL): 20],
+		[(sNM): "Dark Gray", (sRGB): "#A9A9A9", (sH): iZ, (sS): iZ, (sL): 66], [(sNM): "Dark Green", (sRGB): "#006400", (sH): 120, (sS): 100, (sL): 20],
 		[(sNM): "Dark Khaki", (sRGB): "#BDB76B", (sH): 56, (sS): 38, (sL): 58], [(sNM): "Dark Magenta", (sRGB): "#8B008B", (sH): 300, (sS): 100, (sL): 27],
 		[(sNM): "Dark Olive Green", (sRGB): "#556B2F", (sH): 82, (sS): 39, (sL): 30], [(sNM): "Dark Orange", (sRGB): "#FF8C00", (sH): 33, (sS): 100, (sL): 50],
-		[(sNM): "Dark Orchid", (sRGB): "#9932CC", (sH): 280, (sS): 61, (sL): 50], [(sNM): "Dark Red", (sRGB): "#8B0000", (sH): 0, (sS): 100, (sL): 27],
+		[(sNM): "Dark Orchid", (sRGB): "#9932CC", (sH): 280, (sS): 61, (sL): 50], [(sNM): "Dark Red", (sRGB): "#8B0000", (sH): iZ, (sS): 100, (sL): 27],
 		[(sNM): "Dark Salmon", (sRGB): "#E9967A", (sH): 15, (sS): 72, (sL): 70], [(sNM): "Dark Sea Green", (sRGB): "#8FBC8F", (sH): 120, (sS): 25, (sL): 65],
 		[(sNM): "Dark Slate Blue", (sRGB): "#483D8B", (sH): 248, (sS): 39, (sL): 39], [(sNM): "Dark Slate Gray", (sRGB): "#2F4F4F", (sH): 180, (sS): 25, (sL): 25],
 		[(sNM): "Dark Turquoise", (sRGB): "#00CED1", (sH): 181, (sS): 100, (sL): 41], [(sNM): "Dark Violet", (sRGB): "#9400D3", (sH): 282, (sS): 100, (sL): 41],
 		[(sNM): "Daylight White", (sRGB): "#CEF4FD", (sH): 191, (sS): 9, (sL): 90], [(sNM): "Deep Pink", (sRGB): "#FF1493", (sH): 328, (sS): 100, (sL): 54],
-		[(sNM): "Deep Sky Blue", (sRGB): "#00BFFF", (sH): 195, (sS): 100, (sL): 50], [(sNM): "Dim Gray", (sRGB): "#696969", (sH): 0, (sS): 0, (sL): 41],
-		[(sNM): "Dodger Blue", (sRGB): "#1E90FF", (sH): 210, (sS): 100, (sL): 56], [(sNM): "Fire Brick", (sRGB): "#B22222", (sH): 0, (sS): 68, (sL): 42],
+		[(sNM): "Deep Sky Blue", (sRGB): "#00BFFF", (sH): 195, (sS): 100, (sL): 50], [(sNM): "Dim Gray", (sRGB): "#696969", (sH): iZ, (sS): iZ, (sL): 41],
+		[(sNM): "Dodger Blue", (sRGB): "#1E90FF", (sH): 210, (sS): 100, (sL): 56], [(sNM): "Fire Brick", (sRGB): "#B22222", (sH): iZ, (sS): 68, (sL): 42],
 		[(sNM): "Floral White", (sRGB): "#FFFAF0", (sH): 40, (sS): 100, (sL): 97], [(sNM): "Forest Green", (sRGB): "#228B22", (sH): 120, (sS): 61, (sL): 34],
-		[(sNM): "Fuchsia", (sRGB): "#FF00FF", (sH): 300, (sS): 100, (sL): 50], [(sNM): "Gainsboro", (sRGB): "#DCDCDC", (sH): 0, (sS): 0, (sL): 86],
+		[(sNM): "Fuchsia", (sRGB): "#FF00FF", (sH): 300, (sS): 100, (sL): 50], [(sNM): "Gainsboro", (sRGB): "#DCDCDC", (sH): iZ, (sS): iZ, (sL): 86],
 		[(sNM): "Ghost White", (sRGB): "#F8F8FF", (sH): 240, (sS): 100, (sL): 99], [(sNM): "Gold", (sRGB): "#FFD700", (sH): 51, (sS): 100, (sL): 50],
-		[(sNM): "Golden Rod", (sRGB): "#DAA520", (sH): 43, (sS): 74, (sL): 49], [(sNM): "Gray", (sRGB): "#808080", (sH): 0, (sS): 0, (sL): 50],
+		[(sNM): "Golden Rod", (sRGB): "#DAA520", (sH): 43, (sS): 74, (sL): 49], [(sNM): "Gray", (sRGB): "#808080", (sH): iZ, (sS): iZ, (sL): 50],
 		[(sNM): "Green", (sRGB): "#008000", (sH): 120, (sS): 100, (sL): 25], [(sNM): "Green Yellow", (sRGB): "#ADFF2F", (sH): 84, (sS): 100, (sL): 59],
 		[(sNM): "Honeydew", (sRGB): "#F0FFF0", (sH): 120, (sS): 100, (sL): 97], [(sNM): "Hot Pink", (sRGB): "#FF69B4", (sH): 330, (sS): 100, (sL): 71],
-		[(sNM): "Indian Red", (sRGB): "#CD5C5C", (sH): 0, (sS): 53, (sL): 58], [(sNM): "Indigo", (sRGB): "#4B0082", (sH): 275, (sS): 100, (sL): 25],
+		[(sNM): "Indian Red", (sRGB): "#CD5C5C", (sH): iZ, (sS): 53, (sL): 58], [(sNM): "Indigo", (sRGB): "#4B0082", (sH): 275, (sS): 100, (sL): 25],
 		[(sNM): "Ivory", (sRGB): "#FFFFF0", (sH): 60, (sS): 100, (sL): 97], [(sNM): "Khaki", (sRGB): "#F0E68C", (sH): 54, (sS): 77, (sL): 75],
 		[(sNM): "Lavender", (sRGB): "#E6E6FA", (sH): 240, (sS): 67, (sL): 94], [(sNM): "Lavender Blush", (sRGB): "#FFF0F5", (sH): 340, (sS): 100, (sL): 97],
 		[(sNM): "Lawn Green", (sRGB): "#7CFC00", (sH): 90, (sS): 100, (sL): 49], [(sNM): "Lemon Chiffon", (sRGB): "#FFFACD", (sH): 54, (sS): 100, (sL): 90],
-		[(sNM): "Light Blue", (sRGB): "#ADD8E6", (sH): 195, (sS): 53, (sL): 79], [(sNM): "Light Coral", (sRGB): "#F08080", (sH): 0, (sS): 79, (sL): 72],
+		[(sNM): "Light Blue", (sRGB): "#ADD8E6", (sH): 195, (sS): 53, (sL): 79], [(sNM): "Light Coral", (sRGB): "#F08080", (sH): iZ, (sS): 79, (sL): 72],
 		[(sNM): "Light Cyan", (sRGB): "#E0FFFF", (sH): 180, (sS): 100, (sL): 94], [(sNM): "Light Golden Rod Yellow", (sRGB): "#FAFAD2", (sH): 60, (sS): 80, (sL): 90],
-		[(sNM): "Light Gray", (sRGB): "#D3D3D3", (sH): 0, (sS): 0, (sL): 83], [(sNM): "Light Green", (sRGB): "#90EE90", (sH): 120, (sS): 73, (sL): 75],
+		[(sNM): "Light Gray", (sRGB): "#D3D3D3", (sH): iZ, (sS): iZ, (sL): 83], [(sNM): "Light Green", (sRGB): "#90EE90", (sH): 120, (sS): 73, (sL): 75],
 		[(sNM): "Light Pink", (sRGB): "#FFB6C1", (sH): 351, (sS): 100, (sL): 86], [(sNM): "Light Salmon", (sRGB): "#FFA07A", (sH): 17, (sS): 100, (sL): 74],
 		[(sNM): "Light Sea Green", (sRGB): "#20B2AA", (sH): 177, (sS): 70, (sL): 41], [(sNM): "Light Sky Blue", (sRGB): "#87CEFA", (sH): 203, (sS): 92, (sL): 75],
 		[(sNM): "Light Slate Gray", (sRGB): "#778899", (sH): 210, (sS): 14, (sL): 53], [(sNM): "Light Steel Blue", (sRGB): "#B0C4DE", (sH): 214, (sS): 41, (sL): 78],
 		[(sNM): "Light Yellow", (sRGB): "#FFFFE0", (sH): 60, (sS): 100, (sL): 94], [(sNM): "Lime", (sRGB): "#00FF00", (sH): 120, (sS): 100, (sL): 50],
 		[(sNM): "Lime Green", (sRGB): "#32CD32", (sH): 120, (sS): 61, (sL): 50], [(sNM): "Linen", (sRGB): "#FAF0E6", (sH): 30, (sS): 67, (sL): 94],
-		[(sNM): "Maroon", (sRGB): "#800000", (sH): 0, (sS): 100, (sL): 25], [(sNM): "Medium Aquamarine", (sRGB): "#66CDAA", (sH): 160, (sS): 51, (sL): 60],
+		[(sNM): "Maroon", (sRGB): "#800000", (sH): iZ, (sS): 100, (sL): 25], [(sNM): "Medium Aquamarine", (sRGB): "#66CDAA", (sH): 160, (sS): 51, (sL): 60],
 		[(sNM): "Medium Blue", (sRGB): "#0000CD", (sH): 240, (sS): 100, (sL): 40], [(sNM): "Medium Orchid", (sRGB): "#BA55D3", (sH): 288, (sS): 59, (sL): 58],
 		[(sNM): "Medium Purple", (sRGB): "#9370DB", (sH): 260, (sS): 60, (sL): 65], [(sNM): "Medium Sea Green", (sRGB): "#3CB371", (sH): 147, (sS): 50, (sL): 47],
 		[(sNM): "Medium Slate Blue", (sRGB): "#7B68EE", (sH): 249, (sS): 80, (sL): 67], [(sNM): "Medium Spring Green", (sRGB): "#00FA9A", (sH): 157, (sS): 100, (sL): 49],
@@ -4594,20 +4649,20 @@ private Map<String,Map> virtualDevices(Boolean updateCache=false){
 		[(sNM): "Papaya Whip", (sRGB): "#FFEFD5", (sH): 37, (sS): 100, (sL): 92], [(sNM): "Peach Puff", (sRGB): "#FFDAB9", (sH): 28, (sS): 100, (sL): 86],
 		[(sNM): "Peru", (sRGB): "#CD853F", (sH): 30, (sS): 59, (sL): 53], [(sNM): "Pink", (sRGB): "#FFC0CB", (sH): 350, (sS): 100, (sL): 88],
 		[(sNM): "Plum", (sRGB): "#DDA0DD", (sH): 300, (sS): 47, (sL): 75], [(sNM): "Powder Blue", (sRGB): "#B0E0E6", (sH): 187, (sS): 52, (sL): 80],
-		[(sNM): "Purple", (sRGB): "#800080", (sH): 300, (sS): 100, (sL): 25], [(sNM): "Red", (sRGB): "#FF0000", (sH): 0, (sS): 100, (sL): 50],
-		[(sNM): "Rosy Brown", (sRGB): "#BC8F8F", (sH): 0, (sS): 25, (sL): 65], [(sNM): "Royal Blue", (sRGB): "#4169E1", (sH): 225, (sS): 73, (sL): 57],
+		[(sNM): "Purple", (sRGB): "#800080", (sH): 300, (sS): 100, (sL): 25], [(sNM): "Red", (sRGB): "#FF0000", (sH): iZ, (sS): 100, (sL): 50],
+		[(sNM): "Rosy Brown", (sRGB): "#BC8F8F", (sH): iZ, (sS): 25, (sL): 65], [(sNM): "Royal Blue", (sRGB): "#4169E1", (sH): 225, (sS): 73, (sL): 57],
 		[(sNM): "Saddle Brown", (sRGB): "#8B4513", (sH): 25, (sS): 76, (sL): 31], [(sNM): "Salmon", (sRGB): "#FA8072", (sH): 6, (sS): 93, (sL): 71],
 		[(sNM): "Sandy Brown", (sRGB): "#F4A460", (sH): 28, (sS): 87, (sL): 67], [(sNM): "Sea Green", (sRGB): "#2E8B57", (sH): 146, (sS): 50, (sL): 36],
 		[(sNM): "Sea Shell", (sRGB): "#FFF5EE", (sH): 25, (sS): 100, (sL): 97], [(sNM): "Sienna", (sRGB): "#A0522D", (sH): 19, (sS): 56, (sL): 40],
-		[(sNM): "Silver", (sRGB): "#C0C0C0", (sH): 0, (sS): 0, (sL): 75], [(sNM): "Sky Blue", (sRGB): "#87CEEB", (sH): 197, (sS): 71, (sL): 73],
+		[(sNM): "Silver", (sRGB): "#C0C0C0", (sH): iZ, (sS): iZ, (sL): 75], [(sNM): "Sky Blue", (sRGB): "#87CEEB", (sH): 197, (sS): 71, (sL): 73],
 		[(sNM): "Slate Blue", (sRGB): "#6A5ACD", (sH): 248, (sS): 53, (sL): 58], [(sNM): "Slate Gray", (sRGB): "#708090", (sH): 210, (sS): 13, (sL): 50],
-		[(sNM): "Snow", (sRGB): "#FFFAFA", (sH): 0, (sS): 100, (sL): 99], [(sNM): "Soft White", (sRGB): "#B6DA7C", (sH): 83, (sS): 44, (sL): 67],
+		[(sNM): "Snow", (sRGB): "#FFFAFA", (sH): iZ, (sS): 100, (sL): 99], [(sNM): "Soft White", (sRGB): "#B6DA7C", (sH): 83, (sS): 44, (sL): 67],
 		[(sNM): "Spring Green", (sRGB): "#00FF7F", (sH): 150, (sS): 100, (sL): 50], [(sNM): "Steel Blue", (sRGB): "#4682B4", (sH): 207, (sS): 44, (sL): 49],
 		[(sNM): "Tan", (sRGB): "#D2B48C", (sH): 34, (sS): 44, (sL): 69], [(sNM): "Teal", (sRGB): "#008080", (sH): 180, (sS): 100, (sL): 25],
 		[(sNM): "Thistle", (sRGB): "#D8BFD8", (sH): 300, (sS): 24, (sL): 80], [(sNM): "Tomato", (sRGB): "#FF6347", (sH): 9, (sS): 100, (sL): 64],
 		[(sNM): "Turquoise", (sRGB): "#40E0D0", (sH): 174, (sS): 72, (sL): 56], [(sNM): "Violet", (sRGB): "#EE82EE", (sH): 300, (sS): 76, (sL): 72],
 		[(sNM): "Warm White", (sRGB): "#DAF17E", (sH): 72, (sS): 20, (sL): 72], [(sNM): "Wheat", (sRGB): "#F5DEB3", (sH): 39, (sS): 77, (sL): 83],
-		[(sNM): "White", (sRGB): "#FFFFFF", (sH): 0, (sS): 0, (sL): 100], [(sNM): "White Smoke", (sRGB): "#F5F5F5", (sH): 0, (sS): 0, (sL): 96],
+		[(sNM): "White", (sRGB): "#FFFFFF", (sH): iZ, (sS): iZ, (sL): 100], [(sNM): "White Smoke", (sRGB): "#F5F5F5", (sH): iZ, (sS): iZ, (sL): 96],
 		[(sNM): "Yellow", (sRGB): "#FFFF00", (sH): 60, (sS): 100, (sL): 50], [(sNM): "Yellow Green", (sRGB): "#9ACD32", (sH): 80, (sS): 61, (sL): 50]
 ]
 
@@ -4624,6 +4679,7 @@ private static String inputTitleStr(String title)	{ return '<u>'+title+'</u>' }
 //private static String pageTitleStr(String title)	{ return '<h1>'+title+'</h1>' }
 //private static String paraTitleStr(String title)	{ return '<b>'+title+'</b>' }
 
+@CompileStatic
 private static String imgTitle(String imgSrc,String titleStr,String color=sNULL,Integer imgWidth=30,Integer imgHeight=0){
 	String imgStyle=sBLK
 	String myImgSrc='https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/'+imgSrc
@@ -4708,7 +4764,7 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				/*TimeZone aa=mTZ()
 				Boolean a= aa.inDaylightTime(nTime)
 				if(eric())warn "found inDaylight  $a"
-				if(eric())warn "found current offset is  ${aa.getOffset(now())}"
+				if(eric())warn "found current offset is  ${aa.getOffset(wnow())}"
 				if(eric())warn "found rawoffset is  ${aa.rawOffset}"*/
 				String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
 				SimpleDateFormat formatter=new SimpleDateFormat(format)
@@ -4804,10 +4860,12 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 	return ret
 }
 
+@CompileStatic
 private static String generateMD5_A(String s){
 	MessageDigest.getInstance('MD5').digest(s.bytes).encodeHex().toString()
 }
 
+@CompileStatic
 private static String md5(String md5){
 	MessageDigest md= MessageDigest.getInstance('MD5')
 	byte[] array=md.digest(md5.getBytes())
@@ -4819,6 +4877,7 @@ private static String md5(String md5){
 	return result
 }
 
+@CompileStatic
 static void clearHashMap(String wName){
 	theHashMapVFLD[wName]=[:]
 	theHashMapVFLD=theHashMapVFLD
@@ -4870,105 +4929,110 @@ static void mb(String meth=sNULL){
 @Field static final String sSPORNG="<span style='color:orange'>"
 @Field static final Integer iZ=0
 @Field static final Integer i1=1
+@Field static final Integer i2=2
 @Field static final Integer i3=3
 
-static String dumpListDesc(data,final Integer level,List<Boolean> lastLevel,final String listLabel,Boolean html=false){
+@CompileStatic
+static String dumpListDesc(List data,final Integer level,List<Boolean> lastLevel,final String listLabel,Boolean html=false){
 	String str=sBLK
 	Integer cnt=i1
 	List<Boolean> newLevel=lastLevel
 
 	final List list1=data?.collect{it}
 	final Integer sz=list1.size()
-	list1?.each{ par ->
+	for(Object par in list1){
 		final String lbl=listLabel+"[${cnt-i1}]".toString()
 		if(par instanceof Map){
-			Map newmap=[:]
+			Map<String,Object> newmap=[:]
 			newmap[lbl]=(Map)par
-			final Boolean t1= cnt==sz
+			Boolean t1=cnt==sz
 			newLevel[level]=t1
 			str+=dumpMapDesc(newmap,level,newLevel,!t1,html)
 		}else if(par instanceof List || par instanceof ArrayList){
-			Map newmap=[:]
+			Map<String,Object> newmap=[:]
 			newmap[lbl]=par
-			final Boolean t1= cnt==sz
+			Boolean t1=cnt==sz
 			newLevel[level]=t1
 			str+=dumpMapDesc(newmap,level,newLevel,!t1,html)
 		}else{
 			String lineStrt=sNL
-			for(Integer i=iZ; i<level; i++) lineStrt+= (i+i1<level)? (!lastLevel[i] ? sSPCSB:sSPCS6) :sSPCS6
-			lineStrt+= cnt==i1 && sz>i1 ? sSPCST :(cnt<sz ? sSPCSM:sSPCSE)
-			if(html)str+= sSP
-			str+= lineStrt+lbl+": ${par} (${objType(par)})".toString()
-			if(html)str+= sSSP
+			for(Integer i=iZ; i<level; i++)lineStrt+=(i+i1<level)? (!lastLevel[i] ? sSPCSB:sSPCS6):sSPCS6
+			lineStrt+=cnt==i1 && sz>i1 ? sSPCST:(cnt<sz ? sSPCSM:sSPCSE)
+			if(html)str+=sSP
+			str+=lineStrt+lbl+": ${par} (${objType(par)})".toString()
+			if(html)str+=sSSP
 		}
 		cnt+=i1
 	}
 	return str
 }
 
-@SuppressWarnings('GrReassignedInClosureLocalVar')
-static String dumpMapDesc(data,final Integer level,List<Boolean> lastLevel,Boolean listCall=false,Boolean html=false){
+@CompileStatic
+static String dumpMapDesc(Map<String,Object> data,final Integer level,List<Boolean> lastLevel,Boolean listCall=false,Boolean html=false){
 	String str=sBLK
 	Integer cnt=i1
 	final Integer sz=data?.size()
-	Map svMap=[:]
-	Map svLMap=[:]
-	Map newMap=[:]
-	data?.each{ par ->
+	Map<String,Object> svMap=[:]
+	Map<String,Object> svLMap=[:]
+	Map<String,Object> newMap=[:]
+	for(par in data){
 		final String k=(String)par.key
 		final def v=par.value
 		if(v instanceof Map){
-			svMap+= [(k): v]
+			svMap+=[(k): v]
 		}else if(v instanceof List || v instanceof ArrayList){
-			svLMap+= [(k): v]
-		}else newMap+= [(k):v]
+			svLMap+=[(k): v]
+		}else newMap+=[(k):v]
 	}
 	newMap+=svMap+svLMap
 	final Integer lvlpls=level+i1
-	newMap?.each{ par ->
+	for(par in newMap){
 		String lineStrt
 		List<Boolean> newLevel=lastLevel
-		final Boolean thisIsLast= cnt==sz && !listCall
-		if(level>iZ) newLevel[(level-i1)]=thisIsLast
+		final Boolean thisIsLast=cnt==sz && !listCall
+		if(level>iZ)newLevel[(level-i1)]=thisIsLast
 		Boolean theLast=thisIsLast
-		if(level==iZ) lineStrt=sDBNL
+		if(level==iZ)lineStrt=sDBNL
 		else{
-			theLast= theLast && thisIsLast
+			theLast=theLast && thisIsLast
 			lineStrt=sNL
-			for(Integer i=iZ; i<level; i++) lineStrt+= (i+i1<level)? (!newLevel[i] ? sSPCSB:sSPCS6) :sSPCS6
-			lineStrt+= ((cnt<sz || listCall) && !thisIsLast) ? sSPCSM:sSPCSE
+			for(Integer i=iZ; i<level; i++)lineStrt+=(i+i1<level)? (!newLevel[i] ? sSPCSB:sSPCS6):sSPCS6
+			lineStrt+=((cnt<sz || listCall) && !thisIsLast) ? sSPCSM:sSPCSE
 		}
-		String objType=objType(par.value)
-		if(par.value instanceof Map){
-			if(html)str+= sSP
-			str+= lineStrt+"${(String)par.key}: (${objType})".toString()
-			if(html)str+= sSSP
+		final String k=(String)par.key
+		final def v=par.value
+		String objType=objType(v)
+		if(v instanceof Map){
+			if(html)str+=sSP
+			str+=lineStrt+"${k}: (${objType})".toString()
+			if(html)str+=sSSP
 			newLevel[lvlpls]=theLast
-			str+= dumpMapDesc((Map)par.value,lvlpls,newLevel,false,html)
+			str+=dumpMapDesc((Map)v,lvlpls,newLevel,false,html)
 		}
-		else if(par.value instanceof List || par.value instanceof ArrayList){
-			if(html)str+= sSP
-			str+= lineStrt+"${(String)par.key}: [${objType}]".toString()
-			if(html)str+= sSSP
+		else if(v instanceof List || v instanceof ArrayList){
+			if(html)str+=sSP
+			str+=lineStrt+"${k}: [${objType}]".toString()
+			if(html)str+=sSSP
 			newLevel[lvlpls]=theLast
-			str+= dumpListDesc(par.value,lvlpls,newLevel,sBLK,html)
+			str+=dumpListDesc((List)v,lvlpls,newLevel,sBLK,html)
 		}
 		else{
-			if(html)str+= sSP
-			str+= lineStrt+"${(String)par.key}: (${par.value}) (${objType})".toString()
-			if(html)str+= sSSP
+			if(html)str+=sSP
+			str+=lineStrt+"${k}: (${v}) (${objType})".toString()
+			if(html)str+=sSSP
 		}
 		cnt+=i1
 	}
 	return str
 }
 
+@CompileStatic
 static String objType(obj){ return sSPORNG+myObj(obj)+sSSP }
 
-static String getMapDescStr(data){
-	String str
+@CompileStatic
+static String getMapDescStr(Map<String,Object> data){
 	List<Boolean> lastLevel=[true]
-	str=dumpMapDesc(data,0,lastLevel,false,true)
+	String str=dumpMapDesc(data,iZ,lastLevel,false,true)
 	return str!=sBLK ? str:'No Data was returned'
 }
 

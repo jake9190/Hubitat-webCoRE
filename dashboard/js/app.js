@@ -446,7 +446,7 @@ app.filter('uniqueDashify', function() {
 
 
 
-var config = app.config(['$routeProvider', '$locationProvider', '$sceDelegateProvider', '$rootScopeProvider', '$animateProvider',  function ($routeProvider, $locationProvider, $sceDelegateProvider,  $rootScopeProvider, $animateProvider) {
+var config = app.config(['$routeProvider', '$locationProvider', '$sceDelegateProvider', '$rootScopeProvider', '$animateProvider', '$httpProvider',  function ($routeProvider, $locationProvider, $sceDelegateProvider,  $rootScopeProvider, $animateProvider, $httpProvider) {
 	$rootScopeProvider.digestTtl(10000); 
 	//$cfpLoadingBarProvider.includeSpinner = false;
     var ext = '.module.css';
@@ -494,6 +494,29 @@ var config = app.config(['$routeProvider', '$locationProvider', '$sceDelegatePro
         redirectTo: '/'
     });
     $locationProvider.html5Mode(true);
+
+	$httpProvider.interceptors.push(['$location', '$injector', '$q', function($location, $injector, $q) {
+		return {
+			// log out on ERR_INVALID_TOKEN
+			'response': function(response) {
+				if (response.data 
+					&& response.data.error == 'ERR_INVALID_TOKEN' 
+					// Ignore attempt to get a token
+					&& response.config.url.indexOf('&token=&') < 0
+				) {
+					var dataService = $injector.get('dataService');
+					// if logged in to any instance
+					if (dataService.getInstance(null, true)) {
+						dataService.logout().then(function() {
+							$location.path('/register');			
+						});
+						return $q.reject();
+					}
+				}
+				return response;
+			}
+		};
+	}]);
 }]);
 
 
@@ -782,6 +805,7 @@ config.factory('dataService', ['$http', '$location', '$rootScope', '$window', '$
 		locations = {};
 		instances = {};
 		storage = {};
+		store = {};
 		return localforage.clear();
 	}
 
