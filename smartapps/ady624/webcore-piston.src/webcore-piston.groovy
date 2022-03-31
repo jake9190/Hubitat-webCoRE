@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update March 30, 2022 for Hubitat
+ * Last update March 31, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -2519,7 +2519,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 		r9.break=false
 		r9.resumed=false
 		r9.terminated=false
-		if(evntName==sTIME)chgRun(r9,(Integer)((Map)event.schedule).i)
+		if(evntName==sTIME)chgRun(r9,(Integer)es.i)
 
 		if(isEric(r9)){
 			myDetail r9,sCUREVT+" $mEvt",iN2
@@ -2537,7 +2537,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 				if(currun(r9) in [iN3,iN5]){
 					if(currun(r9)==iN3){
 						//device related time schedules
-						Map data=(Map)((Map)event.schedule).d
+						Map data=(Map)es.d
 						if(data!=null && (String)data.d && (String)data.c){
 							//we have a device schedule, execute it
 							def device=getDevice(r9,(String)data.d)
@@ -2556,7 +2556,7 @@ private Boolean executeEvent(Map r9,Map<String,Object> event){
 						}
 					}else{ // iN5
 						if(!restr){
-							Map jq=(Map)((Map)event.schedule).jq
+							Map jq=(Map)es.jq
 							if(jq!=null){
 								Map statement=[$:jq.$]
 								if(jq.tcp)statement+=[tcp:jq.tcp]
@@ -5824,21 +5824,23 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 			}
 		}
 	}else{
-		//cto == disable condition traversal optimizations
-		Boolean canopt= !gtPOpt(r9,'cto') && grouping in [sOR,sAND]
-		if(canopt){
-			Integer i=iZ
-			for(Map cndtn in (List<Map>)cndtns[collection]){
-				if( sMt(cndtn)==sGROUP || (i!=iZ && ( (cndtn.ct==sT /*&& cndtn.s */) || (cndtn.ts || cndtn.fs) ) ) ){ canopt=false; break }
-				i++
+		if(cndtns[collection]){
+			//cto == disable condition traversal optimizations
+			Boolean canopt= !gtPOpt(r9,'cto') && grouping in [sOR,sAND]
+			if(canopt){
+				Integer i=iZ
+				for(Map cndtn in (List<Map>)cndtns[collection]){
+					if( sMt(cndtn)==sGROUP || (i!=iZ && ( (cndtn.ct==sT /*&& cndtn.s */) || (cndtn.ts || cndtn.fs) ) ) ){ canopt=false; break }
+					i++
+				}
 			}
-		}
-		if(isEric(r9)) myS+="cto: $canopt "
-		Boolean res
-		for(Map cndtn in (List<Map>)cndtns[collection]){
-			res=evaluateCondition(r9,cndtn,collection,async) //run through all to update stuff
-			value= grouping==sOR ? value||res : value&&res
-			if(prun(r9) && canopt && ((value && grouping==sOR) || (!value && grouping==sAND)))break
+			if(isEric(r9)) myS+="cto: $canopt "
+			Boolean res
+			for(Map cndtn in (List<Map>)cndtns[collection]){
+				res=evaluateCondition(r9,cndtn,collection,async) //run through all to update stuff
+				value= grouping==sOR ? value||res : value&&res
+				if(prun(r9) && canopt && ((value && grouping==sOR) || (!value && grouping==sAND)))break
+			}
 		}
 	}
 	Boolean result=false //null
