@@ -5465,7 +5465,6 @@ private Long vcmd_readFile(Map r9,device,List prms){
 
 private Long vcmd_appendFile(Map r9,device,List prms){
 	String name=(String)prms[iZ]
-	String data=(String)prms[i1]
 	String user=(String)prms[i2]
 	String pass=(String)prms[i3]
 	String pNm=(String)r9.nId
@@ -5474,12 +5473,12 @@ private Long vcmd_appendFile(Map r9,device,List prms){
 		if(readFile(r9,[name,user,pass],false)){
 			Integer sz=readTmpFLD[pNm].length()
 			if(sz<=0) readTmpFLD[pNm]=sSPC
-			readTmpFLD[pNm]+=data
+			readTmpFLD[pNm]+=(String)prms[i1]
 			ws=writeFile(r9,[name,readTmpFLD[pNm],sNULL,sNULL])
 		}
 	}catch(e){
 		if( ((String)e.message).contains("Not Found") ){
-			ws=writeFile(r9,[name,data,sNULL,sNULL])
+			ws=writeFile(r9,[name,(String)prms[i1],sNULL,sNULL])
 			if(eric())log.info "Append FNF write Status: $ws"
 		}else{
 			error "Error appending file $name: ${e}",r9,iN2,e
@@ -5515,7 +5514,6 @@ private Boolean fileExists(Map r9,String name){
 
 private Boolean writeFile(Map r9,List prms) {
 	String name=(String)prms[iZ]
-	String data=(String)prms[i1]
 	String user=(String)prms[i2]
 	String pass=(String)prms[i3]
 
@@ -5531,7 +5529,7 @@ private Boolean writeFile(Map r9,List prms) {
 Content-Disposition: form-data; name="uploadFile"; filename="${name}"
 Content-Type: text/plain
 
-${data}
+${(String)prms[i1]}
 
 --${encodedString}
 Content-Disposition: form-data; name="folder"
@@ -5713,7 +5711,7 @@ private Long vcmd_parseJson(Map r9,device,List prms){
 }
 
 private static Long vcmd_cancelTasks(Map r9,device,List prms){
-	r9.cancelations.all=true
+	((Map)r9.cancelations).all=true
 	return lZ
 }
 
@@ -5874,13 +5872,13 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 
 @SuppressWarnings('GroovyFallthrough')
 @CompileStatic
-private evaluateOperand(Map r9,Map node,Map oper,index=null,Boolean trigger=false,Boolean nextMidnight=false){
+private evaluateOperand(Map r9,Map node,Map oper,Integer index=null,Boolean trigger=false,Boolean nextMidnight=false){
 	String myS=sBLK
 	if(isEric(r9)){
 		myS="evaluateOperand: "+sffwdng(r9)+"$oper "
 		myDetail r9,myS,i1
 	}
-	List<LinkedHashMap<String,Object>> values=[]
+	List<LinkedHashMap<String,Object>> vals=[]
 	Map operand=oper
 	if(!operand)operand=[(sT):sC] //older pistons don't have the 'to' operand (time offset), simulating an empty one
 	String ovt=sMvt(operand)
@@ -5901,15 +5899,16 @@ private evaluateOperand(Map r9,Map node,Map oper,index=null,Boolean trigger=fals
 			for(String deviceId in expandDeviceList(r9,(List)operand.d)){
 				Map value=[(sI): deviceId+sCLN+operA,(sV):getDeviceAttribute(r9,deviceId,operA,operand.i,trigger)+movt+aM]
 				updateCache(r9,value,t)
-				a=values.push(value)
+				a=vals.push(value)
 			}
-			if(values.size()>i1 && !((String)operand.g in [sANY,sALL])){
+			String g=(String)operand.g
+			if(vals.size()>i1 && !(g in [sANY,sALL])){
 				//if we have multiple values and a grouping other than any or all we need to apply that function
 				// count, avg, median, least, most, stdev, min, max, variance etc
 				try{
-					mv=callFunc(r9,(String)operand.g,values*.v)+movt
+					mv=callFunc(r9,g,vals*.v)+movt
 				}catch(ignored){
-					error "Error applying grouping method ${(String)operand.g}",r9
+					error "Error applying grouping method ${g}",r9
 				}
 			}
 			break
@@ -6050,17 +6049,17 @@ private evaluateOperand(Map r9,Map node,Map oper,index=null,Boolean trigger=fals
 			mv=getArgument(r9,(String)operand.u)
 			break
 	}
-	if(mv) values=[[(sI):nodeI,(sV):mv]]
+	if(mv) vals=[[(sI):nodeI,(sV):mv]]
 
 	if(node==null){ // return a Map instead of a List
 		Map ret
-		if(values.size())ret=(Map)values[iZ].v
+		if(vals.size())ret=(Map)vals[iZ].v
 		else ret=rtnMap(sDYN,null)
 		if(isEric(r9))myDetail r9,myS+"result:$ret"
 		return ret
 	}
-	if(isEric(r9))myDetail r9,myS+"result:$values"
-	return values
+	if(isEric(r9))myDetail r9,myS+"result:$vals"
+	return vals
 }
 
 private Map callFunc(Map r9, String func,List p){
@@ -6119,16 +6118,16 @@ private Boolean evaluateCondition(Map r9,Map cndtn,String collection,Boolean asy
 			for(Integer i=iZ; i<=pCnt; i++){
 				Map operand=(i==iZ ? (Map)cndtn.lo:(i==i1 ? (Map)cndtn.ro:(Map)cndtn.ro2))
 				//parse the operand
-				List values=(List)evaluateOperand(r9,cndtn,operand,i,trigger)
+				List vals=(List)evaluateOperand(r9,cndtn,operand,i,trigger)
 				switch(i){
 					case iZ:
-						lo=[operand:operand,values:values]
+						lo=[operand:operand,values:vals]
 						break
 					case i1:
-						ro=[operand:operand,values:values]
+						ro=[operand:operand,values:vals]
 						break
 					case i2:
-						ro2=[operand:operand,values:values]
+						ro2=[operand:operand,values:vals]
 						break
 				}
 			}
@@ -7353,26 +7352,32 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 	}
 }
 
+@CompileStatic
 private List<String> expandDeviceList(Map r9,List devs,Boolean localVarsOnly=false){
 	Boolean mlocalVars=false	//allowing global vars
 	List<String>devices=devs
 	List<String> result=[]
-	for(String deviceId in devices){
-		if(deviceId){
-			if(isWcDev(deviceId)) Boolean a=result.push(deviceId)
-			else{
-				if(mlocalVars){
-					//during subscriptions we can use local vars only to make sure we don't subscribe to "variable" lists of devices
-					Map var=(Map)((Map)r9.localVars)[deviceId]
-					if(var && sMt(var)==sDEV && var.v instanceof Map && sMt((Map)var.v)==sD && var.v.d instanceof List)result+= (List)var.v.d
-				}else{
-					Map var=getVariable(r9,deviceId)
-					if(sMt(var)==sDEV)
-						//noinspection GroovyAssignabilityCheck
-						result+= (var.v instanceof List) ? (List)var.v:[]
-					else{
-						def device=var.v ? getDevice(r9,scast(r9,var.v)):null
-						if(device!=null)result+= [hashD(r9,device)]
+	if(devices){
+		for(String deviceId in devices){
+			if(deviceId){
+				if(isWcDev(deviceId)) Boolean a=result.push(deviceId)
+				else{
+					if(mlocalVars){
+						//during subscriptions we can use local vars only to make sure we don't subscribe to "variable" lists of devices
+						Map var=(Map)((Map)r9.localVars)[deviceId]
+						if(var && sMt(var)==sDEV && var.v instanceof Map){
+							Map m=(Map)var.v
+							if(sMt(m)==sD && m.d instanceof List)result+= (List)m.d
+						}
+					}else{
+						Map var=getVariable(r9,deviceId)
+						if(sMt(var)==sDEV)
+							//noinspection GroovyAssignabilityCheck
+							result+= (var.v instanceof List) ? (List)var.v:[]
+						else{
+							def device=var.v ? getDevice(r9,scast(r9,(String)var.v)):null
+							if(device!=null)result+= [hashD(r9,device)]
+						}
 					}
 				}
 			}
@@ -10045,12 +10050,13 @@ private static Boolean bcast(Map r9,ival){
 }
 
 @CompileStatic
-private String scast(Map r9,sval){
-	if(matchCast(r9,sval,sSTR))return sval
-	Map rr=dataT(sval,sNULL)
+private String scast(Map r9,v){
+	if(v==null) return sBLK
+	if(matchCast(r9,v,sSTR))return (String)v
+	Map rr=dataT(v,sNULL)
 	String srcDt=(String)rr.s
-	def value=rr.v
-	return matchCast(r9,value,sSTR) ? (String)value:(String)cast(r9,value,sSTR,srcDt)
+	def vv=rr.v
+	return matchCast(r9,vv,sSTR) ? (String)vv:(String)cast(r9,vv,sSTR,srcDt)
 }
 
 @SuppressWarnings('GroovyFallthrough')
@@ -10150,6 +10156,7 @@ private cast(Map r9,ival,String dataTT,String isrcDT=sNULL){
 	def value=ival
 
 	if(value==null){
+		if(dataType==sSTR) return sBLK
 		value=sBLK
 		srcDt=sSTR
 	}
@@ -10163,7 +10170,7 @@ private cast(Map r9,ival,String dataTT,String isrcDT=sNULL){
 		case sNUMBER: dataType=sDEC; break
 		case sENUM: dataType=sSTR; break
 	}
-	if(isEric(r9))myDetail r9,"cast ${srcDt}${isfbd ? ' bigDF':sBLK} $value as $dataType",iN2
+	if(isEric(r9))myDetail r9, "cast src: ${isrcDT} ($ival) as $dataTT --> ${srcDt}${isfbd ? ' bigDF':sBLK} ($value) as $dataType",iN2
 	switch(dataType){
 		case sSTR:
 		case sTEXT:
