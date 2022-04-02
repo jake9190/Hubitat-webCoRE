@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update March 31, 2022 for Hubitat
+ * Last update April 2, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -7923,7 +7923,7 @@ private Map<String,Object> getVariable(Map r9,String name){
 	res
 }
 
-private void wsetGlobalVar(String vn,vl){ setGlobalVar(vn,vl) }
+private wsetGlobalVar(String vn,vl){ setGlobalVar(vn,vl) }
 
 @CompileStatic
 private Map setVariable(Map r9,String name,value){
