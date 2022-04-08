@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update April 7, 2022 for Hubitat
+ * Last update April 8, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -3563,8 +3563,14 @@ private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean a
 			Map msg=timer "Executed [$device].${command}",r9
 			try{
 				delay="cmd_${command}"(r9,device,prms)
-			}catch(ignored){
-				executePhysicalCommand(r9,device,command,prms)
+			}catch(e){
+				if(command in [sSTLVL,sSCLRTEMP]) {
+					msg.m += " SKIP"
+					error "Error while executing command $device.$command($prms):",r9,iN2,e
+				}else{
+					msg.m+=" C"
+					executePhysicalCommand(r9,device,command,prms)
+				}
 			}
 			if(isTrc(r9))trace msg,r9
 		}else{
@@ -3613,7 +3619,6 @@ private Long executeVirtualCommand(Map r9,devices,String command,List prms){
 		if(isTrc(r9))trace msg,r9
 	}catch(all){
 		msg.m="Error executing virtual command ${devices instanceof List ? "$devices":"[$devices]"}.${command}:"
-		msg.e="$all"
 		error msg,r9,iN2,all
 	}
 	return delay
@@ -4134,14 +4139,15 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 }
 
 //return the number of occurrences of same day of week up until the date or from the end of the month if backwards,i.e. last Sunday is -1, second-last Sunday is -2
+@CompileStatic
 private static Integer getWeekOfMonth(Date date,Boolean backwards=false){
 	Integer day=date.date
 	if(backwards){
 		Integer month=date.month
 		Integer year=date.year
 		Integer lastDayOfMonth=(new Date(year,month+i1,0)).date
-		return -(i1+Math.floor((lastDayOfMonth-day)/i7))
-	}else return i1+Math.floor((day-i1)/i7) //1 based
+		return -(i1+Math.floor( ((lastDayOfMonth-day)/i7).toDouble() ))
+	}else return i1+Math.floor(((day-i1)/i7).toDouble()) //1 based
 }
 
 @CompileStatic
@@ -4204,28 +4210,39 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 private String wakeS(String m,Map sch){ Long t=lMt(sch); return m+" wake up at ${formatLocalTime(t)} (in ${t-wnow()}ms) for "+cnlS(sch) }
 
 @CompileStatic
-private Boolean ntMatSw(Map r9,String mat,device){ return mat!=sNULL && gtSwitch(r9,device)!=mat }
+private Boolean ntMatSw(Map r9,String mat,device){
+	if(mat!=sNULL && gtSwitch(r9,device)!=mat){
+		if(isTrc(r9))trace "Skipping command switch is not $mat",r9
+		return true
+	}
+	return false
+}
 
-private Long do_setLevel(Map r9,device,List prms,String attr,Integer val=null){
-	Integer arg=val!=null ? val:(Integer)prms[iZ]
+@CompileStatic
+private Long do_setLevel(Map r9,device,List prms,String cmd,Integer val=null){
+	Integer arg=val!=null ? val:icast(r9,prms[iZ])
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNULL
-	Integer delay=iZ
 	if(ntMatSw(r9,mat,device))return lZ
-	if(attr==sSCLRTEMP && psz>i2){ // setColorTemp takes level and seconds duration arguments (optional)
-		Integer lvl=(Integer)prms[i2]
-		delay=psz>i3 ? (Integer)prms[i3]:iZ
-		List larg=[arg]
-		if(lvl||delay)larg.push(lvl)
-		if(delay)larg.push(delay)
-		executePhysicalCommand(r9,device,attr,larg)
-	}else{
-		delay=psz>i2 ? (Integer)prms[i2]:iZ
-		if(attr==sSTLVL && delay>iZ){ // setLevel takes seconds duration argument (optional)
-			List larg=[arg,delay.toInteger()]
-			executePhysicalCommand(r9,device,attr,larg)
-		}else executePhysicalCommand(r9,device,attr,arg,delay.toLong())
+	Integer delay=iZ
+	Boolean a
+	List larg=[arg]
+	if(cmd in [sSCLRTEMP,sSTLVL]){
+		if(cmd==sSCLRTEMP){ // setColorTemp takes level and seconds duration arguments (optional)
+			if(psz>i2){
+				Integer lvl=prms[i2]!=null ? icast(r9,prms[i2]):null
+				a=larg.push(lvl)
+				delay=psz>i3 ? icast(r9,prms[i3]):iZ
+				if(delay>iZ)a=larg.push(delay)
+			}
+		}
+		if(cmd==sSTLVL){
+			delay=psz>i2 ? icast(r9,prms[i2]):iZ
+			if(delay>=iZ) // setLevel takes seconds duration argument (optional)
+				if(delay>iZ)a=larg.push(delay)
+		}
 	}
+	executePhysicalCommand(r9,device,cmd,larg)
 	if(delay>=iZ)return Math.round(delay*d1000)
 	return lZ
 }
@@ -4243,31 +4260,23 @@ private Long cmd_setSaturation(Map r9,device,List prms){ return do_setLevel(r9,d
 
 private Long cmd_setColorTemperature(Map r9,device,List prms){ return do_setLevel(r9,device,prms,sSCLRTEMP) }
 
-private static Map getColor(Map r9,String colorValue){
+@CompileStatic
+private static Map gtColor(Map r9,String colorValue){
 	Map color=(colorValue=='Random')? getRandomColor():getColorByName(colorValue)
+	if(color==null) color=hexToColor(colorValue)
 	if(color!=null){
 		color=[
 			hex:(String)color.rgb,
-			(sHUE):Math.round((Integer)color.h/d3d6).toInteger(),
+			(sHUE):Math.round(((Integer)color.h/d3d6).toDouble()).toInteger(),
 			(sSATUR):(Integer)color.s,
 			(sLVL):(Integer)color.l
 		]
-	}else{
-		color=hexToColor(colorValue)
-		if(color!=null){
-			color=[
-				hex:(String)color.hex,
-				(sHUE):Math.round((Integer)color.hue/d3d6).toInteger(),
-				(sSATUR):(Integer)color.saturation,
-				(sLVL):(Integer)color.level
-			]
-		}
 	}
 	return color
 }
 
 private Long cmd_setColor(Map r9,device,List prms){
-	Map color=getColor(r9,(String)prms[iZ])
+	Map color=gtColor(r9,(String)prms[iZ])
 	if(!color){
 		error "ERROR: Invalid color $prms",r9
 		return lZ
@@ -4282,7 +4291,7 @@ private Long cmd_setColor(Map r9,device,List prms){
 }
 
 private Long cmd_setAdjustedColor(Map r9,device,List prms){
-	Map color=getColor(r9,(String)prms[iZ])
+	Map color=gtColor(r9,(String)prms[iZ])
 	if(!color){
 		error "ERROR: Invalid color $prms",r9
 		return lZ
@@ -4306,10 +4315,10 @@ private Long cmd_setAdjustedHSLColor(Map r9,device,List prms){
 	Integer hue=Math.round((Integer)prms[iZ]/d3d6).toInteger()
 	Integer saturation=(Integer)prms[i1]
 	Integer level=(Integer)prms[i2]
-	def color=[
-		(sHUE): hue,
-		(sSATUR): saturation,
-		(sLVL): level
+	Map color=[
+		(sHUE):hue,
+		(sSATUR):saturation,
+		(sLVL):level
 	]
 	Long delay=psz>i5 ? (Long)prms[i5]:lZ
 	executePhysicalCommand(r9,device,'setAdjustedColor',[color,duration],delay)
@@ -4360,8 +4369,8 @@ private static Long vcmd_setTileColor(Map r9,device,List prms){
 	if(index<i1 || index>16)return lZ
 	String sIdx=index.toString()
 	Map t0=(Map)r9[sST]
-	t0[sC+sIdx]=(String)getColor(r9,(String)prms[i1])?.hex
-	t0[sB+sIdx]=(String)getColor(r9,(String)prms[i2])?.hex
+	t0[sC+sIdx]=(String)gtColor(r9,(String)prms[i1])?.hex
+	t0[sB+sIdx]=(String)gtColor(r9,(String)prms[i2])?.hex
 	t0[sF+sIdx]=!!prms[i3]
 	r9[sST]=t0
 	return lZ
@@ -4390,8 +4399,8 @@ private static Long vcmd_setTile(Map r9,device,List prms){
 	t0[sI+sIdx]=(String)prms[i1]
 	t0[sT+sIdx]=(String)prms[i2]
 	t0[sO+sIdx]=(String)prms[i3]
-	t0[sC+sIdx]=(String)getColor(r9,(String)prms[i4])?.hex
-	t0[sB+sIdx]=(String)getColor(r9,(String)prms[i5])?.hex
+	t0[sC+sIdx]=(String)gtColor(r9,(String)prms[i4])?.hex
+	t0[sB+sIdx]=(String)gtColor(r9,(String)prms[i5])?.hex
 	t0[sF+sIdx]=!!prms[i6]
 	r9[sST]=t0
 	return lZ
@@ -4854,9 +4863,9 @@ private Long vcmd_flashLevel(Map r9,device,List prms){
 }
 
 private Long vcmd_flashColor(Map r9,device,List prms){
-	Map color1=getColor(r9,(String)prms[iZ])
+	Map color1=gtColor(r9,(String)prms[iZ])
 	Long duration1=matchCastL(r9,prms[i1])
-	Map color2=getColor(r9,(String)prms[i2])
+	Map color2=gtColor(r9,(String)prms[i2])
 	Long duration2=matchCastL(r9,prms[i3])
 	Integer cycles=matchCastI(r9,prms[i4])
 	String mat=prms.size()>i5 ? (String)prms[i5]:sNULL
@@ -5168,7 +5177,7 @@ private Long vcmd_lifxState(Map r9,device,List prms){
 	String selector=getLifxSelector(r9,(String)prms[iZ])
 	if(!selector)return lifxErr(r9)
 	String power=(String)prms[i1]
-	Map color=getColor(r9,(String)prms[i2])
+	Map color=gtColor(r9,(String)prms[i2])
 	Integer level=(Integer)prms[i3]
 	Integer infrared=(Integer)prms[i4]
 	Long duration=Math.round( matchCastL(r9,prms[i5]) / d1000 )
@@ -5189,8 +5198,8 @@ private Long vcmd_lifxToggle(Map r9,device,List prms){
 private Long vcmd_lifxBreathe(Map r9,device,List prms){
 	String selector=getLifxSelector(r9,(String)prms[iZ])
 	if(!selector)return lifxErr(r9)
-	Map color=getColor(r9,(String)prms[i1])
-	Map fromColor= prms[i2]==null ? null:getColor(r9,(String)prms[i2])
+	Map color=gtColor(r9,(String)prms[i1])
+	Map fromColor= prms[i2]==null ? null:gtColor(r9,(String)prms[i2])
 	Long period= prms[i3]==null ? null:Math.round( matchCastL(r9,prms[i3]) / d1000)
 	Integer cycles=(Integer)prms[i4]
 	Integer peak=(Integer)prms[i5]
@@ -5205,8 +5214,8 @@ private Long vcmd_lifxBreathe(Map r9,device,List prms){
 private Long vcmd_lifxPulse(Map r9,device,List prms){
 	String selector=getLifxSelector(r9,(String)prms[iZ])
 	if(!selector)return lifxErr(r9)
-	Map color=getColor(r9,(String)prms[i1])
-	Map fromColor= prms[i2]==null ? null:getColor(r9,(String)prms[i2])
+	Map color=gtColor(r9,(String)prms[i1])
+	Map fromColor= prms[i2]==null ? null:gtColor(r9,(String)prms[i2])
 	Long period= prms[i3]==null ? null:Math.round( matchCastL(r9,prms[i3]) / d1000)
 	Integer cycles=(Integer)prms[i4]
 	Boolean powerOn= prms[i5]==null ? null:bcast(r9,prms[i5])
@@ -5465,7 +5474,7 @@ private Boolean readFile(Map r9,List prms,Boolean data){
 		//contentType: "text/html",
 		contentType: "text/plain; charset=UTF-8",
 		textParser: true,
-		headers: [ "Cookie": cookie ]
+		headers: [ "Cookie": cookie, "Accept": 'application/octet-stream' ]
 	]
 
 	try{
@@ -5489,9 +5498,10 @@ private Boolean readFile(Map r9,List prms,Boolean data){
 	}catch(e){
 		//error "msg: ${e.message}",r9
 		//error "object: ${describeObject(e)}",r9
+		String s="Error reading file $name: "
 		if( ((String)e.message).contains("Not Found") ){
-			error "Error reading file $name: Not found",r9
-		} else error "Error reading file $name: ",r9,iN2,e
+			error s+"Not found",r9
+		} else error s,r9,iN2,e
 	}
 	if(data)readDataFLD[pNm]=sNULL else readTmpFLD[pNm]=sNULL
 	return false
@@ -9203,9 +9213,9 @@ private Map func_rainbowvalue(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i5))return rtnErr('rainbowValue(input, minColor,minValue,maxInput, maxColor)')
 	Integer input=intEvalExpr(r9,prms[iZ],sINT)
 	Integer minInput=intEvalExpr(r9,prms[i1],sINT)
-	Map minColor=getColor(r9,strEvalExpr(r9,prms[i2],sSTR))
+	Map minColor=gtColor(r9,strEvalExpr(r9,prms[i2],sSTR))
 	Integer maxInput=intEvalExpr(r9,prms[i3],sINT)
-	Map maxColor=getColor(r9,strEvalExpr(r9,prms[i4],sSTR))
+	Map maxColor=gtColor(r9,strEvalExpr(r9,prms[i4],sSTR))
 	if(minInput>maxInput){
 		Integer x=minInput
 		minInput=maxInput
@@ -10525,10 +10535,10 @@ private static Map hexToColor(String hex){
 	if(mhex.size()!=i6)mhex=sZ6
 	List<Integer> myHsl=hexToHsl(mhex)
 	return [
-		(sHUE): myHsl[iZ],
-		(sSATUR): myHsl[i1],
-		(sLVL): myHsl[i2],
-		hex: '#'+mhex
+		h: myHsl[iZ],
+		s: myHsl[i1],
+		l: myHsl[i2],
+		rgb: '#'+mhex
 	]
 }
 
