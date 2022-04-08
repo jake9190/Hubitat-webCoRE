@@ -207,6 +207,7 @@ static Boolean eric1(){ return false }
 @Field static final String sSTIFLVL='setInfraredLevel'
 @Field static final String sSATUR='saturation'
 @Field static final String sSSATUR='setSaturation'
+@Field static final String sSTVAR='setVariable'
 @Field static final String sHUE='hue'
 @Field static final String sSHUE='setHue'
 @Field static final String sSCLR='setColor'
@@ -2963,7 +2964,7 @@ private static Boolean isInf(Map r9){ (Integer)r9[sLOGNG]>iZ }
 @CompileStatic
 private static Boolean prun(Map r9){ (Boolean)r9[sRUN] }
 @CompileStatic
-private static Boolean ffwd(Map r9){ !(Boolean)r9[sRUN] }
+private static Boolean ffwd(Map r9){ !prun(r9) }
 @CompileStatic
 private static Integer currun(Map r9){ (Integer)r9[sFFT] }
 @CompileStatic
@@ -3497,7 +3498,10 @@ private Boolean executeAction(Map r9,Map statement,Boolean async){
 	return result
 }
 
-private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean async,String data){
+@Field static List<String> LWCMDS
+private static List<String> fill_WCMDS(){ return [sSTLVL,sSTIFLVL,sHUE,sSSATUR,sSCLRTEMP,sSCLR,'setAdjustedColor','setAdjustedHSLColor','setLoopDuration','setVideoLength',sSTVAR] }
+
+	private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean async,String data){
 	Long t=wnow()
 	Integer tskNm=stmtNum(task)
 	String myS='t:'+tskNm.toString()
@@ -3560,18 +3564,18 @@ private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean a
 	if(isEric(r9))myDetail r9,mySt+"prms: $prms",iN2
 	for(device in (virtualDevice!=null ? [virtualDevice]:devices)){
 		if(virtualDevice==null && device?.hasCommand(command) && !(vcmd && vcmd.o /* virtual command does not override physical command */)){
+			if(!LWCMDS) LWCMDS=fill_WCMDS()
 			Map msg=timer "Executed [$device].${command}",r9
-			try{
-				delay="cmd_${command}"(r9,device,prms)
-			}catch(e){
-				if(command in [sSTLVL,sSCLRTEMP]) {
+			if(command in LWCMDS){
+				try{
+					delay="cmd_${command}"(r9,device,prms) // some physical commands have a wrapper method (11)
+					msg.m+=" W"
+				}catch(e){
 					msg.m += " SKIP"
 					error "Error while executing command $device.$command($prms):",r9,iN2,e
-				}else{
-					msg.m+=" C"
-					executePhysicalCommand(r9,device,command,prms)
 				}
-			}
+			}else
+				executePhysicalCommand(r9,device,command,prms)
 			if(isTrc(r9))trace msg,r9
 		}else{
 			if(vcmd!=null){
@@ -4210,9 +4214,9 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 private String wakeS(String m,Map sch){ Long t=lMt(sch); return m+" wake up at ${formatLocalTime(t)} (in ${t-wnow()}ms) for "+cnlS(sch) }
 
 @CompileStatic
-private Boolean ntMatSw(Map r9,String mat,device){
+private Boolean ntMatSw(Map r9,String mat,device,String cmd){
 	if(mat!=sNULL && gtSwitch(r9,device)!=mat){
-		if(isTrc(r9))trace "Skipping command switch is not $mat",r9
+		if(isTrc(r9))trace "Skipping ${cmd} as switch is not $mat",r9
 		return true
 	}
 	return false
@@ -4223,7 +4227,7 @@ private Long do_setLevel(Map r9,device,List prms,String cmd,Integer val=null){
 	Integer arg=val!=null ? val:icast(r9,prms[iZ])
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNULL
-	if(ntMatSw(r9,mat,device))return lZ
+	if(ntMatSw(r9,mat,device,cmd))return lZ
 	Integer delay=iZ
 	Boolean a
 	List larg=[arg]
@@ -4247,6 +4251,7 @@ private Long do_setLevel(Map r9,device,List prms,String cmd,Integer val=null){
 	return lZ
 }
 
+// cmd_ are wrappers for phyiscal commands with added parameters by webCoRE - these are in LWCMDS
 private Long cmd_setLevel(Map r9,device,List prms){ return do_setLevel(r9,device,prms,sSTLVL) }
 
 private Long cmd_setInfraredLevel(Map r9,device,List prms){ return do_setLevel(r9,device,prms,sSTIFLVL) }
@@ -4283,7 +4288,7 @@ private Long cmd_setColor(Map r9,device,List prms){
 	}
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNULL
-	if(ntMatSw(r9,mat,device))return lZ
+	if(ntMatSw(r9,mat,device,sSCLR))return lZ
 	Long delay=psz>i2 ? (Long)prms[i2]:lZ
 	executePhysicalCommand(r9,device,sSCLR,color,delay)
 	if(delay>=lZ)return delay
@@ -4298,10 +4303,11 @@ private Long cmd_setAdjustedColor(Map r9,device,List prms){
 	}
 	Integer psz=prms.size()
 	String mat=psz>i2 ? (String)prms[i2]:sNULL
-	if(ntMatSw(r9,mat,device))return lZ
+	String cmd='setAdjustedColor'
+	if(ntMatSw(r9,mat,device,cmd))return lZ
 	Long duration=matchCastL(r9,prms[i1])
 	Long delay=psz>i3 ? (Long)prms[i3]:lZ
-	executePhysicalCommand(r9,device,'setAdjustedColor',[color,duration],delay)
+	executePhysicalCommand(r9,device,cmd,[color,duration],delay)
 	if(delay>=lZ)return delay
 	return lZ
 }
@@ -4309,7 +4315,7 @@ private Long cmd_setAdjustedColor(Map r9,device,List prms){
 private Long cmd_setAdjustedHSLColor(Map r9,device,List prms){
 	Integer psz=prms.size()
 	String mat=psz>i4 ? (String)prms[i4]:sNULL
-	if(ntMatSw(r9,mat,device))return lZ
+	if(ntMatSw(r9,mat,device,'setAdjustedHSLColor'))return lZ
 
 	Long duration=matchCastL(r9,prms[i3])
 	Integer hue=Math.round((Integer)prms[iZ]/d3d6).toInteger()
@@ -4340,9 +4346,11 @@ private Long cmd_setVideoLength(Map r9,device,List prms){
 
 private Long cmd_setVariable(Map r9,device,List prms){
 	def var=prms[i1]
-	executePhysicalCommand(r9,device,'setVariable',var)
+	executePhysicalCommand(r9,device,sSTVAR,var)
 	return lZ
 }
+
+/* virtual commands */
 
 private Long vcmd_log(Map r9,device,List prms){
 	String command=prms[iZ] ? (String)prms[iZ]:sBLK
@@ -4561,17 +4569,17 @@ private Long vcmd_toggleLevel(Map r9,device,List prms){
 }
 
 @CompileStatic
-private Long do_adjustLevel(Map r9,device,List prms,String attr,String attr1,Integer val=null,Boolean big=false){
+private Long do_adjustLevel(Map r9,device,List prms,String attr,String cmd,Integer val=null,Boolean big=false){
 	Integer arg=val!=null ? val:matchCastI(r9,prms[iZ])
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNULL
-	if(ntMatSw(r9,mat,device))return lZ
+	if(ntMatSw(r9,mat,device,cmd))return lZ
 	Long delay=psz>i2 ? (Long)prms[i2]:lZ
 	arg=arg+matchCastI(r9,getDeviceAttributeValue(r9,device,attr))
 	Integer low=big ? 1000:iZ
 	Integer hi=big ? 30000:100
 	arg=(arg<low)? low:((arg>hi)? hi:arg)
-	executePhysicalCommand(r9,device,attr1,arg,delay)
+	executePhysicalCommand(r9,device,cmd,arg,delay)
 	if(delay>=lZ)return delay
 	return lZ
 }
@@ -4590,7 +4598,7 @@ private Long vcmd_adjustHue(Map r9,device,List prms){
 private Long vcmd_adjustColorTemperature(Map r9,device,List prms){ return do_adjustLevel(r9,device,prms,sCLRTEMP,sSCLRTEMP,null,true) }
 
 @CompileStatic
-private Long do_fadeLevel(Map r9,device,List prms,String attr,String attr1,Integer val=null,Integer val1=null,Boolean big=false){
+private Long do_fadeLevel(Map r9,device,List prms,String attr,String cmd,Integer val=null,Integer val1=null,Boolean big=false){
 	Integer startLevel
 	Integer endLevel
 	if(val==null){
@@ -4603,13 +4611,13 @@ private Long do_fadeLevel(Map r9,device,List prms,String attr,String attr1,Integ
 		endLevel=val1
 	}
 	String mat=prms.size()>i3 ? (String)prms[i3]:sNULL
-	if(ntMatSw(r9,mat,device))return lZ
+	if(ntMatSw(r9,mat,device,cmd))return lZ
 	Long duration=matchCastL(r9,prms[i2])
 	Integer low=big ? 1000:iZ
 	Integer hi=big ? 30000:100
 	startLevel=(startLevel<low)? low:((startLevel>hi)? hi:startLevel)
 	endLevel=(endLevel<low)? low:((endLevel>hi)? hi:endLevel)
-	return vcmd_internal_fade(r9,device,attr1,startLevel,endLevel,duration)
+	return vcmd_internal_fade(r9,device,cmd,startLevel,endLevel,duration)
 }
 
 private Long vcmd_fadeLevel(Map r9,device,List prms){ return do_fadeLevel(r9,device,prms,sLVL,sSTLVL) }
@@ -5050,7 +5058,7 @@ private Long vcmd_setHSLColor(Map r9,device,List prms){
 	]
 	Integer psz=prms.size()
 	String mat=psz>i3 ? (String)prms[i3]:sNULL
-	if(ntMatSw(r9,mat,device))return lZ
+	if(ntMatSw(r9,mat,device,'setHSLColor'))return lZ
 	Long delay=psz>i4 ? (Long)prms[i4]:lZ
 	executePhysicalCommand(r9,device,sSCLR,color,delay)
 	if(delay>=lZ)return delay
@@ -8078,7 +8086,7 @@ private Map setVariable(Map r9,String name,value){
 			}
 			if(!variable.f){ // don't save fixed;  (includes constants)
 				Map vars
-				Map t0=getCachedMaps('setVariable')
+				Map t0=getCachedMaps(sSTVAR)
 				if(t0!=null)vars=(Map)t0[sVARS]
 				else vars=isPep(r9) ? (Map)gtAS(sVARS):(Map)gtSt(sVARS)
 
