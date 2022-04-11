@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update March 30, 2022 for Hubitat
+ * Last update April 10, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -67,7 +67,6 @@ definition(
 	iconX3Url: "https://raw.githubusercontent.com/ady624/webCoRE/master/resources/icons/app-CoRE@3x.png",
 	importUrl: "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/smartapps/ady624/webcore.src/webcore.groovy"
 )
-
 
 import java.text.SimpleDateFormat
 import groovy.json.JsonOutput
@@ -786,7 +785,8 @@ void afterRun(){
 	log.info "webCoRE upgrade completed"
 }
 
-Map getChildPstate(){
+Map getChildPstate(){ gtPdata() }
+Map gtPdata(){
 	LinkedHashMap msettings=(LinkedHashMap)atomicState.settings
 	if((String)state.accessToken) updateEndpoint()
 	List a1=[ hashId(((Long)location.id).toString()+sML), hashId(hubUID.toString()+location.name.toString()+sML)]
@@ -831,7 +831,7 @@ private void clearParentPistonCache(String meth=sNULL, Boolean frcResub=false, B
 	List t0=getChildApps().findAll{ (String)it.name==n }
 	if(t0){
 		def t1=t0[0]
-		if(t1!=null) t1.clearParentCache(meth) // will cause one child to read getChildPstate
+		if(t1!=null) t1.clearParentCache(meth) // will cause one child to read gtPdata
 		if(frcResub){
 			t0.sort().each{ chld -> // this runs updated on all child pistons
 				chld.updated()
