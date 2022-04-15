@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update April 14, 2022 for Hubitat
+ * Last update April 15, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -2600,16 +2600,8 @@ private Boolean executeEvent(Map r9,Map event){
 						ended=true
 					List<List<Map>> fc=(List<List<Map>>)r9.followCleanup
 					if(fc){
-						String mySS="running followed by updates"
-						if(isEric(r9))myDetail r9,mySS,i1
-						Boolean r
-						Integer svrun=currun(r9)
-						chgRun(r9,iN9)
-						for(List<Map> ttcndtn in fc)
-							for(Map tcndtn in ttcndtn)
-								r=evaluateCondition(r9,tcndtn,sC,false) //run through all to update stuff
-						chgRun(r9,svrun)
-						if(isEric(r9))myDetail r9,mySS
+						for(List<Map> ttcndtns in fc)
+							runFBupdates(r9,iZ,ttcndtns.size(),ttcndtns,false)
 					}
 					r9.remove('followCleanup')
 				}
@@ -5852,21 +5844,23 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 	Boolean not= collC ? !!cndtns.n:!!cndtns.rn
 	String grouping= collC ? (String)cndtns.o:(String)cndtns.rop // operator, restriction operator
 	Boolean value= grouping!=sOR
+	List<Map> cndtnsCOL=cndtns[collection] ? (List<Map>)cndtns[collection] : []
 
 	Boolean isFlwby= grouping=='followed by'
 	Boolean runThru= currun(r9)==iN9 && isFlwby
 	if(isFlwby && collC && !runThru){
 		if(prun(r9) || currun(r9)==myC){
 			//dealing with a followed by condition
-			Integer steps=cndtns[sC] ? ((List)cndtns[sC]).size():iZ
+			Integer steps= cndtnsCOL.size()
 			String sidx='c:fbi:'+myC.toString()
 			Integer ladderIndex= matchCastI(r9,((Map)r9[sCACHE])[sidx])  // gives back iZ if null
 			String sldt='c:fbt:'+myC.toString()
 			Long ladderUpdated=(Long)cast(r9,((Map)r9[sCACHE])[sldt],sDTIME) // gives back current dtime if null
+			Boolean didC=false
 			if(ladderIndex>=steps) value=false
 			else{
 				t=wnow()
-				Map cndtn=((List<Map>)cndtns[sC])[ladderIndex]
+				Map cndtn=cndtnsCOL[ladderIndex]
 				Long duration=lZ
 				if(ladderIndex){
 					Map tv=(Map)evaluateOperand(r9,null,(Map)cndtn.wd)
@@ -5881,6 +5875,7 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 				}else{
 
 					value=evaluateCondition(r9,cndtn,sC,async)
+					didC=true
 
 					if((String)cndtn.wt==sN){
 						if(value) value=false
@@ -5892,6 +5887,7 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 				if(value){
 					//successful step, move on
 					ladderIndex+= i1
+					didC=false
 					ladderUpdated=t
 					cancelStatementSchedules(r9,myC)
 					String ms=sBLK
@@ -5899,7 +5895,7 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 					if(ladderIndex<steps){
 						//delay decision, there are more steps to go through
 						value=null
-						cndtn=((List<Map>)cndtns[sC])[ladderIndex]
+						cndtn=cndtnsCOL[ladderIndex]
 						Map tv=(Map)evaluateOperand(r9,null,(Map)cndtn.wd)
 						duration=longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv)))
 						if(lg)ms+=", Requesting timed"
@@ -5911,13 +5907,15 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 			//noinspection GroovyFallthrough
 			switch(value){
 				case null:
+					Integer st=ladderIndex +(didC?i1:iZ)
+					runFBupdates(r9,st,steps,cndtnsCOL,async) //run through future steps to update trigger cache
 					//we need to exit time events set to work out the timeouts
 					if(currun(r9)==myC)r9.terminated=true
 					break
 				case false:
 				case true:
 					//ladder either collapsed or finished, reset data
-					((List)r9.followCleanup).push(cndtns[sC]) // do run thru to update trigger cache
+					if(ladderIndex!=iZ || !didC)((List)r9.followCleanup).push(cndtnsCOL) // do run thru to update trigger cache
 					ladderIndex=iZ
 					ladderUpdated=lZ
 					cancelStatementSchedules(r9,myC)
@@ -5928,19 +5926,19 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 			((Map)r9[sCACHE])[sldt]=ladderUpdated
 		}
 	}else{
-		if(cndtns[collection]){
+		if(cndtnsCOL){
 			//cto == disable condition traversal optimizations
 			Boolean canopt= !gtPOpt(r9,'cto') && grouping in [sOR,sAND]
 			if(canopt){
 				Integer i=iZ
-				for(Map cndtn in (List<Map>)cndtns[collection]){
+				for(Map cndtn in cndtnsCOL){
 					if( sMt(cndtn)==sGROUP || (i!=iZ && ( (cndtn.ct==sT /*&& cndtn.s */) || (cndtn.ts || cndtn.fs) ) ) ){ canopt=false; break }
 					i++
 				}
 			}
 			if(isEric(r9)) myS+="cto: $canopt "
 			Boolean res
-			for(Map cndtn in (List<Map>)cndtns[collection]){
+			for(Map cndtn in cndtnsCOL){
 				res=evaluateCondition(r9,cndtn,collection,async) //run through all to update stuff
 				value= grouping==sOR ? value||res : value&&res
 				if(prun(r9) && canopt && ((value && grouping==sOR) || (!value && grouping==sAND)))break
@@ -5975,6 +5973,26 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 	((Map)r9[sSTACK]).c=c
 	if(isEric(r9))myDetail r9,myS+"result:$result"
 	return result
+}
+
+@CompileStatic
+private void runFBupdates(Map r9,Integer st,Integer sz,List<Map> cndtns,Boolean async){
+	if(st<sz){
+		String mySS=sBLK
+		if(isEric(r9)){
+			mySS="running followed by updates st: $st sz:$sz"
+			myDetail r9,mySS,i1
+		}
+		Boolean r
+		Integer svrun=currun(r9)
+		chgRun(r9,iN9)
+		for(Integer i=st; i<sz; i++){
+			Map cndtn=cndtns[i]
+			r=evaluateCondition(r9,cndtn,sC,async) //run through future steps to update trigger cache
+		}
+		chgRun(r9,svrun)
+		if(isEric(r9))myDetail r9,mySS
+	}
 }
 
 @SuppressWarnings('GroovyFallthrough')
