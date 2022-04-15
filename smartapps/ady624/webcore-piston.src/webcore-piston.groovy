@@ -1298,6 +1298,7 @@ Map resume(LinkedHashMap piston=null){
 	state[sACT]=true
 	state.subscriptions=[:]
 	state[sSCHS]=[]
+	r9[sCACHE]=[:] // reset followed by
 	cleanState()
 
 	String mSmaNm=sAppId()
@@ -1732,11 +1733,11 @@ private LinkedHashMap getDSCache(String meth,Boolean Upd=true){
 			(sFFT):iZ,
 			(sRUN):true,
 			(sPEP): (Boolean)mst[sPEP],
+			(sCACHE): [:],
+			(sNWCACHE):[:],
 			(sDEVS): [:],
 			(sPIS): null,
 			(sLOGNG): (Integer)mst[sLOGNG]!=null ? (Integer)mst[sLOGNG]:iZ,
-			(sCACHE): [:],
-			(sNWCACHE):[:],
 			(sTRC): [:],
 			(sSCHS):[],
 			(sVARS):[:],
@@ -2536,6 +2537,7 @@ private Boolean executeEvent(Map r9,Map event){
 		r9[sBREAK]=false
 		r9.resumed=false
 		r9.terminated=false
+		r9.followCleanup=[]
 		if(evntName==sTIME)chgRun(r9,(Integer)es.i)
 
 		if(isEric(r9)){
@@ -2596,10 +2598,27 @@ private Boolean executeEvent(Map r9,Map event){
 				}else{
 					if(executeStatements(r9,(List)pis.s))
 						ended=true
+					List<List<Map>> fc=(List<List<Map>>)r9.followCleanup
+					if(fc){
+						String mySS="running followed by updates"
+						if(isEric(r9))myDetail r9,mySS,i1
+						Boolean r
+						Integer svrun=currun(r9)
+						chgRun(r9,iN9)
+						for(List<Map> ttcndtn in fc)
+							for(Map tcndtn in ttcndtn)
+								r=evaluateCondition(r9,tcndtn,sC,false) //run through all to update stuff
+						chgRun(r9,svrun)
+						if(isEric(r9))myDetail r9,mySS
+					}
+					r9.remove('followCleanup')
 				}
 			}else{
 				if(lg)debug 'Piston execution aborted due to restrictions in effect; updating piston states',r9
 				//run through all to update stuff
+				r9[sCACHE]=[:] // reset followed by
+				assignSt(sCACHE,[:])
+				updateCacheFld(r9,sCACHE,[:],myS,true)
 				chgRun(r9,iN9)
 				Boolean ya=executeStatements(r9,(List)pis.s)
 				ended=true
@@ -5839,82 +5858,74 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 	if(isFlwby && collC && !runThru){
 		if(prun(r9) || currun(r9)==myC){
 			//dealing with a followed by condition
-			Integer steps=cndtns[collection] ? ((List)cndtns[collection]).size():iZ
+			Integer steps=cndtns[sC] ? ((List)cndtns[sC]).size():iZ
 			String sidx='c:fbi:'+myC.toString()
 			Integer ladderIndex= matchCastI(r9,((Map)r9[sCACHE])[sidx])  // gives back iZ if null
-			Integer svlddr=ladderIndex
 			String sldt='c:fbt:'+myC.toString()
-			for(Integer i=iZ; i<=steps; i++){
-				// force all conditions to update cache
-				if(i!=svlddr && i<steps){
-					Integer svrun=currun(r9)
-					chgRun(r9,iN9)
-					Map cndtn=((List<Map>)cndtns[collection])[i]
-					Boolean tvalue=evaluateCondition(r9,cndtn,collection,async) //run through all to update stuff
-					chgRun(r9,svrun)
+			Long ladderUpdated=(Long)cast(r9,((Map)r9[sCACHE])[sldt],sDTIME) // gives back current dtime if null
+			if(ladderIndex>=steps) value=false
+			else{
+				t=wnow()
+				Map cndtn=((List<Map>)cndtns[sC])[ladderIndex]
+				Long duration=lZ
+				if(ladderIndex){
+					Map tv=(Map)evaluateOperand(r9,null,(Map)cndtn.wd)
+					duration=longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv)))
+				}
+				// wt: l- loose (ignore unexpected events), s- strict, n- negated (lack of requested event continues group)
+				if(ladderUpdated && duration!=lZ && (ladderUpdated+duration)<t){
+					//time has expired
+					value=((String)cndtn.wt==sN)
+					if(!value)
+						if(lg)debug "Conditional ladder step failed due to a timeout",r9
 				}else{
-					Long ladderUpdated=(Long)cast(r9,((Map)r9[sCACHE])[sldt],sDTIME) // gives back current dtime if null
-					if(ladderIndex>=steps) value=false
-					else{
-						t=wnow()
-						Map cndtn=((List<Map>)cndtns[collection])[ladderIndex]
-						Long duration=lZ
-						if(ladderIndex){
-							Map tv=(Map)evaluateOperand(r9,null,(Map)cndtn.wd)
-							duration=longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv)))
-						}
-						// wt: l- loose, s- strict, n- negated (lack of expected event resets group)
-						if(ladderUpdated && duration!=lZ && (ladderUpdated+duration)<t){
-							//time has expired
-							value=((String)cndtn.wt==sN)
-							if(!value) if(lg)debug "Conditional ladder step failed due to a timeout",r9
-						}else{
-							value=evaluateCondition(r9,cndtn,collection,async)
-							if((String)cndtn.wt==sN){
-								if(value) value=false
-								else value=null
-							}
-							//we allow loose matches to work even if other events happen
-							if((String)cndtn.wt==sL && !value)value=null // loose
-						}
-						if(value){
-							//successful step, move on
-							ladderIndex+= i1
-							ladderUpdated=t
-							cancelStatementSchedules(r9,myC)
-							String ms=sBLK
-							if(lg)ms="Condition group #${myC} made progress up the ladder; currently at step $ladderIndex of $steps"
-							if(ladderIndex<steps){
-								//delay decision, there are more steps to go through
-								value=null
-								cndtn=((List<Map>)cndtns[collection])[ladderIndex]
-								Map tv=(Map)evaluateOperand(r9,null,(Map)cndtn.wd)
-								duration=longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv)))
-								if(lg)ms+=", Requesting timed"
-								requestWakeUp(r9,cndtns,cndtns,duration,sNL,true,sNL,ms)
-							} else if(ms)debug ms,r9
-						}
-					}
 
-					//noinspection GroovyFallthrough
-					switch(value){
-						case null:
-							//we need to exit time events set to work out the timeouts
-							if(currun(r9)==myC)r9.terminated=true
-							break
-						case true:
-						case false:
-							//ladder either collapsed or finished, reset data
-							ladderIndex=iZ
-							ladderUpdated=lZ
-							cancelStatementSchedules(r9,myC)
-							break
+					value=evaluateCondition(r9,cndtn,sC,async)
+
+					if((String)cndtn.wt==sN){
+						if(value) value=false
+						else value=null
 					}
-					if(currun(r9)==myC)chgRun(r9,iZ)
-					((Map)r9[sCACHE])[sidx]=ladderIndex
-					((Map)r9[sCACHE])[sldt]=ladderUpdated
+					//we allow loose matches to work even if other events happen
+					if((String)cndtn.wt==sL && !value)value=null // loose
+				}
+				if(value){
+					//successful step, move on
+					ladderIndex+= i1
+					ladderUpdated=t
+					cancelStatementSchedules(r9,myC)
+					String ms=sBLK
+					if(lg)ms="Condition group #${myC} made progress up the ladder; currently at step $ladderIndex of $steps"
+					if(ladderIndex<steps){
+						//delay decision, there are more steps to go through
+						value=null
+						cndtn=((List<Map>)cndtns[sC])[ladderIndex]
+						Map tv=(Map)evaluateOperand(r9,null,(Map)cndtn.wd)
+						duration=longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv)))
+						if(lg)ms+=", Requesting timed"
+						requestWakeUp(r9,cndtns,cndtns,duration,sNL,true,sNL,ms)
+					} else if(ms)debug ms,r9
 				}
 			}
+
+			//noinspection GroovyFallthrough
+			switch(value){
+				case null:
+					//we need to exit time events set to work out the timeouts
+					if(currun(r9)==myC)r9.terminated=true
+					break
+				case false:
+				case true:
+					//ladder either collapsed or finished, reset data
+					((List)r9.followCleanup).push(cndtns[sC]) // do run thru to update trigger cache
+					ladderIndex=iZ
+					ladderUpdated=lZ
+					cancelStatementSchedules(r9,myC)
+					break
+			}
+			if(currun(r9)==myC)chgRun(r9,iZ)
+			((Map)r9[sCACHE])[sidx]=ladderIndex
+			((Map)r9[sCACHE])[sldt]=ladderUpdated
 		}
 	}else{
 		if(cndtns[collection]){
@@ -5936,6 +5947,7 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 			}
 		}
 	}
+
 	Boolean result=false //null
 	if(value!=null) result=not ? !value:!!value
 	if((value!=null && myC!=iZ) || runThru){
@@ -7438,15 +7450,20 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			subscribe(location,(String)r9[sID],executeHandler)
 			String t= hashId(r9,r9.nId)
 			if(t!=(String)r9[sID]) subscribe(location,t,executeHandler) //backwards
+
 			Long n=wnow()
 			Map event=[(sT):n,(sDEV):cvtLoc(),(sNM):sTIME,(sVAL):n,schedule:[(sT):lZ,(sS):iZ,(sI):iN9]]
+			r9[sCACHE]=[:] // reset followed by
+			assignSt(sCACHE,[:])
+			updateCacheFld(r9,sCACHE,[:],s,true)
+
 			a=executeEvent(r9,event)
 			processSchedules r9,true
 			//save cache collected through dummy run
 			for(item in (Map<String,Map>)r9[sNWCACHE])((Map)r9[sCACHE])[(String)item.key]=item.value
+			assignSt(sCACHE,(Map)r9[sCACHE])
+			updateCacheFld(r9,sCACHE,[:]+(Map)r9[sCACHE],s,true)
 
-			state[sCACHE]=(Map)r9[sCACHE]
-			updateCacheFld(r9,sCACHE,[:]+r9[sCACHE],s,true)
 			Map myRt=shortRtd(r9)
 			myRt.t=n
 			relaypCall(myRt)
