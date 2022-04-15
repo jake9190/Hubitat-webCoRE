@@ -1298,7 +1298,7 @@ Map resume(LinkedHashMap piston=null){
 	state[sACT]=true
 	state.subscriptions=[:]
 	state[sSCHS]=[]
-	r9[sCACHE]=[:] // reset followed by
+	state[sCACHE]=[:] // reset followed by
 	cleanState()
 
 	String mSmaNm=sAppId()
