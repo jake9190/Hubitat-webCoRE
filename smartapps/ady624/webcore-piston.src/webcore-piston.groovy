@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update April 15, 2022 for Hubitat
+ * Last update April 17, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -568,13 +568,13 @@ static String dumpListDesc(List data,final Integer level,List<Boolean> lastLevel
 			newmap[lbl]=(Map)par
 			Boolean t1=cnt==sz
 			newLevel[level]=t1
-			str+=dumpMapDesc(newmap,level,newLevel,!t1,html,reorder)
+			str+=dumpMapDesc(newmap,level,newLevel,cnt,sz,!t1,html,reorder)
 		}else if(par instanceof List || par instanceof ArrayList){
 			Map newmap=[:]
 			newmap[lbl]=par
 			Boolean t1=cnt==sz
 			newLevel[level]=t1
-			str+=dumpMapDesc(newmap,level,newLevel,!t1,html,reorder)
+			str+=dumpMapDesc(newmap,level,newLevel,cnt,sz,!t1,html,reorder)
 		}else{
 			String lineStrt=doLineStrt(level,lastLevel)
 			lineStrt+=cnt==i1 && sz>i1 ? sSPCST:(cnt<sz ? sSPCSM:sSPCSE)
@@ -588,7 +588,7 @@ static String dumpListDesc(List data,final Integer level,List<Boolean> lastLevel
 }
 
 @CompileStatic
-static String dumpMapDesc(Map data,final Integer level,List<Boolean> lastLevel,Boolean listCall=false,Boolean html=false,Boolean reorder=true){
+static String dumpMapDesc(Map data,final Integer level,List<Boolean> lastLevel,Integer listCnt=null,Integer listSz=null,Boolean listCall=false,Boolean html=false,Boolean reorder=true){
 	String str=sBLK
 	Integer cnt=i1
 	final Integer sz=data?.size()
@@ -616,7 +616,8 @@ static String dumpMapDesc(Map data,final Integer level,List<Boolean> lastLevel,B
 		else{
 			theLast=theLast && thisIsLast
 			lineStrt=doLineStrt(level,newLevel)
-			lineStrt+=((cnt<sz || listCall) && !thisIsLast) ? sSPCSM:sSPCSE
+			if(listSz && listCnt && listCall)lineStrt+=listCnt==i1 && listSz>i1 ? sSPCST:(listCnt<listSz ? sSPCSM:sSPCSE)
+			else lineStrt+=((cnt<sz || listCall) && !thisIsLast) ? sSPCSM:sSPCSE
 		}
 		final String k=(String)par.key
 		final def v=par.value
@@ -626,7 +627,7 @@ static String dumpMapDesc(Map data,final Integer level,List<Boolean> lastLevel,B
 			str+=lineStrt+"${k}: (${objType})".toString()
 			if(html)str+=sSSP
 			newLevel[lvlpls]=theLast
-			str+=dumpMapDesc((Map)v,lvlpls,newLevel,false,html,reorder)
+			str+=dumpMapDesc((Map)v,lvlpls,newLevel,null,null,false,html,reorder)
 		}
 		else if(v instanceof List || v instanceof ArrayList){
 			if(html)str+=sSP
@@ -651,7 +652,7 @@ static String objType(obj){ return sSPORNG+myObj(obj)+sSSP }
 @CompileStatic
 static String getMapDescStr(Map data,Boolean reorder=true){
 	List<Boolean> lastLevel=[true]
-	String str=dumpMapDesc(data,iZ,lastLevel,false,true,reorder)
+	String str=dumpMapDesc(data,iZ,lastLevel,null,null,false,true,reorder)
 	return str!=sBLK ? str:'No Data was returned'
 }
 
@@ -1074,13 +1075,13 @@ private void cleanCode(i,Boolean inMem){
 	String av='avg'
 	String ty=sMt(item)
 
-	if(inMem && ty==sNL && item.d instanceof List && !item.d && (String)item.g==av && item.f==sL && item[sVT]!=null){
-		if(item.size()==i5 && item.c!=null) a=item.remove(sC)
-		if(item.size()==i4){ a=item.remove(sD); a=item.remove(sG) }
-	}
-
 	//tasks with empty mode restriction
 	if(ty==sNL && item.c && item.m instanceof List && !(List)item.m)a=item.remove(sM)
+
+	if(ty==sNL && item.d instanceof List && !item.d && (String)item.g==av && item.f==sL && item[sVT]!=null){
+		if(item.size()==i5 && item.c!=null) a=item.remove(sC) // cruft when editing operands
+		if(inMem && item.size()==i4){ a=item.remove(sD); a=item.remove(sG) }
+	}
 
 	if(ty in ListAL){ // cleanup operands
 		// UI important data
@@ -1151,7 +1152,7 @@ private void cleanCode(i,Boolean inMem){
 			else if(((List)item[t])[iZ] instanceof Map) for(Map eI in (List<Map>)item[t])cleanCode(eI,inMem)
 		}
 	}
-	for(String t in [sI]){
+	for(String t in [sI]){ // expression items
 		if(item.containsKey(t) && item[t] instanceof List){
 			if(inMem && ((List)item[t]).size()==iZ)Boolean b=item.remove(t)
 			else{
@@ -2727,6 +2728,7 @@ private void finalizeEvent(Map r9,Map iMsg,Boolean success=true){
 		relaypCall(r9)
 		aa=r9.remove(s)
 		aa=r9.remove('gvStoreCache')
+		aa=r9.remove('globalStore')
 		r9.initGStore=false
 	}else{
 		// update Dashboard
@@ -5750,6 +5752,11 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 	String canister=canisterS(r9,device,prms)
 	//noinspection GroovyAssignabilityCheck
 	Boolean empty=prms.size()>i2 ? bcast(r9,prms[i2]):false
+
+	Map sD=[:]
+	List<String> newattrs=[]
+	List vals=[]
+
 	for(String attr in attributes){
 		String n=canister+attr
 		if(global && !r9Is(r9,'initGStore')){
@@ -5768,34 +5775,81 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 			}else a=((Map)r9[sSTORE]).remove(n)
 		}
 		if(value==null)continue
+
+		if(attr in [sSWITCH,sLVL,sSATUR,sHUE,sCLRTEMP]) sD[attr]=value
+		else{
+			newattrs.push(attr)
+			a=vals.push(value)
+		}
+	}
+
+	Boolean lg=isDbg(r9)
+	String msg='loadState '
+	if(isEric(r9)&& sD)debug msg+"${sD}",r9
+	Boolean wOn= sD.containsKey(sSWITCH) ? (String)sD[sSWITCH]==sON :null
+	Boolean isOn= sD.containsKey(sSWITCH) ? gtSwitch(r9,device)==sON :null
+	Boolean chgHSL= sD.containsKey(sLVL) && sD.containsKey(sSATUR) && sD.containsKey(sHUE)
+	Boolean chgLvl= !chgHSL && sD.containsKey(sLVL) ? true : null
+	Boolean chgCtemp= sD.containsKey(sCLRTEMP) ?: null
+	String scheduleDevice= hashD(r9,device)
+	Long del=lZ
+	if((chgLvl || chgCtemp) && isOn==false){
+		executePhysicalCommand(r9,device,sON)
+		isOn=true
+		del=1500L
+	}
+	if(chgHSL){
+		executePhysicalCommand(r9,device,sSTCLR,[(sHUE):sD[sHUE], (sSATUR):sD[sSATUR], (sLVL):sD[sLVL]],del,scheduleDevice)
+		del+=100L
+	}
+	if(chgLvl){
+		List larg=[sD[sLVL]]
+		executePhysicalCommand(r9,device,sSTLVL,larg,del,scheduleDevice)
+		del+=100L
+	}
+	if(chgCtemp){
+		List larg=[sD[sCLRTEMP]]
+		executePhysicalCommand(r9,device,sSTCLRTEMP,larg,del,scheduleDevice)
+		del+=100L
+	}
+
+	def value
+	Integer cnt=0
+	for(String attr in newattrs){
+		value=vals[cnt]
+		cnt+=i1
 		String exactCommand=sNL
 		String fuzzyCommand=sNL
 		for(command in PhysicalCommands()){
 			if(sMa(command.value)==attr){
 				if(command.value.v==null) fuzzyCommand=(String)command.key
-				else{
+				else
 					if((String)command.value.v==value){
 						exactCommand=(String)command.key
 						break
 					}
-				}
 			}
 		}
 		String t0="Restoring attribute '$attr' to value '$value' using command".toString()
-		Boolean lg=isDbg(r9)
 		if(exactCommand!=sNL){
 			if(lg)debug "${t0} $exactCommand()",r9
-			executePhysicalCommand(r9,device,exactCommand)
+			executePhysicalCommand(r9,device,exactCommand,null,del,scheduleDevice)
+			del+=100L
 			continue
 		}
 		if(fuzzyCommand!=sNL){
 			if(lg)debug "${t0} $fuzzyCommand($value)",r9
-			executePhysicalCommand(r9,device,fuzzyCommand,value)
+			executePhysicalCommand(r9,device,fuzzyCommand,value,del,scheduleDevice)
+			del+=100L
 			continue
 		}
 		warn "Could not find a command to set attribute '$attr' to value '$value'",r9
 	}
-	return lZ
+	if(wOn!=null && wOn!=isOn) {
+		del+= wOn ? lZ:1200L
+		executePhysicalCommand(r9,device,sD[sSWITCH],null,del,scheduleDevice)
+	}
+	return del
 }
 
 private Long vcmd_loadStateGlobally(Map r9,device,List prms){ return vcmd_loadStateLocally(r9,device,prms,true) }
@@ -5915,7 +5969,7 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 				case false:
 				case true:
 					//ladder either collapsed or finished, reset data
-					if(ladderIndex!=iZ || !didC)((List)r9.followCleanup).push(cndtnsCOL) // do run thru to update trigger cache
+					if(ladderIndex!=iZ || !didC)Boolean a=((List)r9.followCleanup).push(cndtnsCOL) // do run thru to update trigger cache
 					ladderIndex=iZ
 					ladderUpdated=lZ
 					cancelStatementSchedules(r9,myC)
@@ -7014,6 +7068,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		Map<String,Integer> stmtLvl=[v:iZ]
 		Boolean dwnGrdTrig=false // EVERY statement only has timer trigger, ON only has its event
 		Map curStatement=null
+		Map curCondition=[:]
 		String never='never'
 		//traverse all statements
 		Closure expressionTraverser
@@ -7054,7 +7109,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 				if(ct==sTRIG || cmpTyp==sTRIG){
 					ct=sTRIG
 				}else ct=ct ?: cmpTyp
-				subscriptions[subsId]=[(sD):deviceId,(sA):attr,(sT):ct,(sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(cmpTyp? [expression]:[])]
+				subscriptions[subsId]=[(sD):deviceId,(sA):attr,(sT):ct,(sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+[curCondition]]
 				if(deviceId!=LID && deviceId.startsWith(sCLN)){
 					if(doit && !rawDevices[deviceId])rawDevices[deviceId]=getDevice(r9,deviceId)
 					devices[deviceId]=[(sC):(cmpTyp ? i1:iZ)+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:iZ)]
@@ -7210,6 +7265,8 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		List<String> ltsub= ['happens_daily_at']
 		List<String> lntrk= ltsub+rg+['arrives','event_occurs','executes']
 		conditionTraverser={ Map cndtn,parentCondition ->
+			Map svCond=curCondition
+			curCondition=cndtn
 			String co=(String)cndtn.co
 			if(co){
 				Map comparison=Comparisons().conditions[co]
@@ -7261,6 +7318,8 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			}
 			if(cndtn.ts instanceof List)traverseStatements((List)cndtn.ts,statementTraverser,cndtn,stmtData,stmtLvl)
 			if(cndtn.fs instanceof List)traverseStatements((List)cndtn.fs,statementTraverser,cndtn,stmtData,stmtLvl)
+			//noinspection GrReassignedInClosureLocalVar
+			curCondition=svCond
 		}
 		restrictionTraverser={ Map restriction,Map parentRestriction,Map data ->
 			String rco=(String)restriction.co
@@ -11713,7 +11772,7 @@ private Boolean isDeviceLocation(d){
 	}
 	return false
 }
-private static String dString(d){ return d.id.toString()	}
+private static String dString(d){ return d.id.toString() }
 private static String hashD(Map r9,d){ return hashId2(d.id,(String)r9.pId) }
 private static Map cvtDev(d){
 	Map myDev=[:]
