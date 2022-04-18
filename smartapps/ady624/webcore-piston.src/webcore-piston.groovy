@@ -5820,17 +5820,21 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 		cnt+=i1
 		String exactCommand=sNL
 		String fuzzyCommand=sNL
+		String fuzzyCommand1=sNL
+		String t0="Restoring attribute '$attr' to value '$value'".toString()
 		for(command in PhysicalCommands()){
 			if(sMa(command.value)==attr){
 				if(command.value.v==null) fuzzyCommand=(String)command.key
 				else
 					if((String)command.value.v==value){
+						t0+=" using command".toString()
 						exactCommand=(String)command.key
 						break
 					}
 			}
+			if((String)command.value.v==value) // values like open/closed are overloaded to different attributes
+				fuzzyCommand1=(String)command.key
 		}
-		String t0="Restoring attribute '$attr' to value '$value' using command".toString()
 		if(exactCommand!=sNL){
 			if(lg)debug "${t0} $exactCommand()",r9
 			executePhysicalCommand(r9,device,exactCommand,null,del,scheduleDevice)
@@ -5840,6 +5844,12 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 		if(fuzzyCommand!=sNL){
 			if(lg)debug "${t0} $fuzzyCommand($value)",r9
 			executePhysicalCommand(r9,device,fuzzyCommand,value,del,scheduleDevice)
+			del+=100L
+			continue
+		}
+		if(fuzzyCommand1!=sNL){
+			if(lg)debug "${t0} $fuzzyCommand1()",r9
+			executePhysicalCommand(r9,device,fuzzyCommand1,null,del,scheduleDevice)
 			del+=100L
 			continue
 		}
