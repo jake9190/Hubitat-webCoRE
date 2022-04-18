@@ -5764,7 +5764,6 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 			r9.initGStore=true
 		}
 		def value=global ? r9.globalStore[n]:r9[sSTORE][n]
-		if(attr==sHUE)value=dcast(r9,value)/d3d6
 		def a
 		if(empty){
 			if(global){
@@ -5776,6 +5775,7 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 		}
 		if(value==null)continue
 
+		if(attr==sHUE)value=dcast(r9,value)/d3d6
 		if(attr in [sSWITCH,sLVL,sSATUR,sHUE,sCLRTEMP]) sD[attr]=value
 		else{
 			newattrs.push(attr)
