@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update April 17, 2022 for Hubitat
+ * Last update April 18, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -29,7 +29,7 @@
 //file:noinspection GroovyAssignabilityCheck
 
 @Field static final String sVER='v0.3.114.20220203'
-@Field static final String sHVER='v0.3.114.20220410_HE'
+@Field static final String sHVER='v0.3.114.20220418_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -296,7 +296,6 @@ static Boolean eric1(){ return false }
 @Field static final String sIFTTTCODE='$iftttStatusCode'
 @Field static final String sIFTTTOK='$iftttStatusOk'
 @Field static final String sTSLF='theSerialLockFLD'
-@Field static final String sTCCC='theCCC'
 @Field static final String sTCL='cacheLock'
 @Field static final String sTGBL='theGlobal'
 @Field static final String sLCK1='lockOrQueue1'
@@ -361,6 +360,7 @@ static Boolean eric1(){ return false }
 @Field static final Integer i10=10
 @Field static final Integer i12=12
 @Field static final Integer i20=20
+@Field static final Integer i1000=1000
 @Field static final Long lTHOUS=1000L
 @Field static final Long lMSDAY=86400000L
 @Field static final Double dZ=0.0D
@@ -1478,7 +1478,6 @@ static Integer semaNum(String name){
 	if(name.isNumber())return name.toInteger()%iStripes
 	if(name==sTSLF)return iStripes
 	if(name==sTGBL)return iStripes+i1
-	if(name==sTCCC)return iStripes+i2
 	Integer hash=smear(name.hashCode())
 	return Math.abs(hash)%iStripes
 }
@@ -1521,10 +1520,6 @@ private static Integer smear(Integer hashC){
 	hashCode ^= (hashCode >>> i20) ^ (hashCode >>> i12)
 	return hashCode ^ (hashCode >>> i7) ^ (hashCode >>> i4)
 }
-
-private void getCacheLock(String meth=sNL){ getTheLock(sTCCC,meth+sSPC+sTCL) }
-
-private static void releaseCacheLock(){ releaseTheLock(sTCCC) }
 
 /* wrappers */
 private static LinkedHashMap fixEvt(event){
@@ -1845,10 +1840,20 @@ void clearParentCache(String meth=sNL){
 
 	theCacheVFLD=[:] // reset all pistons cache
 	clearHashMap(wName)
-	theVirtDevicesFLD=null
+	loadCDB()
 
 	releaseTheLock(semName)
 	if(eric())log.debug "clearing parent cache and all piston caches $meth"
+}
+
+// load caches
+private void loadCDB(){
+	theVirtDevicesFLD=null
+	Map comparison=ComparisonsF()
+	Map vcmd=VirtualCommandsF()
+	Map attr=AttributesF()
+	List col=getColorsF()
+	Map cmd=PhysicalCommandsF()
 }
 
 private LinkedHashMap getParentCache(){
@@ -1897,13 +1902,7 @@ private LinkedHashMap getTemporaryRunTimeData(Long startTime=wnow()){
 	if(thePhysCommandsFLD==null){ //do one time load once
 		String semName=sTSLF
 		getTheLock(semName,sGETTRTD,true)
-		if(thePhysCommandsFLD==null){ // load caches
-			Map comparison=ComparisonsF()
-			Map vcmd=VirtualCommandsF()
-			Map attr=AttributesF()
-			List col=getColorsF()
-			Map cmd=PhysicalCommandsF()
-		}
+		if(thePhysCommandsFLD==null) loadCDB()
 		releaseTheLock(semName)
 	}
 	LinkedHashMap r9=getDSCache(sGETTRTD)
@@ -2807,7 +2806,7 @@ private void updateSchCache(Map r9,List<Map> schedules,String t,String lt,final 
 	if(myPep)assignAS(sSCHS,schedules)
 	else assignSt(sSCHS,(List<Map>)[]+schedules)
 
-	updateCacheFld(r9,sSCHS,[]+schedules,lt,true)
+	updateCacheFld(r9,sSCHS,[]+schedules,t+lt,true)
 }
 
 private static LinkedHashMap initCncl(){ return [statements:[],conditions:[],all:false] as LinkedHashMap }
@@ -4007,7 +4006,7 @@ private void scheduleTimer(Map r9,Map timer,Long lastRun=lZ){
 }
 
 @CompileStatic
-private Long pushTimeAhead(Long pastTime,Long curTime){
+private static Long pushTimeAhead(Long pastTime,Long curTime){
 	Long retTime=pastTime
 	TimeZone mtz=mTZ()
 	while(retTime<curTime){
@@ -4039,13 +4038,14 @@ private void scheduleTimeCondition(Map r9,Map cndtn){
 	cancelStatementSchedules(r9,cndNm)
 	Integer pCnt=comparison.p!=null ? (Integer)comparison.p:iZ
 	if(!pCnt)return
+	Map cLO=(Map)cndtn.lo
 
 	Map tv1=cndtn.ro!=null && sMt((Map)cndtn.ro)!=sC ? (Map)evaluateOperand(r9,null,(Map)cndtn.to):null
 	Long v1=longEvalExpr(r9,(Map)evaluateOperand(r9,null,(Map)cndtn.ro),sDTIME) + (tv1!=null ? longEvalExpr(r9,rtnMap1(tv1.v,sMvt(tv1))) : lZ)
 	Map tv2=cndtn.ro2!=null && sMt((Map)cndtn.ro2)!=sC && pCnt>i1 ? (Map)evaluateOperand(r9,null,(Map)cndtn.to2):null
-	Long v2=trigger ? v1:(pCnt>i1 ? (longEvalExpr(r9,(Map)evaluateOperand(r9,null,(Map)cndtn.ro2,null,false,true),sDTIME) + (tv2!=null ? longEvalExpr(r9,rtnMap1(tv2.v,sMvt(tv2))) :lZ)) : (String)((Map)cndtn.lo).v==sTIME ? getMidnightTime():v1 )
+	Long v2=trigger ? v1:(pCnt>i1 ? (longEvalExpr(r9,(Map)evaluateOperand(r9,null,(Map)cndtn.ro2,null,false,true),sDTIME) + (tv2!=null ? longEvalExpr(r9,rtnMap1(tv2.v,sMvt(tv2))) :lZ)) : (String)cLO.v==sTIME ? getMidnightTime():v1 )
 	Long n=Math.round(d1*wnow()+2000L)
-	if((String)((Map)cndtn.lo).v==sTIME){
+	if((String)cLO.v==sTIME){
 		v1=pushTimeAhead(v1,n)
 		v2=pushTimeAhead(v2,n)
 	}
@@ -4053,13 +4053,32 @@ private void scheduleTimeCondition(Map r9,Map cndtn){
 	v1=v1<n ? v2:v1
 	v2=v2<n ? v1:v2
 	n=v1<v2 ? v1:v2
-	if(n>wnow()){
+
+	Long n1=n
+	if((String)cLO.v==sTIME){
+		Integer iyr=1461 // 4 years
+		Integer cnt=iyr
+		if(isEric(r9))debug mySt+" checking for schedule restrictions for $cLO", r9
+		while(cnt){
+			//repeat until we find a day that's matching the restrictions
+			if(checkTimeRestrictions(r9,cLO,n1,5,1)==lZ) break
+			cnt-=i1
+			n1=pushTimeAhead(n1,n1+1L)
+		}
+		if(isDbg(r9) && cnt!=iyr)debug "Adding ${iyr-cnt} days, $n >>> $n1" ,r9
+		if(cnt==iZ)n1=n
+	}
+
+	if(n1>wnow()){
 		String msg=sBLK
 		if(isDbg(r9))msg= "Requesting time schedule"
-		requestWakeUp(r9,cndtn,[(sDLR):iZ],n,sNL,false,sNL,msg)
+		requestWakeUp(r9,cndtn,[(sDLR):iZ],n1,sNL,false,sNL,msg)
 	}
 	if(isEric(r9))myDetail r9,mySt
 }
+
+@CompileStatic
+private static Boolean listWithSz(obj){ return obj instanceof List && ((List)obj).size()>iZ }
 
 @CompileStatic
 private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer level,Integer interval){
@@ -4068,17 +4087,17 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 	//returns a negative number as a failed restriction with no fast forwarding offset suggestion
 
 	// on minute of hour
-	List<Integer> om=level<=i2 && operand.om instanceof List && ((List)operand.om).size()>iZ ? (List<Integer>)operand.om:null
+	List<Integer> om=level<=i2 && listWithSz(operand.om)? (List<Integer>)operand.om:null
 	// on hours
-	List<Integer> oh=level<=i3 && operand.oh instanceof List && ((List)operand.oh).size()>iZ ? (List<Integer>)operand.oh:null
+	List<Integer> oh=level<=i3 && listWithSz(operand.oh) ? (List<Integer>)operand.oh:null
 	// on day(s) of week
-	List<Integer> odw=level<=i5 && operand.odw instanceof List && ((List)operand.odw).size()>iZ ? (List<Integer>)operand.odw:null
+	List<Integer> odw=level<=i5 && listWithSz(operand.odw) ? (List<Integer>)operand.odw:null
 	// on day(s) of month
-	List<Integer> odm=level<=i6 && operand.odm instanceof List && ((List)operand.odm).size()>iZ ? (List<Integer>)operand.odm:null
+	List<Integer> odm=level<=i6 && listWithSz(operand.odm) ? (List<Integer>)operand.odm:null
 	// on weeks of month
-	List<Integer> owm=level<=i6 && odm==null && operand.owm instanceof List && ((List)operand.owm).size()>iZ ? (List<Integer>)operand.owm:null
+	List<Integer> owm=level<=i6 && odm==null && listWithSz(operand.owm) ? (List<Integer>)operand.owm:null
 	// on month of year
-	List<Integer> omy=level<=i7 && operand.omy instanceof List && ((List)operand.omy).size()>iZ ? (List<Integer>)operand.omy:null
+	List<Integer> omy=level<=i7 && listWithSz(operand.omy) ? (List<Integer>)operand.omy:null
 
 	if(om==null && oh==null && odw==null && odm==null && owm==null && omy==null)return lZ
 	Date date=new Date(time)
@@ -4112,7 +4131,7 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 				result=Math.round(interval*(tt-d2)*dMSMINT)
 				break
 		}
-		return result>lZ ? result:lMO
+		return pRes(r9,result)
 	}
 
 	Double d7=7.0D
@@ -4128,7 +4147,7 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 				result=Math.round(interval*(tt-d2)*dMSMINT)
 				break
 		}
-		return result>lZ ? result:lMO
+		return pRes(r9,result)
 	}
 
 	//day of month restrictions
@@ -4153,7 +4172,7 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 				result=Math.round(interval*(tt-d2)*dMSMINT)
 				break
 		}
-		return result>lZ ? result:lMO
+		return pRes(r9,result)
 	}
 
 	//day of week restrictions
@@ -4169,7 +4188,7 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 				result=Math.round(interval*(tt-d2)*dMSMINT)
 				break
 		}
-		return result>lZ ? result:lMO
+		return pRes(r9,result)
 	}
 
 	//hour restrictions
@@ -4186,7 +4205,7 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 				result=Math.round(interval*(tt-d2)*dMSMINT)
 				break
 		}
-		return result>lZ ? result:lMO
+		return pRes(r9,result)
 	}
 
 	//minute restrictions
@@ -4196,9 +4215,16 @@ private static Long checkTimeRestrictions(Map r9,Map operand,Long time,Integer l
 		List<Integer> tI=om.sort{ Integer it -> it }
 		Double tt= Math.floor((((tI.find{ Integer it -> it>dyMins } ?: d60+tI[iZ])-dyMins-d1)*d60/interval).toDouble())
 		result=Math.round(interval*(tt-d2)*d1000)
-		return result>lZ ? result:lMO
+		return pRes(r9,result)
 	}
 	return lZ
+}
+
+@CompileStatic
+private static Long pRes(Map r9, Long result){
+	Long res= result>lZ ? result: -1L
+	//if(isEric(r9)) debug "check time restriction return $res",r9
+	return res
 }
 
 //return the number of occurrences of same day of week up until the date or from the end of the month if backwards,i.e. last Sunday is -1, second-last Sunday is -2
@@ -6301,7 +6327,7 @@ private Boolean evaluateCondition(Map r9,Map cndtn,String collection,Boolean asy
 	if(ffwd(r9) || comparison!=null){
 		Boolean isStays=co.startsWith('stays')
 		if(currun(r9) in [iZ,iN9]){
-			Integer pCnt=comparison.p!=null ? (Integer)comparison.p:iZ
+			Integer pCnt=comparison?.p!=null ? (Integer)comparison.p:iZ
 			Map lo=null
 			Map ro=null
 			Map ro2=null
@@ -6489,10 +6515,10 @@ private Boolean evaluateComparison(Map r9,String comparison,Map lo,Map ro=null,M
 				if(!ro){
 					Map msg=[:]
 					if(lg)msg=timer sBLK,r9
-					if(comparison=='event_occurs'){
-						String compS=(String)((Map)lo.operand).v
+					if(comparison in ['event_occurs','gets_any']){
 						Map ce=(Map)r9[sCUREVT]
 						String rEN=ce ? (String)ce[sNM] : sNL
+						String compS=(String)((Map)lo.operand).v
 						if(compS=='alarmSystemStatus') compS=sHSMSTS
 						else if(compS=='alarmSystemAlert') compS=sHSMALRT
 						else if(compS=='alarmSystemEvent') compS=sHSMSARM
@@ -6500,9 +6526,9 @@ private Boolean evaluateComparison(Map r9,String comparison,Map lo,Map ro=null,M
 							res=true
 						}else if((String)value.v.d==(String)ce?.device && sMa(value.v)==rEN){
 							res=true
-							compS=(String)value.v.a
+							compS=sMa(value.v)
 						}
-						if(res && lg)msg.m="Comparison (string) ${compS} $comparison = $res"
+						if(lg)msg.m="Comparison (string) ${compS} $comparison = $res"
 					}else{
 						res=callComp(r9,fn,value,null,null,tvalue,tvalue2)
 						if(lg)msg.m="Comparison (${value.v.t}) ${value.v.v} $comparison = $res"
@@ -6721,7 +6747,7 @@ private Boolean valueWas(Map r9,Map comparisonValue,Map rightValue,Map rightValu
 	String t=(String)cv.d
 	def device=t?getDevice(r9,t):null
 	if(device==null)return false
-	String attr=(String)cv.a
+	String attr=sMa(cv)
 	Long threshold=longEvalExpr(r9,rtnMap1(timeValue.v,sMvt(timeValue)))
 
 	Map e=(Map)r9[sEVENT]
@@ -6754,7 +6780,7 @@ private Boolean valueChanged(Map r9,Map comparisonValue,Map timeValue){
 	String t=(String)cv.d
 	def device=t?getDevice(r9,t):null
 	if(device==null)return false
-	String attr=(String)cv.a
+	String attr=sMa(cv)
 	Long threshold=longEvalExpr(r9,rtnMap1(timeValue.v,sMvt(timeValue)))
 
 	List<Map> states=listPreviousStates(device,attr,threshold,false)
@@ -6839,6 +6865,7 @@ private Boolean comp_is_not_between		(Map r9,Map lv,Map rv=null,Map rv2=null,Map
 
 /*triggers*/
 private Boolean comp_gets				(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return scast(r9,lv.v.v)==scast(r9,rv.v.v) && matchDeviceSubIndex(lv.v.i,(Integer)r9[sCUREVT].index)}
+private static Boolean comp_gets_any	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return false }
 private Boolean comp_executes			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_is(r9,lv,rv,rv2,tv,tv2)}
 private Boolean comp_arrives			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return (String)r9[sEVENT][sNM]=='email' && match(r9[sEVENT]?.jsonData?.from ?: sBLK,strEvalExpr(r9,(Map)rv.v,sSTR)) && match(r9[sEVENT]?.jsonData?.message ?: sBLK,strEvalExpr(r9,(Map)rv2.v,sSTR))}
 private static Boolean comp_event_occurs		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return false }
@@ -7096,7 +7123,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 				if(exprID in oLIDS) exprID=LID
 				devices[exprID]=[(sC):(cmpTyp ? i1:iZ)+(devices[exprID]?.c ? (Integer)devices[exprID].c:iZ)]
 				deviceId=exprID
-				attr=(String)expression.a
+				attr=sMa(expression)
 				subsId=deviceId+attr
 			}
 			String exprX=(String)expression.x
@@ -7273,7 +7300,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			}
 		}
 		List<String> ltsub= ['happens_daily_at']
-		List<String> lntrk= ltsub+rg+['arrives','event_occurs','executes']
+		List<String> lntrk= ltsub+rg+['arrives','event_occurs','executes','gets','gets_any','receives']
 		conditionTraverser={ Map cndtn,parentCondition ->
 			Map svCond=curCondition
 			curCondition=cndtn
@@ -10335,7 +10362,7 @@ private static com_cast(Map r9,ival,String dataType,String srcDt){
 				case sBOOLN:
 					return !!value
 				case sDEV:
-					return value instanceof List && ((List)value).size()>iZ
+					return listWithSz(value)
 			}
 			if(value){
 				String s= "$value".toLowerCase().trim()
@@ -10635,7 +10662,7 @@ private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 					if(min<i10)str2=String.format('%02d',min)
 					String str=str1+sCLN+str2
 					time=wtimeToday(str,tz).getTime()
-					if(sec!=iZ)time+=sec*1000
+					if(sec!=iZ)time+=sec*i1000
 				}
 				result=time ?: lZ
 			}catch(ignored){ result=lnull }
@@ -11013,7 +11040,7 @@ Long getSkew(Long t4,String ttyp){
 	Integer addr
 	Boolean shorteningDays=(curMon==i5 && day>i20) || (curMon>i5 && !(curMon==11 && day>i20))
 
-	if( (shorteningDays && ttyp=='Sunset') || (!shorteningDays && ttyp=='Sunrise') ) addr=1000 // minimize skew when sunrise or sunset moving earlier in day
+	if( (shorteningDays && ttyp=='Sunset') || (!shorteningDays && ttyp=='Sunrise') ) addr=i1000 // minimize skew when sunrise or sunset moving earlier in day
 	else{
 		Integer t2=Math.abs(lat).toInteger()
 		Integer t3=curMon%i6
@@ -11223,7 +11250,7 @@ private gtSysVarVal(Map r9,String name){
 		case '$weather': return rtnStr(r9.weather)
 		case '$nfl': return rtnStr(r9.nfl)
 		case '$incidents': return rtnStr(r9.incidents)
-		case '$hsmTripped': return r9.incidents instanceof List && ((List)r9.incidents).size()>iZ
+		case '$hsmTripped': return listWithSz(r9.incidents)
 		case (shsm): return gtLhsmStatus()
 		case '$mediaId': return r9.mediaId
 		case '$mediaUrl': return (String)r9.mediaUrl
@@ -11621,11 +11648,8 @@ static void mb(String meth=sNL){
 private static Map<String,Map> Attributes(){ return theAttributesFLD }
 
 private Map<String,Map> AttributesF(){
-	Map result=theAttributesFLD
-	if(result==null){
-		theAttributesFLD=(Map)parent.getChildAttributes()
-		mb()
-	}
+	theAttributesFLD=(Map)parent.getChildAttributes()
+	mb()
 	return theAttributesFLD
 }
 
@@ -11635,11 +11659,8 @@ private Map<String,Map> AttributesF(){
 private static Map<String,Map<String,Map>> Comparisons(){ return theComparisonsFLD }
 
 private Map<String,Map<String,Map>> ComparisonsF(){
-	Map result=theComparisonsFLD
-	if(result==null){
-		theComparisonsFLD=(Map)parent.getChildComparisons()
-		mb()
-	}
+	theComparisonsFLD=(Map)parent.getChildComparisons()
+	mb()
 	return theComparisonsFLD
 }
 
@@ -11650,10 +11671,8 @@ private static Map<String,Map> VirtualCommands(){ return theVirtCommandsFLD }
 
 private Map<String,Map> VirtualCommandsF(){
 	Map result=theVirtCommandsFLD
-	if(result==null){
-		theVirtCommandsFLD=(Map)parent.getChildVirtCommands()
-		mb()
-	}
+	theVirtCommandsFLD=(Map)parent.getChildVirtCommands()
+	mb()
 	return theVirtCommandsFLD
 }
 
@@ -11683,11 +11702,8 @@ private Map<String,Map> VirtualDevices(){
 private static Map<String,Map> PhysicalCommands(){ return thePhysCommandsFLD }
 
 private Map<String,Map> PhysicalCommandsF(){
-	Map result=thePhysCommandsFLD
-	if(result==null){
-		thePhysCommandsFLD=(Map)parent.getChildCommands()
-		mb()
-	}
+	thePhysCommandsFLD=(Map)parent.getChildCommands()
+	mb()
 	return thePhysCommandsFLD
 }
 
@@ -11696,11 +11712,8 @@ private Map<String,Map> PhysicalCommandsF(){
 private static List<Map> getColors(){ return theColorsFLD }
 
 private List<Map> getColorsF(){
-	List result=theColorsFLD
-	if(result==null){
-		theColorsFLD=(List)parent.getColors()
-		mb()
-	}
+	theColorsFLD=(List)parent.getColors()
+	mb()
 	return theColorsFLD
 }
 
@@ -11757,7 +11770,7 @@ private Map gtState(){ return state }
 
 private gtLocation(){ return location }
 private Map cvtLoc(){ cvtDev(location) }
-private TimeZone mTZ(){ return (TimeZone)location.timeZone }
+private static TimeZone mTZ(){ return TimeZone.getDefault() } // (TimeZone)location.timeZone
 private String gtLMode(){ return (String)location.getMode() }
 private Map gtCurrentMode(){
 	def a=location.getCurrentMode()

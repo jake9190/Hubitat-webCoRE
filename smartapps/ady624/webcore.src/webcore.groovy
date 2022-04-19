@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update April 14, 2022 for Hubitat
+ * Last update April 18, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -28,7 +28,7 @@
 //file:noinspection GroovyPointlessBoolean
 
 @Field static final String sVER='v0.3.114.20220203'
-@Field static final String sHVER='v0.3.114.20220410_HE'
+@Field static final String sHVER='v0.3.114.20220418_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -4278,10 +4278,8 @@ Map getChildComparisons(){
 		is_not_between		: [ (sD): "is not between",								(sG):sT,		(sP): i2					],
 	],
 	triggers: [
-		gets				: [ (sD): "gets",										(sG):sM,		(sP): i1					],
 		happens_daily_at	: [ (sD): "happens daily at",								(sG):sT,		(sP): i1					],
 		arrives				: [ (sD): "arrives",									(sG):"e",		(sP): i2					],
-		event_occurs		: [ (sD): "event occurs",									(sG):sS,						],
 		executes			: [ (sD): "executes",									(sG):sV,		(sP): i1					],
 		changes				: [ (sD): "changes",			(sDD): "change",					(sG):"bdfis",						],
 		changes_to			: [ (sD): "changes to",			(sDD): "change to",				(sG):"bdis",	(sP): i1,					],
@@ -4296,6 +4294,9 @@ Map getChildComparisons(){
 		remains_below_or_equal_to	: [ (sD): "remains below or equal to",	(sDD): "remains below or equal to",		(sG):sDI,		(sP): i1,					],
 		rises				: [ (sD): "rises",				(sDD): "rise",					(sG):sDI,							],
 		does_not_rise		: [ (sD): "does not rise",			(sDD): "do not rise",				(sG):sDI,							],
+		gets				: [ (sD): "gets",										(sG):sM,		(sP): i1					],
+		gets_any			: [ (sD): "gets any",									(sG):sM,							],
+		event_occurs		: [ (sD): "event occurs",									(sG):sS,						],
 		receives			: [ (sD): "receives",			(sDD): "receive",					(sG):"bdis",	(sP): i1,					],
 		rises_above			: [ (sD): "rises above",			(sDD): "rise above",				(sG):sDI,		(sP): i1,					],
 		rises_to_or_above	: [ (sD): "rises to or above",		(sDD): "rise to or above",				(sG):sDI,		(sP): i1,					],
