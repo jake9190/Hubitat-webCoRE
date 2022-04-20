@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update April 18, 2022 for Hubitat
+ * Last update April 20, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -214,6 +214,7 @@ static Boolean eric1(){ return false }
 @Field static final String sID='id'
 @Field static final String sBIN='bin'
 @Field static final String sATHR='author'
+@Field static final String sCTGRY='category'
 @Field static final String sSTATS='stats'
 @Field static final String sDEVS='devices'
 @Field static final String sCUREVT='currentEvent'
@@ -766,7 +767,7 @@ Map get(Boolean minimal=false){ // minimal is backup
 			(sBLD): (Integer)r9[sBLD],
 			(sBIN): (String)r9[sBIN],
 			(sACT): isAct(r9),
-			category: r9.category
+			(sCTGRY): r9[sCTGRY]
 		],
 		(sPIS): (LinkedHashMap)r9.piston
 	]
@@ -826,7 +827,7 @@ Map curPState(){
 	def a=st.remove('old')
 	Map rVal=[
 		(sA):isAct(t0),
-		(sC):t0.category,
+		(sC):t0[sCTGRY],
 		(sT):(Long)t0[sLEXEC],
 		(sN):(Long)t0[sNSCH],
 		(sZ):(String)t0.pistonZ,
@@ -1337,7 +1338,7 @@ static Map shortRtd(Map r9){
 		(sID):(String)r9[sID],
 		(sACT):isAct(r9),
 		(sTMSTMP):r9[sTMSTMP],
-		category:r9.category,
+		(sCTGRY):r9[sCTGRY],
 		(sSTATS):[
 			(sNSCH):lMs(r9,sNSCH)
 		],
@@ -1361,9 +1362,9 @@ Map setLoggingLevel(String level,Boolean clrC=true){
 }
 
 Map setCategory(String category){
-	state.category=category
-	clearMyCache('setCategory')
-	return [category:category]
+	state[sCTGRY]=category
+	clearMyCache(sCTGRY)
+	return [(sCTGRY):category]
 }
 
 Map test(){
@@ -1753,7 +1754,7 @@ private LinkedHashMap getDSCache(String meth,Boolean Upd=true){
 			(sID): hashPID(appStr),
 			(sNM): ttt,
 			(sSVLBL): ttt,
-			category: mst.category ?: iZ,
+			(sCTGRY): mst[sCTGRY] ?: iZ,
 			(sCREAT): (Long)mst[sCREAT],
 			(sMODFD): (Long)mst[sMODFD],
 			(sBLD): bld,
@@ -4055,7 +4056,7 @@ private void scheduleTimeCondition(Map r9,Map cndtn){
 	n=v1<v2 ? v1:v2
 
 	Long n1=n
-	if((String)cLO.v==sTIME){
+	if((String)cLO.v==sTIME && trigger){
 		Integer iyr=1461 // 4 years
 		Integer cnt=iyr
 		if(isEric(r9))debug mySt+" checking for schedule restrictions for $cLO", r9
