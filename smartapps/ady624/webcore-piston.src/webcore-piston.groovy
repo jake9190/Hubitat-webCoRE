@@ -1471,7 +1471,6 @@ static void releaseTheLock(String qname){
 @Field static Semaphore theLock21FLD=new Semaphore(1)
 @Field static Semaphore theLock22FLD=new Semaphore(1)
 @Field static Semaphore theLock23FLD=new Semaphore(1)
-@Field static Semaphore theLock24FLD=new Semaphore(1)
 
 @Field static final Integer iStripes=22
 @CompileStatic
@@ -1510,7 +1509,6 @@ static Semaphore sema(Integer snum){
 		case 20: return theLock20FLD
 		case 21: return theLock21FLD
 		case 23: return theLock23FLD
-		case 24: return theLock24FLD
 		default: //log.error "bad hash result $snum"
 			return null
 	}
