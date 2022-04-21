@@ -7461,13 +7461,14 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		Map<String,Integer> dds=[:]
 		String always='always'
 		List<String>nosub=LT1+['tile']
+		Boolean des=gtPOpt(r9,'des')
 		for(subscription in subscriptions){
 			Map sub=(Map)subscription.value
 			List<Map> lsc=(List<Map>)sub.c
 			String sst=sMt(sub)
 			String devStr=(String)sub.d
 			String altSub=never
-			if(isEric(r9))myDetail r9,"evaluating sub: $subscription",iN2
+			if(doit && isEric(r9))myDetail r9,"evaluating sub: $subscription",iN2
 			for(Map cndtn in lsc){
 				if(cndtn){
 					cndtn.s=false // modifies the code
@@ -7475,8 +7476,16 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 					altSub= tt0==always ? tt0:(altSub!=always && tt0!=never ? tt0:altSub)
 				}
 			}
+			String m=sBLK
+			if(doit && lg>i2){
+				m= des ? 'disable event subscriptions, ':sBLK
+				m+= !des && !hasTriggers  ? 'no triggers, promoting conditions ':sBLK
+				m+= !des && altSub in [never,always] ? 'sub: '+altSub:sBLK
+				if(m)debug 'subscriptions: '+m,r9
+			}
+			Boolean skip=true
 			// check for disabled event subscriptions
-			if(!gtPOpt(r9,'des') && sst && !!lsc && altSub!=never && (sst==sTRIG || altSub==always || !hasTriggers)){
+			if(!des && sst && !!lsc && altSub!=never && (sst==sTRIG || altSub==always || !hasTriggers)){
 				def device= devStr.startsWith(sCLN)? getDevice(r9,devStr):null
 				Boolean allowA=(Boolean)sub.allowA
 				allowA=!!allowA
@@ -7492,8 +7501,8 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 							if(sMt(cndtn)==sEVENT && ct==sNL){ cndtn.ct=sT; ct=sT } // modifies the code
 							String t1=(String)cndtn.sm
 							cndtn.s= t1!=never && (ct==sT || t1==always || !hasTriggers) // modifies the code
+							if(doit && isEric(r9))myDetail r9,"processed condition: $cndtn",iN2
 						}
-						if(isEric(r9))myDetail r9,"processed condition: $cndtn",iN2
 					}
 					if(!(a in nosub)){ // timers & tile events don't have subscription
 						Integer cnt=ss.events
@@ -7504,6 +7513,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 								if(doit){
 									if(lg>iZ)info "Subscribing to $device.${myattr}...",r9
 									subscribe(device,myattr,deviceHandler)
+									skip=false
 								}
 								cnt+=i1
 							}
@@ -7511,6 +7521,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 							if(doit){
 								if(lg>iZ)info "Subscribing to $device.${a}...",r9
 								subscribe(device,a,deviceHandler)
+								skip=false
 							}
 							cnt+=i1
 						}
@@ -7522,19 +7533,18 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 						}
 					}
 				}else{
-					error "Failed subscribing to $devStr.${a}, device not found",r9
+					if(doit)error "Failed subscribing to $devStr.${a}, device not found",r9
 				}
 			}else{
-				for(Map cndtn in lsc){
-					if(cndtn){ cndtn.s=false } // modifies the code
-				}
-				if(isEric(r9))myDetail r9,"forced false sub: $subscription",iN2
+				for(Map cndtn in lsc)
+					if(cndtn) cndtn.s=false // modifies the code
 				if(devices[devStr])devices[devStr].c=(Integer)devices[devStr].c-i1
 			}
+			if(skip && doit && isEric(r9))myDetail r9,"SKIPPING sub: $subscription",iN2
 		}
 
 		//not using fake subscriptions; piston has devices inuse in settings
-		for(d in devices.findAll{ ((Integer)it.value.c<=iZ || gtPOpt(r9,'des')) && (String)it.key!=LID }){
+		for(d in devices.findAll{ ((Integer)it.value.c<=iZ || des) && (String)it.key!=LID }){
 			def device= ((String)d.key).startsWith(sCLN)? getDevice(r9,(String)d.key):null
 			if(device!=null && !isDeviceLocation(device)){
 				String didS=dString(device)
@@ -8065,7 +8075,7 @@ private Map getVariable(Map r9,String name){
 				}
 				res=rtnMap(typ,vl)
 			}else res=err
-			if(eric())debug "getVariable hub variable ${vn} returning ${res} to webcore",null
+			if(eric())debug "getVariable hub variable ${vn} returning ${res} to webcore",r9
 		}else{
 			loadGlobalCache()
 			String wName=(String)r9.pId
