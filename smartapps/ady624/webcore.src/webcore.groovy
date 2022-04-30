@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update April 18, 2022 for Hubitat
+ * Last update April 28, 2022 for Hubitat
 */
 
 //file:noinspection unused
@@ -2161,40 +2161,62 @@ private void resetFuelStreamList(){
 	state.remove("fuelStreams")
 }
 
-void writeToFuelStream(Map req){
+def findCreateFuel(Map req){
 	String n=handleFuelS()
 	String streamName="${(req.c ?: sBLK)}||${req.n}"
 
-	def result=getChildApps().find{ (String)it.name==n && ((String)it.label).contains(streamName)}
-//	def fuelStreams=isHubitat() ? [] : atomicState.fuelStreams ?: []
+	List l=getChildApps().findAll{ (String)it.name==n && ((String)it.label).contains(streamName)}
+	def result=null
+	for (sa in l){
+		String sl=(String)sa.label
+		Integer ndx=sl.indexOf(' - ' )
+		if (ndx >= 0){
+			String lbl=sl.substring(ndx + 3)
+			if(lbl==streamName){
+				result=sa
+				break
+			}
+		}
+	}
+	l=null
 
 	if(!result){
-/*
-		if(fuelStreams.find{ it.contains(streamName) } ?: false){ //bug in smartthings doesn't remember state,childapps between multiple calls in the same piston
-			error "Found duplicate stream, not adding point"
-			return
-		}
-*/
-		def t0=getChildApps().findAll{ (String)it.name==name }.collect{ ((String)it.label).split(' - ')[0].toInteger()}.max()
+		def t0=getChildApps().findAll{ (String)it.name==n }.collect{ ((String)it.label).split(' - ')[0].toInteger()}.max()
 		def id=(t0 ?: 0) + 1
 		try{
-			result=addChildApp('ady624', name, "$id - $streamName")
-/*
-			if(!isHubitat()){
-				fuelStreams=getChildApps().find{ it.name==name }.collect { it.label }
-				fuelStreams << result.label
-				atomicState.fuelStreams=fuelStreams
-			}
-*/
+			result=addChildApp('ady624', n, "$id - $streamName")
 			result.createStream([id: id, (sNM): req.n, canister: req.c ?: sBLK])
 		}
 		catch(ignored){
 			error "Please install the webCoRE Fuel Streams app for local Fuel Streams"
-			return
+			return null
 		}
-		t0=null
 	}
-	result.updateFuelStream(req)
+	result
+}
+
+List<Map> readFuelStream(Map req){
+	def result=findCreateFuel(req)
+	if(result) return result.readFuelStream(req)
+	return null
+}
+
+void writeFuelStream(Map req){
+	def result=findCreateFuel(req)
+	if(result)result.writeFuelStream(req)
+	result=null
+}
+
+void clearFuelStream(Map req){
+	def result=findCreateFuel(req)
+	if(result)result.clearFuelStream(req)
+	result=null
+
+}
+
+void writeToFuelStream(Map req){
+	def result=findCreateFuel(req)
+	if(result)result.updateFuelStream(req)
 	result=null
 }
 

@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update April 20, 2022 for Hubitat
+ * Last update April 28, 2022 for Hubitat
 */
 
 //file:noinspection GroovySillyAssignment
@@ -244,6 +244,7 @@ static Boolean eric1(){ return false }
 @Field static final String sPSTNSTC='pstnStChgd'
 @Field static final String sLSTPCQ='lastPCmdQ'
 @Field static final String sLSTPCSNT='lastPCmdSnt'
+@Field static final String sDBGLVL='debugLevel'
 
 @Field static final String sZ6='000000'
 @Field static final String sHTTPR='httpRequest'
@@ -481,6 +482,7 @@ void clear1(Boolean ccache=false,Boolean some=true,Boolean most=false,Boolean al
 		Boolean dis=!isEnbl(tRtData)
 		String pNm=(String)tRtData.nId
 		readDataFLD[pNm]=sNL; readTmpFLD[pNm]=sNL
+		fuelDataFLD[pNm]=[]
 		tRtData=null
 		state[sCACHE]=[:]
 		state[sVARS]=[:]
@@ -1727,12 +1729,12 @@ private LinkedHashMap getDSCache(String meth,Boolean Upd=true){
 		LinkedHashMap te1=[
 			(sFFT):iZ,
 			(sRUN):true,
+			(sLOGNG): (Integer)mst[sLOGNG]!=null ? (Integer)mst[sLOGNG]:iZ,
 			(sPEP): (Boolean)mst[sPEP],
 			(sCACHE): [:],
 			(sNWCACHE):[:],
 			(sDEVS): [:],
 			(sPIS): null,
-			(sLOGNG): (Integer)mst[sLOGNG]!=null ? (Integer)mst[sLOGNG]:iZ,
 			(sTRC): [:],
 			(sSCHS):[],
 			(sVARS):[:],
@@ -1908,7 +1910,7 @@ private LinkedHashMap getTemporaryRunTimeData(Long startTime=wnow()){
 	r9.temporary=true
 	r9[sTMSTMP]=startTime
 	r9[sLOGS]=[[(sT):startTime]]
-	r9.debugLevel=iZ
+	r9[sDBGLVL]=iZ
 	return r9
 }
 
@@ -1926,7 +1928,7 @@ private LinkedHashMap getRunTimeData(LinkedHashMap ir9=null,LinkedHashMap retSt=
 		lstarted=r9.lstarted!=null ? (Long)r9.lstarted:lZ
 		lended=r9.lended!=null ? (Long)r9.lended:lZ
 		piston=r9[sPIS]!=null ? (LinkedHashMap)r9[sPIS]:null
-		dbgLevel=r9.debugLevel!=null ? (Integer)r9.debugLevel:iZ
+		dbgLevel=r9[sDBGLVL]!=null ? (Integer)r9[sDBGLVL]:iZ
 	}else r9=getTemporaryRunTimeData(started)
 	Long timestamp=lMs(r9,sTMSTMP)
 
@@ -1940,7 +1942,7 @@ private LinkedHashMap getRunTimeData(LinkedHashMap ir9=null,LinkedHashMap retSt=
 	r9.lstarted=lstarted
 	r9.lended=lended
 	r9[sLOGS]= logs.size()>iZ ? logs:[[(sT):timestamp]]
-	r9.debugLevel=dbgLevel
+	r9[sDBGLVL]=dbgLevel
 
 	r9[sTRC]=[(sT):timestamp,points:[:]] as LinkedHashMap
 	r9[sSTATS]=[(sNSCH):lZ] as LinkedHashMap
@@ -2069,7 +2071,6 @@ void executeHandler(event){
 @Field static final String sEXS='Execution stage started'
 @Field static final String sEXC='Execution stage complete.'
 
-@SuppressWarnings(['GroovyFallthrough'])
 @CompileStatic
 void handleEvents(evt,Boolean queue=true,Boolean callMySelf=false){
 	final Long startTime=wnow()
@@ -2517,6 +2518,7 @@ private Boolean executeEvent(Map r9,Map event){
 		}else {
 			String pNm=(String)r9.nId
 			readDataFLD[pNm]=sNL; readTmpFLD[pNm]=sNL
+			fuelDataFLD[pNm]=[]
 		}
 		Map pEvt=(Map)gtSt(sLEVT)
 		if(pEvt==null)pEvt=[:]
@@ -2615,10 +2617,10 @@ private Boolean executeEvent(Map r9,Map event){
 				ended=true
 			}
 			res=true
-		}catch(all){
+		}catch(Exception all){
 			error 'An error occurred while executing event:',r9,iN2,all
 		}
-	}catch(all){
+	}catch(Exception all){
 		error 'An error occurred within executeEvent:',r9,iN2,all
 	}
 	if(ended && res)tracePoint(r9,sEND,lZ,iZ)
@@ -2889,6 +2891,7 @@ private void processSchedules(Map r9,Boolean scheduleJob=false){
 			if(lMs(r9,sNSCH)!=lZ)wunschedule('timeHandler')
 			String pNm=(String)r9.nId
 			readDataFLD[pNm]=sNL; readTmpFLD[pNm]=sNL
+			fuelDataFLD[pNm]=[]
 		}
 		chgNextSch(r9,nextT)
 	}
@@ -3125,7 +3128,6 @@ private Boolean executeStatement(Map r9,Map statement,Boolean asynch=false){
 		Boolean isIf=false
 		Boolean isEach=false
 		while(repeat){
-			//noinspection GroovyFallthrough
 			switch(stateType){
 				case sACTION:
 					value=executeAction(r9,statement,async)
@@ -3294,12 +3296,12 @@ private Boolean executeStatement(Map r9,Map statement,Boolean asynch=false){
 							((Map)r9[sCACHE])[sidx]=index
 						}
 						stSysVarVal(r9,sDLLRINDX,index)
-						List dvcs=[]
+						List dvc=[]
 						if(isEach){
-							dvcs= index<dsiz ? [devices[index.toInteger()]]:[]
-							if(currun(r9) in [iZ,iN9])stSysVarVal(r9,sDLLRDEVICE,dvcs)
+							dvc= index<dsiz ? [devices[index.toInteger()]]:[]
+							if(currun(r9) in [iZ,iN9])stSysVarVal(r9,sDLLRDEVICE,dvc)
 						}
-						if(cntrVar!=sNL && prun(r9))Map m=setVariable(r9,cntrVar,isEach ? dvcs:index)
+						if(cntrVar!=sNL && prun(r9))Map m=setVariable(r9,cntrVar,isEach ? dvc:index)
 						//do the loop
 						perform=executeStatements(r9,(List)statement.s,async)
 						if(!perform){
@@ -3317,12 +3319,12 @@ private Boolean executeStatement(Map r9,Map statement,Boolean asynch=false){
 						if(ffwd(r9))break
 						index=index+stepValue
 						stSysVarVal(r9,sDLLRINDX,index)
-						dvcs=[]
+						dvc=[]
 						if(isEach){
-							dvcs= index<dsiz ? [devices[index.toInteger()]]:[]
-							if(prun(r9))stSysVarVal(r9,sDLLRDEVICE,dvcs)
+							dvc= index<dsiz ? [devices[index.toInteger()]]:[]
+							if(prun(r9))stSysVarVal(r9,sDLLRDEVICE,dvc)
 						}
-						if(cntrVar!=sNL && prun(r9))Map m=setVariable(r9,cntrVar,isEach ? dvcs:index)
+						if(cntrVar!=sNL && prun(r9))Map m=setVariable(r9,cntrVar,isEach ? dvc:index)
 						((Map)r9[sCACHE])[sidx]=index
 						if((stepValue>dZ && index>endValue) || (stepValue<dZ && index<endValue)){
 							perform=false
@@ -3917,7 +3919,6 @@ private void scheduleTimer(Map r9,Map timer,Long lastRun=lZ){
 			Integer dyDay=adate.day
 
 			//the repeating interval is not necessarily constant
-			//noinspection GroovyFallthrough
 			switch(intervalUnit){
 				case sD:
 					if(priorActivity){
@@ -5195,6 +5196,7 @@ private Long vcmd_iftttMaker(Map r9,device,List prms){
 	return lZ
 }
 
+
 private Long do_lifx(Map r9,String cmd,String path,Map body,duration,String c){
 	String token=((Map)r9.settings)?.lifx_token
 	if(!token){
@@ -5404,7 +5406,6 @@ void ahttpRequestHandler(resp,Map callbackData){
 	def t0=resp.getHeaders()
 	String t1=t0!=null ? (String)t0."Content-Type":sNL
 	String mediaType=t1 ? (String)(t1.toLowerCase()?.tokenize(';')[iZ]):sNL
-	//noinspection GroovyFallthrough
 	switch(mediaType){
 		case 'image/jpeg':
 		case 'image/png':
@@ -5479,7 +5480,7 @@ void ahttpRequestHandler(resp,Map callbackData){
 			}else erMsg='storeMedia'+erMsg
 			setRtData=[mediaId:mediaId,mediaUrl:mediaUrl]
 	}
-	if(erMsg!=sNL) error erMsg,[:]
+	if(erMsg!=sNL) error erMsg,null
 
 	handleEvents([(sDATE):new Date(),(sDEV):gtLocation(),(sNM):sASYNCREP,(sVAL):callBackC,contentType:mediaType,responseData:data,jsonData:json,responseCode:responseCode,setRtData:setRtData])
 }
@@ -5669,7 +5670,7 @@ Content-Disposition: form-data; name="folder"
 			timeout	: 300,
 			ignoreSSLIssues: true
 		]
-		data=sNL
+		//data=sNL
 		httpPost(params) { resp ->
 			if(resp.status!=200){
 				error "Write Response status $resp.status",r9
@@ -5688,6 +5689,58 @@ private Long vcmd_writeFile(Map r9,device,List prms){
 	return lZ
 }
 
+@Field static Map<String,List<Map>> fuelDataFLD=[:]
+
+private Long vcmd_readFuelStream(Map r9,device,List prms){
+	String canister=(String)prms[iZ]
+	String name=(String)prms[i1]
+
+	Map req=[
+			c: canister,
+			n: name,
+			s: null,
+			d: null,
+			i: (String)r9.instanceId
+	]
+	String pNm=(String)r9.nId
+	fuelDataFLD[pNm]=[]
+	if(r9Is(r9,'useLocalFuelStreams') && name!=sNL) fuelDataFLD[pNm]=(List)parent.readFuelStream(req) // store in $fuel
+	return lZ
+}
+
+private Long vcmd_writeFuelStream(Map r9,device,List prms){
+	String canister=(String)prms[iZ]
+	String name=(String)prms[i1]
+	//def data=prms[i2]
+	// blow the stack??
+	def source=prms[i3]
+
+	Map req=[
+			c: canister,
+			n: name,
+			s: source,
+			d: prms[i2],
+			i: (String)r9.instanceId
+	]
+	if(r9Is(r9,'useLocalFuelStreams') && name!=sNL) parent.writeFuelStream(req)
+	return lZ
+}
+
+private Long vcmd_clearFuelStream(Map r9,device,List prms){
+	String canister=(String)prms[iZ]
+	String name=(String)prms[i1]
+	def source=prms[i2]
+
+	Map req=[
+			c: canister,
+			n: name,
+			s: source,
+			d: null,
+			i: (String)r9.instanceId
+	]
+	if(r9Is(r9,'useLocalFuelStreams') && name!=sNL) parent.clearFuelStream(req)
+	return lZ
+}
 /* wrappers */
 private Long vcmd_writeToFuelStream(Map r9,device,List prms){
 	String canister=(String)prms[iZ]
@@ -5719,7 +5772,7 @@ private Long vcmd_writeToFuelStream(Map r9,device,List prms){
 }
 
 void asyncFuel(response,data){
-	if(response.status!=200) error "Error storing fuel stream: $response?.data?.message",[:]
+	if(response.status!=200) error "Error storing fuel stream: $response?.data?.message",null
 }
 
 private Long vcmd_storeMedia(Map r9,device,List prms){
@@ -5993,7 +6046,6 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 				}
 			}
 
-			//noinspection GroovyFallthrough
 			switch(value){
 				case null:
 					Integer st=ladderIndex +(didC?i1:iZ)
@@ -6084,7 +6136,6 @@ private void runFBupdates(Map r9,Integer st,Integer sz,List<Map> cndtns,Boolean 
 	}
 }
 
-@SuppressWarnings('GroovyFallthrough')
 @CompileStatic
 private evaluateOperand(Map r9,Map node,Map oper,Integer index=null,Boolean trigger=false,Boolean nextMidnight=false){
 	String myS=sBLK
@@ -6396,7 +6447,6 @@ private Boolean evaluateCondition(Map r9,Map cndtn,String collection,Boolean asy
 							if(isEric(r9))myDetail r9,"$co stays check",iN2
 							doStaysProcess(r9,schedules,co,cndtn,cndNm,delay,result,sNL)
 						}
-						//error "Error calling comparison $fn:",r9,iN2,all
 					}else{ error "expecting time for stay and value not found $to $tvalue",r9 }	//; result=false }
 				}else{ error "expecting time for stay and operand not found $to",r9 } //;	result=false }
 				if(isStays)result=false
@@ -6799,28 +6849,28 @@ private static Boolean match(String str,String pattern){
 }
 
 //comparison low level functions
-private Boolean comp_is					(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return (strEvalExpr(r9,(Map)lv.v,sSTR)==strEvalExpr(r9,(Map)rv.v,sSTR))|| (lv.v.n && scast(r9,lv.v.n)==scast(r9,rv.v.v))}
+private Boolean comp_is					(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return (strEvalExpr(r9,(Map)lv.v)==strEvalExpr(r9,(Map)rv.v))|| (lv.v.n && scast(r9,lv.v.n)==scast(r9,rv.v.v))}
 private Boolean comp_is_not				(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is(r9,lv,rv,rv2,tv,tv2)}
 private Boolean comp_is_equal_to		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ String dt= (String)lv?.v?.t==sDEC || (String)rv?.v?.t==sDEC ? sDEC:((String)lv?.v?.t==sINT || (String)rv?.v?.t==sINT ? sINT:sDYN); return evaluateExpression(r9,(Map)lv.v,dt).v==evaluateExpression(r9,(Map)rv.v,dt).v }
 private Boolean comp_is_not_equal_to	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is_equal_to(r9,lv,rv,rv2,tv,tv2)}
 private Boolean comp_is_different_than	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_is_not_equal_to(r9,lv,rv,rv2,tv,tv2)}
-private Boolean comp_is_less_than		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v,sDEC)<dblEvalExpr(r9,(Map)rv.v,sDEC) }
-private Boolean comp_is_less_than_or_equal_to	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v,sDEC)<=dblEvalExpr(r9,(Map)rv.v,sDEC) }
-private Boolean comp_is_greater_than	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v,sDEC)>dblEvalExpr(r9,(Map)rv.v,sDEC) }
-private Boolean comp_is_greater_than_or_equal_to	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v,sDEC)>=dblEvalExpr(r9,(Map)rv.v,sDEC) }
-private Boolean comp_is_even			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return intEvalExpr(r9,(Map)lv.v,sINT) % i2==iZ }
-private Boolean comp_is_odd				(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return intEvalExpr(r9,(Map)lv.v,sINT) % i2!=iZ }
-private Boolean comp_is_true			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return boolEvalExpr(r9,(Map)lv.v,sBOOLN) }
-private Boolean comp_is_false			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !boolEvalExpr(r9,(Map)lv.v,sBOOLN) }
-private Boolean comp_is_inside_of_range		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Double v=dblEvalExpr(r9,(Map)lv.v,sDEC); Double v1=dblEvalExpr(r9,(Map)rv.v,sDEC); Double v2=dblEvalExpr(r9,(Map)rv2.v,sDEC); return (v1<v2) ? (v>=v1 && v<=v2):(v>=v2 && v<=v1)}
+private Boolean comp_is_less_than		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v)<dblEvalExpr(r9,(Map)rv.v) }
+private Boolean comp_is_less_than_or_equal_to	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v)<=dblEvalExpr(r9,(Map)rv.v) }
+private Boolean comp_is_greater_than	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v)>dblEvalExpr(r9,(Map)rv.v) }
+private Boolean comp_is_greater_than_or_equal_to	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return dblEvalExpr(r9,(Map)lv.v)>=dblEvalExpr(r9,(Map)rv.v) }
+private Boolean comp_is_even			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return intEvalExpr(r9,(Map)lv.v) % i2==iZ }
+private Boolean comp_is_odd				(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return intEvalExpr(r9,(Map)lv.v) % i2!=iZ }
+private Boolean comp_is_true			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return boolEvalExpr(r9,(Map)lv.v) }
+private Boolean comp_is_false			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !boolEvalExpr(r9,(Map)lv.v) }
+private Boolean comp_is_inside_of_range		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Double v=dblEvalExpr(r9,(Map)lv.v); Double v1=dblEvalExpr(r9,(Map)rv.v); Double v2=dblEvalExpr(r9,(Map)rv2.v); return (v1<v2) ? (v>=v1 && v<=v2):(v>=v2 && v<=v1)}
 private Boolean comp_is_outside_of_range	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is_inside_of_range(r9,lv,rv,rv2,tv,tv2)}
 private Boolean comp_is_any_of			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){
-	String v=strEvalExpr(r9,(Map)lv.v,sSTR)
+	String v=strEvalExpr(r9,(Map)lv.v)
 	Map r=[:]+(Map)rv.v
 	String s=(String)r.v
 	for(String vi in s.tokenize(sCOMMA)){
 		r.v=vi.trim()
-		if(v==strEvalExpr(r9,r,sSTR))return true
+		if(v==strEvalExpr(r9,r))return true
 	}
 	return false
 }
@@ -6868,7 +6918,7 @@ private static Boolean comp_receives	(Map r9,Map lv,Map rv=null,Map rv2=null,Map
 private static Boolean comp_gets_any	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return false }
 private static Boolean comp_event_occurs		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return false }
 private Boolean comp_executes			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return comp_is(r9,lv,rv,rv2,tv,tv2)}
-private Boolean comp_arrives			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return (String)r9[sEVENT][sNM]=='email' && match(r9[sEVENT]?.jsonData?.from ?: sBLK,strEvalExpr(r9,(Map)rv.v,sSTR)) && match(r9[sEVENT]?.jsonData?.message ?: sBLK,strEvalExpr(r9,(Map)rv2.v,sSTR))}
+private Boolean comp_arrives			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return (String)r9[sEVENT][sNM]=='email' && match(r9[sEVENT]?.jsonData?.from ?: sBLK,strEvalExpr(r9,(Map)rv.v)) && match(r9[sEVENT]?.jsonData?.message ?: sBLK,strEvalExpr(r9,(Map)rv2.v))}
 private static Boolean comp_happens_daily_at		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ r9Is(r9,'wakingUp') }
 private static Boolean comp_changes		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return valueCacheChanged(r9,lv)!=null && matchDeviceInteraction((String)lv.v.p,r9)}
 private static Boolean comp_changes_to	(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return valueCacheChanged(r9,lv)!=null && comp_receives(r9,lv,rv,rv2,tv,tv2)}
@@ -7074,7 +7124,6 @@ private static addWarning(Map node,String msg){
 	((List)node.w).push(msg) // modifies the code
 }
 
-@SuppressWarnings('GroovyFallthrough')
 private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 	String s='subscribeAll '
 	if(eric())log.debug s+"doit: $doit"
@@ -7742,7 +7791,6 @@ private static Map devAttrT(Map r9,String attr,device){
 	return res
 }
 
-@SuppressWarnings('GroovyFallthrough')
 private Map getDeviceAttribute(Map r9,String deviceId,String attr,subDeviceIndex=null,Boolean trigger=false){
 	if(deviceId in (List<String>)r9.allLocations){ //backward compatibility
 		//we have the location here
@@ -7792,7 +7840,6 @@ private Map getDeviceAttribute(Map r9,String deviceId,String attr,subDeviceIndex
 	return rtnMapE("Device '${deviceId}':${attr} not found".toString())
 }
 
-@SuppressWarnings('GroovyFallthrough')
 private Map getJsonData(Map r9,data,String name,String feature=sNL){
 	if(data!=null){
 		String mpart=sNL
@@ -8061,6 +8108,7 @@ private Map getVariable(Map r9,String name){
 	Map err=rtnMapE("Variable '$tn' not found".toString())
 	if(tn.startsWith(sAT)){
 		if(tn.startsWith(sAT2)){
+			tn=var[sNM] // allow spaces
 			String vn=tn.substring(i2)
 			//get a variable
 			Map hg=wgetGlobalVar(vn)
@@ -8075,7 +8123,7 @@ private Map getVariable(Map r9,String name){
 				}
 				res=rtnMap(typ,vl)
 			}else res=err
-			if(eric())debug "getVariable hub variable ${vn} returning ${res} to webcore",r9
+			if(eric())debug "getVariable hub variable (${vn}) returning ${res} to webcore",r9
 		}else{
 			loadGlobalCache()
 			String wName=(String)r9.pId
@@ -8183,6 +8231,7 @@ private Map setVariable(Map r9,String name,value){
 	Map err=rtnMapE('Invalid variable')
 	if(tn.startsWith(sAT)){
 		if(tn.startsWith(sAT2)){
+			tn=var[sNM] // allow spaces
 			String vn=tn.substring(i2)
 			Map hg=wgetGlobalVar(vn)
 			if(hg){ // we know it exists and if it has a value we can know its type (overloaded String, datetime)
@@ -8200,7 +8249,7 @@ private Map setVariable(Map r9,String name,value){
 					for(t in ta){
 						typ=(String)t.key
 						vl=t.value
-						if(isEric(r9))myDetail r9,"setVariable setting Hub $vn to $vl with type ${typ} wc original type ${wctyp}",iN2
+						if(isEric(r9))myDetail r9,"setVariable setting Hub ($vn) to $vl with type ${typ} wc original type ${wctyp}",iN2
 						Boolean a=false
 						try{
 							a=wsetGlobalVar(vn,vl)
@@ -8381,7 +8430,7 @@ private static List<String> fill_TIM(){ return [sDTIME,sTIME,sDATE] }
 private static List<String> fill_LS(){ return [sSTR,sENUM,sERROR,sPHONE,sURI,sTEXT] }
 
 @CompileStatic
-private Double dblEvalExpr(Map r9,Map express,String dataType=sNL){
+private Double dblEvalExpr(Map r9,Map express,String dataType=sDEC){
 	return (Double)evaluateExpression(r9,express,dataType)[sV]
 }
 
@@ -8391,21 +8440,20 @@ private Long longEvalExpr(Map r9,Map express,String dataType=sNL){
 }
 
 @CompileStatic
-private Integer intEvalExpr(Map r9,Map express,String dataType=sNL){
+private Integer intEvalExpr(Map r9,Map express,String dataType=sINT){
 	return (Integer)evaluateExpression(r9,express,dataType)[sV]
 }
 
 @CompileStatic
-private Boolean boolEvalExpr(Map r9,Map express,String dataType=sNL){
+private Boolean boolEvalExpr(Map r9,Map express,String dataType=sBOOLN){
 	return (Boolean)evaluateExpression(r9,express,dataType)[sV]
 }
 
 @CompileStatic
-private String strEvalExpr(Map r9,Map express,String dataType=sNL){
+private String strEvalExpr(Map r9,Map express,String dataType=sSTR){
 	return (String)evaluateExpression(r9,express,dataType)[sV]
 }
 
-@SuppressWarnings('GroovyFallthrough')
 @CompileStatic
 private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 	//if dealing with an expression that has multiple items let's evaluate each item one by one
@@ -8645,7 +8693,7 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 				//ternary
 				if(itmSz==i3 && (String)items[iZ].o==sQM && (String)items[i1].o==sCLN){
 					//we have a ternary operator
-					if(boolEvalExpr(r9,(Map)items[iZ],sBOOLN)) items=[items[i1]]
+					if(boolEvalExpr(r9,(Map)items[iZ])) items=[items[i1]]
 					else items=[items[i2]]
 					items[iZ].o=sNL
 					break
@@ -8935,7 +8983,6 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 	return result
 }
 
-@SuppressWarnings('GroovyFallthrough')
 private doExprMath(Map r9,String o,String t,v1,v2){
 	def v=null
 	switch(o){
@@ -9115,10 +9162,10 @@ private static Map rtnMap1(v,String vt){ return [(sT):sDURATION,(sV):v,(sVT):vt]
  * Usage: dewPoint(temperature,relativeHumidity[, scale]) */
 private Map func_dewpoint(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('dewPoint(temperature,relativeHumidity[, scale])')
-	Double t=dblEvalExpr(r9,prms[iZ],sDEC)
-	Double rh=dblEvalExpr(r9,prms[i1],sDEC)
+	Double t=dblEvalExpr(r9,prms[iZ])
+	Double rh=dblEvalExpr(r9,prms[i1])
 	//if no temperature scale is provided we assume the location's temperature scale
-	Boolean fahrenheit= (prms.size()>i2 ? strEvalExpr(r9,prms[i2],sSTR) :gtLtScale()).toUpperCase()=='F'
+	Boolean fahrenheit= (prms.size()>i2 ? strEvalExpr(r9,prms[i2]) :gtLtScale()).toUpperCase()=='F'
 	if(fahrenheit) t=(t-32.0D)*5.0D/9.0D
 	//convert rh to percentage
 	if((rh>dZ) && (rh<d1)) rh=rh*d100
@@ -9132,7 +9179,7 @@ private Map func_dewpoint(Map r9,List<Map> prms){
  * Usage: celsius(temperature)							*/
 private Map func_celsius(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('celsius(temperature)')
-	Double t=dblEvalExpr(r9,prms[iZ],sDEC)
+	Double t=dblEvalExpr(r9,prms[iZ])
 	rtnMapD((Double)((t-32.0D)*5.0D/9.0D))
 }
 
@@ -9140,7 +9187,7 @@ private Map func_celsius(Map r9,List<Map> prms){
 /** Usage: fahrenheit(temperature)						**/
 private Map func_fahrenheit(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('fahrenheit(temperature)')
-	Double t=dblEvalExpr(r9,prms[iZ],sDEC)
+	Double t=dblEvalExpr(r9,prms[iZ])
 	rtnMapD((Double)(t*9.0D/5.0D+32.0D))
 }
 
@@ -9149,10 +9196,10 @@ private Map func_fahrenheit(Map r9,List<Map> prms){
 /** Usage: convertTemperatureIfNeeded(celsiusTemperature,'C')			**/
 private Map func_converttemperatureifneeded(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('convertTemperatureIfNeeded(temperature,unit)')
-	String u=strEvalExpr(r9,prms[i1],sSTR).toUpperCase()
+	String u=strEvalExpr(r9,prms[i1]).toUpperCase()
 	switch(gtLtScale()){
 		case u: // matches return value
-			Double t=dblEvalExpr(r9,prms[iZ],sDEC)
+			Double t=dblEvalExpr(r9,prms[iZ])
 			return rtnMapD(t)
 		case 'F': return func_celsius(r9,[prms[iZ]])
 		case 'C': return func_fahrenheit(r9,[prms[iZ]])
@@ -9164,7 +9211,7 @@ private Map func_converttemperatureifneeded(Map r9,List<Map> prms){
 /** Usage: integer(decimal or string)				**/
 private Map func_integer(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('integer(decimal or string)')
-	rtnMapI(intEvalExpr(r9,prms[iZ],sINT))
+	rtnMapI(intEvalExpr(r9,prms[iZ]))
 }
 private Map func_int(Map r9,List<Map> prms){ return func_integer(r9,prms)}
 
@@ -9172,7 +9219,7 @@ private Map func_int(Map r9,List<Map> prms){ return func_integer(r9,prms)}
 /** Usage: decimal(integer or string)						**/
 private Map func_decimal(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('decimal(integer or string)')
-	rtnMapD(dblEvalExpr(r9,prms[iZ],sDEC))
+	rtnMapD(dblEvalExpr(r9,prms[iZ]))
 }
 private Map func_float(Map r9,List<Map> prms){ return func_decimal(r9,prms)}
 private Map func_number(Map r9,List<Map> prms){ return func_decimal(r9,prms)}
@@ -9182,7 +9229,7 @@ private Map func_number(Map r9,List<Map> prms){ return func_decimal(r9,prms)}
 private Map func_string(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('string(anything)')
 	String result=sBLK
-	for(Map prm in prms) result+=strEvalExpr(r9,prm,sSTR)
+	for(Map prm in prms) result+=strEvalExpr(r9,prm)
 	rtnMapS(result)
 }
 private Map func_concat(Map r9,List<Map> prms){ return func_string(r9,prms)}
@@ -9192,7 +9239,7 @@ private Map func_text(Map r9,List<Map> prms){ return func_string(r9,prms)}
 /** Usage: boolean(anything)							**/
 private Map func_boolean(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('boolean(anything)')
-	rtnMapB(boolEvalExpr(r9,prms[iZ],sBOOLN))
+	rtnMapB(boolEvalExpr(r9,prms[iZ]))
 }
 private Map func_bool(Map r9,List<Map> prms){ return func_boolean(r9,prms)}
 
@@ -9200,43 +9247,43 @@ private Map func_bool(Map r9,List<Map> prms){ return func_boolean(r9,prms)}
 /** Usage: sqr(integer or decimal or string)				**/
 private Map func_sqr(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('sqr(integer or decimal or string)')
-	rtnMapD(dblEvalExpr(r9,prms[iZ],sDEC)**i2)
+	rtnMapD(dblEvalExpr(r9,prms[iZ])**i2)
 }
 
 /** sqrt converts a decimal to square root decimal value		**/
 /** Usage: sqrt(integer or decimal or string)				**/
 private Map func_sqrt(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('sqrt(integer or decimal or string)')
-	rtnMapD(Math.sqrt(dblEvalExpr(r9,prms[iZ],sDEC)))
+	rtnMapD(Math.sqrt(dblEvalExpr(r9,prms[iZ])))
 }
 
 /** power converts a decimal to power decimal value			**/
 /** Usage: power(integer or decimal or string, power)			**/
 private Map func_power(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('sqrt(integer or decimal or string, power)')
-	rtnMapD(dblEvalExpr(r9,prms[iZ],sDEC) ** dblEvalExpr(r9,prms[i1],sDEC))
+	rtnMapD(dblEvalExpr(r9,prms[iZ]) ** dblEvalExpr(r9,prms[i1]))
 }
 
 /** round converts a decimal to rounded value			**/
 /** Usage: round(decimal or string[, precision])		**/
 private Map func_round(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('round(decimal or string[, precision])')
-	Integer precision=prms.size()>i1 ? intEvalExpr(r9,prms[i1],sINT):iZ
-	rtnMapD(Math.round(dblEvalExpr(r9,prms[iZ],sDEC) * (i10 ** precision))/(i10 ** precision))
+	Integer precision=prms.size()>i1 ? intEvalExpr(r9,prms[i1]):iZ
+	rtnMapD(Math.round(dblEvalExpr(r9,prms[iZ]) * (i10 ** precision))/(i10 ** precision))
 }
 
 /** floor converts a decimal to closest lower integer value		**/
 /** Usage: floor(decimal or string)					**/
 private Map func_floor(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('floor(decimal or string)')
-	rtnMapI(icast(r9,Math.floor(dblEvalExpr(r9,prms[iZ],sDEC))))
+	rtnMapI(icast(r9,Math.floor(dblEvalExpr(r9,prms[iZ]))))
 }
 
 /** ceiling converts a decimal to closest higher integer value	**/
 /** Usage: ceiling(decimal or string)						**/
 private Map func_ceiling(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('ceiling(decimal or string)')
-	rtnMapI(icast(r9,Math.ceil(dblEvalExpr(r9,prms[iZ],sDEC))))
+	rtnMapI(icast(r9,Math.ceil(dblEvalExpr(r9,prms[iZ]))))
 }
 private Map func_ceil(Map r9,List<Map> prms){ return func_ceiling(r9,prms)}
 
@@ -9249,7 +9296,7 @@ private Map func_sprintf(Map r9,List<Map> prms){
 	List args=[]
 	Boolean a
 	try{
-		format=strEvalExpr(r9,prms[iZ],sSTR)
+		format=strEvalExpr(r9,prms[iZ])
 		Integer sz=prms.size()
 		for(Integer x=i1; x<sz; x++) a=args.push(evaluateExpression(r9,prms[x]).v)
 		return rtnMapS(sprintf(format,args))
@@ -9263,8 +9310,8 @@ private Map func_format(Map r9,List<Map> prms){ return func_sprintf(r9,prms)}
 /** Usage: left(string, count)						**/
 private Map func_left(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('left(string, count)')
-	String value=strEvalExpr(r9,prms[iZ],sSTR)
-	Integer cnt=intEvalExpr(r9,prms[i1],sINT)
+	String value=strEvalExpr(r9,prms[iZ])
+	Integer cnt=intEvalExpr(r9,prms[i1])
 	Integer sz=value.size()
 	if(cnt>sz)cnt=sz
 	rtnMapS(value.substring(iZ,cnt))
@@ -9274,8 +9321,8 @@ private Map func_left(Map r9,List<Map> prms){
 /** Usage: right(string, count)						**/
 private Map func_right(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('right(string, count)')
-	String value=strEvalExpr(r9,prms[iZ],sSTR)
-	Integer cnt=intEvalExpr(r9,prms[i1],sINT)
+	String value=strEvalExpr(r9,prms[iZ])
+	Integer cnt=intEvalExpr(r9,prms[i1])
 	Integer sz=value.size()
 	if(cnt>sz)cnt=sz
 	rtnMapS(value.substring(sz-cnt,sz))
@@ -9285,7 +9332,7 @@ private Map func_right(Map r9,List<Map> prms){
 /** Usage: strlen(string)						**/
 private Map func_strlen(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('strlen(string)')
-	String value=strEvalExpr(r9,prms[iZ],sSTR)
+	String value=strEvalExpr(r9,prms[iZ])
 	rtnMapI(value.size())
 }
 private Map func_length(Map r9,List<Map> prms){ return func_strlen(r9,prms)}
@@ -9308,7 +9355,7 @@ private Map func_coalesce(Map r9,List<Map> prms){
 /** Usage: trim(value)								**/
 private Map func_trim(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('trim(value)')
-	String t0=strEvalExpr(r9,prms[iZ],sSTR)
+	String t0=strEvalExpr(r9,prms[iZ])
 	String value=t0.trim()
 	rtnMapS(value)
 }
@@ -9317,7 +9364,7 @@ private Map func_trim(Map r9,List<Map> prms){
 /** Usage: trimLeft(value)							**/
 private Map func_trimleft(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('trimLeft(value)')
-	String t0=strEvalExpr(r9,prms[iZ],sSTR)
+	String t0=strEvalExpr(r9,prms[iZ])
 	String value=t0.replaceAll('^\\s+',sBLK)
 	rtnMapS(value)
 }
@@ -9327,7 +9374,7 @@ private Map func_ltrim(Map r9,List<Map> prms){ return func_trimleft(r9,prms)}
 /** Usage: trimRight(value)							**/
 private Map func_trimright(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('trimRight(value)')
-	String t0=strEvalExpr(r9,prms[iZ],sSTR)
+	String t0=strEvalExpr(r9,prms[iZ])
 	String value=t0.replaceAll('\\s+$',sBLK)
 	rtnMapS(value)
 }
@@ -9337,9 +9384,9 @@ private Map func_rtrim(Map r9,List<Map> prms){ return func_trimright(r9,prms)}
 /** Usage: substring(string, start, count)					**/
 private Map func_substring(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('substring(string, start, count)')
-	String value=strEvalExpr(r9,prms[iZ],sSTR)
-	Integer start=intEvalExpr(r9,prms[i1],sINT)
-	Integer cnt=prms.size()>i2 ? intEvalExpr(r9,prms[i2],sINT):null
+	String value=strEvalExpr(r9,prms[iZ])
+	Integer start=intEvalExpr(r9,prms[i1])
+	Integer cnt=prms.size()>i2 ? intEvalExpr(r9,prms[i2]):null
 	//def end=null
 	String result=sBLK
 	Integer t0=value.size()
@@ -9369,11 +9416,11 @@ private Map func_mid(Map r9,List<Map> prms){ return func_substring(r9,prms)}
 private Map func_replace(Map r9,List<Map> prms){
 	Integer sz=prms.size()
 	if(badParams(r9,prms,i3) || sz%i2!=i1)return rtnErr('replace(string, search, replace[, [..],search, replace])')
-	String value=strEvalExpr(r9,prms[iZ],sSTR)
+	String value=strEvalExpr(r9,prms[iZ])
 	Integer cnt=Math.floor((sz-i1)/i2).toInteger()
 	for(Integer i=iZ; i<cnt; i++){
-		String search=strEvalExpr(r9,prms[i*i2+i1],sSTR)
-		String replace=strEvalExpr(r9,prms[i*i2+i2],sSTR)
+		String search=strEvalExpr(r9,prms[i*i2+i1])
+		String replace=strEvalExpr(r9,prms[i*i2+i2])
 		sz=search.size()
 		if((sz>i2)&& search.startsWith(sDIV)&& search.endsWith(sDIV)){
 			def ssearch= ~search.substring(i1,sz-i1)
@@ -9388,11 +9435,11 @@ private Map func_replace(Map r9,List<Map> prms){
 private Map func_rangevalue(Map r9,List<Map> prms){
 	Integer sz=prms.size()
 	if(badParams(r9,prms,i2) || sz%i2!=iZ)return rtnErr('rangeValue(input, defaultValue,point1, value1[, [..],pointN, valueN])')
-	Double input=dblEvalExpr(r9,prms[iZ],sDEC)
+	Double input=dblEvalExpr(r9,prms[iZ])
 	Map value=prms[i1]
 	Integer cnt=Math.floor((sz-i2)/i2).toInteger()
 	for(Integer i=iZ; i<cnt; i++){
-		Double point=dblEvalExpr(r9,prms[i*i2+i2],sDEC)
+		Double point=dblEvalExpr(r9,prms[i*i2+i2])
 		if(input>=point)value=prms[i*i2 +i3]
 	}
 	return value
@@ -9402,11 +9449,11 @@ private Map func_rangevalue(Map r9,List<Map> prms){
 /** Usage: rainbowValue(input, minInput, minColor,maxInput, maxColor)		**/
 private Map func_rainbowvalue(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i5))return rtnErr('rainbowValue(input, minColor,minValue,maxInput, maxColor)')
-	Integer input=intEvalExpr(r9,prms[iZ],sINT)
-	Integer minInput=intEvalExpr(r9,prms[i1],sINT)
-	Map minColor=gtColor(r9,strEvalExpr(r9,prms[i2],sSTR))
-	Integer maxInput=intEvalExpr(r9,prms[i3],sINT)
-	Map maxColor=gtColor(r9,strEvalExpr(r9,prms[i4],sSTR))
+	Integer input=intEvalExpr(r9,prms[iZ])
+	Integer minInput=intEvalExpr(r9,prms[i1])
+	Map minColor=gtColor(r9,strEvalExpr(r9,prms[i2]))
+	Integer maxInput=intEvalExpr(r9,prms[i3])
+	Map maxColor=gtColor(r9,strEvalExpr(r9,prms[i4]))
 	if(minInput>maxInput){
 		Integer x=minInput
 		minInput=maxInput
@@ -9434,7 +9481,7 @@ private Map func_indexof(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2) || (sMt(prms[iZ])!=sDEV && sz!=i2))return rtnErr('indexOf(stringOrDeviceOrList, substringOrItem)')
 	if(sMt(prms[iZ])==sDEV && sz>i2){
 		Integer t0=sz-i1
-		String item=strEvalExpr(r9,prms[t0],sSTR)
+		String item=strEvalExpr(r9,prms[t0])
 		for(Integer idx=iZ; idx<t0; idx++){
 			Map it=evaluateExpression(r9,prms[idx],sSTR)
 			if((String)it.v==item)return rtnMapI(idx)
@@ -9445,8 +9492,8 @@ private Map func_indexof(Map r9,List<Map> prms){
 		String key=((Map)prms[iZ].v).find{ it.value==item }?.key
 		return rtnMapS(key)
 	}else{
-		String value=strEvalExpr(r9,prms[iZ],sSTR)
-		String substring=strEvalExpr(r9,prms[i1],sSTR)
+		String value=strEvalExpr(r9,prms[iZ])
+		String substring=strEvalExpr(r9,prms[i1])
 		return rtnMapI(value.indexOf(substring))
 	}
 }
@@ -9457,9 +9504,9 @@ private Map func_lastindexof(Map r9,List<Map> prms){
 	Integer sz=prms.size()
 	if(badParams(r9,prms,i2) || (sMt(prms[iZ])!=sDEV && sz!=i2))return rtnErr('lastIndexOf(string, substring)')
 	if(sMt(prms[iZ])==sDEV && sz>i2){
-		String item=strEvalExpr(r9,prms[sz-i1],sSTR)
+		String item=strEvalExpr(r9,prms[sz-i1])
 		for(Integer idx=sz-i2; idx>=iZ; idx--){
-			if(strEvalExpr(r9,prms[idx],sSTR)==item){ return rtnMapI(idx) }
+			if(strEvalExpr(r9,prms[idx])==item){ return rtnMapI(idx) }
 		}
 		return rtnMapI(iN1)
 	}else if(prms[iZ].v instanceof Map){
@@ -9467,8 +9514,8 @@ private Map func_lastindexof(Map r9,List<Map> prms){
 		String key=((Map)prms[iZ].v).find{ it.value==item }?.key
 		return rtnMapS(key)
 	}else{
-		String value=strEvalExpr(r9,prms[iZ],sSTR)
-		String substring=strEvalExpr(r9,prms[i1],sSTR)
+		String value=strEvalExpr(r9,prms[iZ])
+		String substring=strEvalExpr(r9,prms[i1])
 		return rtnMapI(value.lastIndexOf(substring))
 	}
 }
@@ -9479,7 +9526,7 @@ private Map func_lastindexof(Map r9,List<Map> prms){
 private Map func_lower(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('lower(string)')
 	String result=sBLK
-	for(Map prm in prms) result+=strEvalExpr(r9,prm,sSTR)
+	for(Map prm in prms) result+=strEvalExpr(r9,prm)
 	rtnMapS(result.toLowerCase())
 }
 
@@ -9488,7 +9535,7 @@ private Map func_lower(Map r9,List<Map> prms){
 private Map func_upper(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('upper(string)')
 	String result=sBLK
-	for(Map prm in prms) result+=strEvalExpr(r9,prm,sSTR)
+	for(Map prm in prms) result+=strEvalExpr(r9,prm)
 	rtnMapS(result.toUpperCase())
 }
 
@@ -9497,7 +9544,7 @@ private Map func_upper(Map r9,List<Map> prms){
 private Map func_title(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('title(string)')
 	String result=sBLK
-	for(Map prm in prms) result+=strEvalExpr(r9,prm,sSTR)
+	for(Map prm in prms) result+=strEvalExpr(r9,prm)
 	//noinspection GroovyAssignabilityCheck
 	rtnMapS(result.tokenize(sSPC)*.toLowerCase()*.capitalize().join(sSPC))
 }
@@ -9507,7 +9554,7 @@ private Map func_title(Map r9,List<Map> prms){
 private Map func_avg(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('avg'+sVALUEN)
 	Double sum=dZ
-	for(Map prm in prms) sum+=dblEvalExpr(r9,prm,sDEC)
+	for(Map prm in prms) sum+=dblEvalExpr(r9,prm)
 	rtnMapD(sum/prms.size())
 }
 
@@ -9552,7 +9599,7 @@ private Map func_most(Map r9,List<Map> prms){
 private Map func_sum(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('sum'+sVALUEN)
 	Double sum=dZ
-	for(Map prm in prms) sum+=dblEvalExpr(r9,prm,sDEC)
+	for(Map prm in prms) sum+=dblEvalExpr(r9,prm)
 	rtnMapD(sum)
 }
 
@@ -9563,7 +9610,7 @@ private Map func_variance(Map r9,List<Map> prms){
 	Double sum=dZ
 	List values=[]
 	for(Map prm in prms){
-		Double value=dblEvalExpr(r9,prm,sDEC)
+		Double value=dblEvalExpr(r9,prm)
 		Boolean a=values.push(value)
 		sum+=value
 	}
@@ -9605,7 +9652,7 @@ private Map func_max(Map r9,List<Map> prms){
 /** Usage: abs(number)								**/
 private Map func_abs(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('abs(value)')
-	Double value=dblEvalExpr(r9,prms[iZ],sDEC)
+	Double value=dblEvalExpr(r9,prms[iZ])
 	String dataType=(value==Math.round(value).toDouble() ? sINT:sDEC)
 	rtnMap(dataType,cast(r9,Math.abs(value),dataType,sDEC))
 }
@@ -9614,9 +9661,9 @@ private Map func_abs(Map r9,List<Map> prms){
 /** Usage: hslToHex(hue,saturation, level)						**/
 private Map func_hsltohex(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i3))return rtnErr('hsl(hue,saturation, level)')
-	Double hue=dblEvalExpr(r9,prms[iZ],sDEC)
-	Double saturation=dblEvalExpr(r9,prms[i1],sDEC)
-	Double level=dblEvalExpr(r9,prms[i2],sDEC)
+	Double hue=dblEvalExpr(r9,prms[iZ])
+	Double saturation=dblEvalExpr(r9,prms[i1])
+	Double level=dblEvalExpr(r9,prms[i2])
 	rtnMapS(hslToHex(hue,saturation,level))
 }
 
@@ -9626,13 +9673,13 @@ private Map func_count(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnMapI(iZ)
 	Integer cnt=iZ
 	if(prms.size()==i1 && (sMt(prms[iZ]) in [sSTR,sDYN])){
-		String[] list=strEvalExpr(r9,prms[iZ],sSTR).split(sCOMMA)
+		String[] list=strEvalExpr(r9,prms[iZ]).split(sCOMMA)
 		Integer sz=list.size()
 		for(Integer i=iZ; i<sz; i++){
 			Boolean t1=bcast(r9,list[i])
 			cnt+=t1 ? i1:iZ
 		}
-	}else for(Map prm in prms) cnt+=boolEvalExpr(r9,prm,sBOOLN) ? i1:iZ
+	}else for(Map prm in prms) cnt+=boolEvalExpr(r9,prm) ? i1:iZ
 	rtnMapI(cnt)
 }
 
@@ -9643,7 +9690,7 @@ private Map func_size(Map r9,List<Map> prms){
 	Integer cnt
 	Integer sz=prms.size()
 	if(sz==i1 && (sMt(prms[iZ]) in [sSTR,sDYN])){
-		String[] list=strEvalExpr(r9,prms[iZ],sSTR).split(sCOMMA)
+		String[] list=strEvalExpr(r9,prms[iZ]).split(sCOMMA)
 		cnt=list.size()
 	}else cnt=sz
 	rtnMapI(cnt)
@@ -9757,8 +9804,8 @@ private Map func_older(Map r9,List<Map> prms){
 /** Usage: startsWith(string, substring)					**/
 private Map func_startswith(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('startsWith(string, substring)')
-	String string=strEvalExpr(r9,prms[iZ],sSTR)
-	String substring=strEvalExpr(r9,prms[i1],sSTR)
+	String string=strEvalExpr(r9,prms[iZ])
+	String substring=strEvalExpr(r9,prms[i1])
 	rtnMapB(string.startsWith(substring))
 }
 
@@ -9766,8 +9813,8 @@ private Map func_startswith(Map r9,List<Map> prms){
 /** Usage: endsWith(string, substring)							**/
 private Map func_endswith(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('endsWith(string, substring)')
-	String string=strEvalExpr(r9,prms[iZ],sSTR)
-	String substring=strEvalExpr(r9,prms[i1],sSTR)
+	String string=strEvalExpr(r9,prms[iZ])
+	String substring=strEvalExpr(r9,prms[i1])
 	rtnMapB(string.endsWith(substring))
 }
 
@@ -9778,15 +9825,15 @@ private Map func_contains(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2) || (sMt(prms[iZ])!=sDEV && t0!=i2))return rtnErr('contains(string, substring)')
 	if(sMt(prms[iZ])==sDEV && t0>i2){
 		t0=t0-i1
-		String item=strEvalExpr(r9,prms[t0],sSTR)
+		String item=strEvalExpr(r9,prms[t0])
 		for(Integer idx=iZ; idx<t0; idx++){
 			Map it=evaluateExpression(r9,prms[idx],sSTR)
 			if(it.v==item)return rtnMapB(true)
 		}
 		return rtnMapB(false)
 	}else{
-		String string=strEvalExpr(r9,prms[iZ],sSTR)
-		String substring=strEvalExpr(r9,prms[i1],sSTR)
+		String string=strEvalExpr(r9,prms[iZ])
+		String substring=strEvalExpr(r9,prms[i1])
 		rtnMapB(string.contains(substring))
 	}
 }
@@ -9795,8 +9842,8 @@ private Map func_contains(Map r9,List<Map> prms){
 /** Usage: matches(string, pattern)							**/
 private Map func_matches(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('matches(string, pattern)')
-	String string=strEvalExpr(r9,prms[iZ],sSTR)
-	String pattern=strEvalExpr(r9,prms[i1],sSTR)
+	String string=strEvalExpr(r9,prms[iZ])
+	String pattern=strEvalExpr(r9,prms[i1])
 	Boolean r=match(string,pattern)
 	rtnMapB(r)
 }
@@ -9805,7 +9852,7 @@ private Map func_matches(Map r9,List<Map> prms){
 /** Usage: exists(value1)							**/
 private Map func_exists(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('exists(filename)')
-	String string=strEvalExpr(r9,prms[iZ],sSTR)
+	String string=strEvalExpr(r9,prms[iZ])
 	rtnMapB(fileExists(r9,string))
 }
 
@@ -9859,7 +9906,7 @@ private Map func_ge(Map r9,List<Map> prms){
 /** Usage: not(value)								**/
 private Map func_not(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('not(value)')
-	Boolean value=boolEvalExpr(r9,prms[iZ],sBOOLN)
+	Boolean value=boolEvalExpr(r9,prms[iZ])
 	rtnMapB(!value)
 }
 
@@ -9867,7 +9914,7 @@ private Map func_not(Map r9,List<Map> prms){
 /** Usage: if(condition, valueIfTrue,valueIfFalse)				**/
 private Map func_if(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i3))return rtnErr('if(condition, valueIfTrue,valueIfFalse)')
-	Boolean value=boolEvalExpr(r9,prms[iZ],sBOOLN)
+	Boolean value=boolEvalExpr(r9,prms[iZ])
 	return value ? evaluateExpression(r9,prms[i1]):evaluateExpression(r9,prms[i2])
 }
 
@@ -9961,10 +10008,10 @@ private Map func_monthname(Map r9,List<Map> prms){
 private Map func_arrayitem(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i2))return rtnErr('arrayItem(index, item0[, item1[, .., itemN]])')
 	Map serr=rtnMapE('Array item index is outside of bounds.')
-	Integer index=intEvalExpr(r9,prms[iZ],sINT)
+	Integer index=intEvalExpr(r9,prms[iZ])
 	Integer sz=prms.size()
 	if(sz==i2 && (sMt(prms[i1]) in [sSTR,sDYN])){
-		String[] list=strEvalExpr(r9,prms[i1],sSTR).split(sCOMMA)
+		String[] list=strEvalExpr(r9,prms[i1]).split(sCOMMA)
 		if(index<iZ || index>=list.size())return serr
 		return rtnMapS(list[index])
 	}
@@ -9988,9 +10035,9 @@ private Map func_formatduration(Map r9,List<Map> prms){
 	Integer sz=prms.size()
 	if(badParams(r9,prms,i1) || sz>i4)return rtnErr("formatDuration(value[, friendly=false[, granularity='s'[, showAdverbs=false]]])")
 	Long value=longEvalExpr(r9,prms[iZ],sLONG)
-	Boolean friendly=sz>i1 ? boolEvalExpr(r9,prms[i1],sBOOLN):false
-	String granularity=sz>i2 ? strEvalExpr(r9,prms[i2],sSTR):sS
-	Boolean showAdverbs=sz>i3 ? boolEvalExpr(r9,prms[i3],sBOOLN):false
+	Boolean friendly=sz>i1 ? boolEvalExpr(r9,prms[i1]):false
+	String granularity=sz>i2 ? strEvalExpr(r9,prms[i2]):sS
+	Boolean showAdverbs=sz>i3 ? boolEvalExpr(r9,prms[i3]):false
 
 	Integer sign=(value>=iZ)? i1:iN1
 	if(sign<iZ)value=-value
@@ -10050,7 +10097,7 @@ private Map func_formatdatetime(Map r9,List<Map> prms){
 	Integer sz=prms.size()
 	if(badParams(r9,prms,i1) || sz>i2)return rtnErr('formatDateTime(value[, format])')
 	Long value=longEvalExpr(r9,prms[iZ],sDTIME)
-	String format=sz>i1 ? strEvalExpr(r9,prms[i1],sSTR):sNL
+	String format=sz>i1 ? strEvalExpr(r9,prms[i1]):sNL
 	rtnMapS((format ? formatLocalTime(value,format):formatLocalTime(value)))
 }
 
@@ -10062,13 +10109,13 @@ private Map func_random(Map r9,List<Map> prms){
 		case iZ:
 			return rtnMapD(Math.random())
 		case i1:
-			Double range=dblEvalExpr(r9,prms[iZ],sDEC)
+			Double range=dblEvalExpr(r9,prms[iZ])
 			return rtnMapI((Integer)Math.round(range*Math.random()))
 		case i2:
 			List<String> n=[sINT,sDEC]
 			if((sMt(prms[iZ]) in n) && (sMt(prms[i1]) in n)){
-				Double min=dblEvalExpr(r9,prms[iZ],sDEC)
-				Double max=dblEvalExpr(r9,prms[i1],sDEC)
+				Double min=dblEvalExpr(r9,prms[iZ])
+				Double max=dblEvalExpr(r9,prms[i1])
 				if(min>max){
 					Double swap=min
 					min=max
@@ -10084,7 +10131,7 @@ private Map func_random(Map r9,List<Map> prms){
 
 /** distance returns a distance measurement							**/
 /** Usage: distance((device | latitude,longitude),(device | latitude,longitude)[, unit])	**/
-@SuppressWarnings(['GroovyVariableNotAssigned', 'GroovyFallthrough'])
+@SuppressWarnings('GroovyVariableNotAssigned')
 private Map func_distance(Map r9,List<Map> prms){
 	Integer sz=prms.size()
 	if(badParams(r9,prms,i2) || sz>i5)return rtnErr('distance((device | latitude,longitude),(device | latitude,longitude)[, unit])')
@@ -10098,19 +10145,19 @@ private Map func_distance(Map r9,List<Map> prms){
 			//a decimal or device attribute is provided
 			switch(idx){
 				case iZ:
-					lat1=dblEvalExpr(r9,prms[pidx],sDEC)
+					lat1=dblEvalExpr(r9,prms[pidx])
 					break
 				case i1:
-					lng1=dblEvalExpr(r9,prms[pidx],sDEC)
+					lng1=dblEvalExpr(r9,prms[pidx])
 					break
 				case i2:
-					lat2=dblEvalExpr(r9,prms[pidx],sDEC)
+					lat2=dblEvalExpr(r9,prms[pidx])
 					break
 				case i3:
-					lng2=dblEvalExpr(r9,prms[pidx],sDEC)
+					lng2=dblEvalExpr(r9,prms[pidx])
 					break
 				case i4:
-					unit=strEvalExpr(r9,prms[pidx],sSTR)
+					unit=strEvalExpr(r9,prms[pidx])
 			}
 			idx+=i1
 			pidx+=i1
@@ -10120,9 +10167,9 @@ private Map func_distance(Map r9,List<Map> prms){
 				case iZ:
 				case i2:
 					prms[pidx].a='latitude'
-					Double lat=dblEvalExpr(r9,prms[pidx],sDEC)
+					Double lat=dblEvalExpr(r9,prms[pidx])
 					prms[pidx].a='longitude'
-					Double lng=dblEvalExpr(r9,prms[pidx],sDEC)
+					Double lng=dblEvalExpr(r9,prms[pidx])
 					if(idx==iZ){
 						lat1=lat
 						lng1=lng
@@ -10186,7 +10233,7 @@ private static Map func_json(Map r9,List<Map> prms){
 /** Usage: urlencode(value)								**/
 private Map func_urlencode(Map r9,List<Map> prms){
 	if(badParams(r9,prms,i1))return rtnErr('urlencode(value])')
-	String t0=strEvalExpr(r9,prms[iZ],sSTR)
+	String t0=strEvalExpr(r9,prms[iZ])
 	String value=(t0!=sNL ? t0:sBLK)
 	rtnMapS(encodeURIComponent(value))
 }
@@ -10317,7 +10364,6 @@ private String scast(Map r9,v){
 	return matchCast(r9,vv,sSTR) ? (String)vv:(String)cast(r9,vv,sSTR,srcDt)
 }
 
-@SuppressWarnings('GroovyFallthrough')
 @CompileStatic
 private static com_cast(Map r9,ival,String dataType,String srcDt){
 	def value=ival
@@ -10405,7 +10451,6 @@ private static com_cast(Map r9,ival,String dataType,String srcDt){
 	return value
 }
 
-@SuppressWarnings('GroovyFallthrough')
 private cast(Map r9,ival,String dataTT,String isrcDT=sNL){
 	if(dataTT==sDYN)return ival
 
@@ -10816,13 +10861,12 @@ private static List<Integer> hexToHsl(String hex){
 
 private void myDetail(Map r9,String msg,Integer shift=iN1){ Map a=log(msg,r9,shift,null,sWARN,true,false) }
 
-@SuppressWarnings('GroovyFallthrough')
-private Map log(message,Map r9,Integer shift=iN2,err=null,String cmd=sNL,Boolean force=false,Boolean svLog=true){
+private Map log(message,Map r9,Integer shift=iN2,Exception err=null,String cmd=sNL,Boolean force=false,Boolean svLog=true){
 	if(cmd==sTIMER){
 		return [(sM):message.toString(),(sT):wnow(),(sS):shift,(sE):err]
 	}
 	String myMsg=sNL
-	def merr=err
+	Exception merr=err
 	Integer mshift=shift
 	if(message instanceof Map){
 		mshift=(Integer)message.s
@@ -10831,14 +10875,14 @@ private Map log(message,Map r9,Integer shift=iN2,err=null,String cmd=sNL,Boolean
 	}else myMsg=message.toString()
 	String mcmd=cmd!=sNL ? cmd:sDBG
 
-	if(r9?.timestamp){
+	if(r9 && r9[sTMSTMP]){
 		//shift is
 		// 0 initialize level,level set to 1
 		// 1 start of routine,level up
 		// -1 end of routine,level down
 		// anything else: nothing happens
 //		Integer maxLevel=4
-		Integer level=r9?.debugLevel ? (Integer)r9.debugLevel:iZ
+		Integer level=r9[sDBGLVL] ? (Integer)r9[sDBGLVL]:iZ
 		String ss='╔'
 		String sb='║'
 		String se='╚'
@@ -10865,10 +10909,10 @@ private Map log(message,Map r9,Integer shift=iN2,err=null,String cmd=sNL,Boolean
 			prefix=prefix.padLeft(level+(mshift==iN1 ? i1:iZ),sb)
 			prefix2=prefix2.padLeft(level+(mshift==iN1 ? i1:iZ),sb)
 		}
-		r9.debugLevel=level
+		r9[sDBGLVL]=level
 
 		Boolean hasErr=(merr!=null && !!merr)
-		if(svLog && r9!=null && r9 instanceof Map && r9[sLOGS] instanceof List){
+		if(svLog && r9[sLOGS] instanceof List){
 			myMsg=myMsg.replaceAll(/(\r\n|\r|\n|\\r\\n|\\r|\\n)+/,"\r")
 			if(myMsg.size()>1024){
 				myMsg=myMsg[iZ..1023]+'...[TRUNCATED]'
@@ -10885,11 +10929,11 @@ private Map log(message,Map r9,Integer shift=iN2,err=null,String cmd=sNL,Boolean
 	return [:]
 }
 
-private void info(message,Map r9,Integer shift=iN2,err=null){ Map a=log(message,r9,shift,err,'info')}
-private void trace(message,Map r9,Integer shift=iN2,err=null){ Map a=log(message,r9,shift,err,sTRC)}
-private void debug(message,Map r9,Integer shift=iN2,err=null){ Map a=log(message,r9,shift,err,sDBG)}
-private void warn(message,Map r9,Integer shift=iN2,err=null){ Map a=log(message,r9,shift,err,sWARN)}
-private void error(message,Map r9,Integer shift=iN2,err=null){
+private void info(message,Map r9,Integer shift=iN2,Exception err=null){ Map a=log(message,r9,shift,err,'info')}
+private void trace(message,Map r9,Integer shift=iN2,Exception err=null){ Map a=log(message,r9,shift,err,sTRC)}
+private void debug(message,Map r9,Integer shift=iN2,Exception err=null){ Map a=log(message,r9,shift,err,sDBG)}
+private void warn(message,Map r9,Integer shift=iN2,Exception err=null){ Map a=log(message,r9,shift,err,sWARN)}
+private void error(message,Map r9,Integer shift=iN2,Exception err=null){
 	String aa=sNL
 	String bb=sNL
 	try{
@@ -11099,6 +11143,7 @@ private Map<String,LinkedHashMap> getSystemVariablesAndValues(Map r9){
 	def res=null
 	for(variable in result){
 		String k=(String)variable.key
+		// special handle $fuel $file
 		res=null
 		if(/*variable.value.d!=null &&*/ (Boolean)variable.value.d) res=gtSysVarVal(r9,k)
 		if(res==null && c[k]!=null)res=c[k].v
@@ -11139,6 +11184,7 @@ private static LinkedHashMap<String,LinkedHashMap> getSystemVariables(){
 		'$hsmTripped':t+boolT,
 		(shsm):t+strT,
 
+		'$fuel':t+dynT,
 		(sHTTPCNTN):t+strT,
 		(sHTTPCODE):t+intT,
 		(sHTTPOK):t+boolT,
@@ -11223,7 +11269,6 @@ private static rtnStr(v){
 	return null
 }
 
-@SuppressWarnings('GroovyFallthrough')
 private gtSysVarVal(Map r9,String name){
 	String shsm=sDLR+sHSMSTS
 	Map<String,Map> sv=(Map<String,Map>)r9[sSYSVARS]
@@ -11244,6 +11289,7 @@ private gtSysVarVal(Map r9,String name){
 		case sIFTTTCODE:
 		case sIFTTTOK: return sv[name].v
 		case '$file': String pNm=(String)r9.nId; return readDataFLD[pNm]
+		case '$fuel': String pNm=(String)r9.nId; return fuelDataFLD[pNm]
 		case sCURATTR: return rtnStr(ce?.name)
 		case sCURDESC: return rtnStr(ce?.descriptionText)
 		case sCURDATE: return ce?.t
@@ -11447,7 +11493,6 @@ Map fixHeGType(Boolean toHubV,String typ,v){
 	String T='T'
 	String s9s='9999'
 	if(toHubV){ // from webcore(9 types) -> global(5 types + 3 overloads + sDYN becomes sSTR)
-		//noinspection GroovyFallthrough
 		switch(typ){
 			case sINT:
 				ret=[(sINT):v]
