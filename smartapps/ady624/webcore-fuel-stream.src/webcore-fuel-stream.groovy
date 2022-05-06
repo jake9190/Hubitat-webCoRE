@@ -356,10 +356,11 @@ Boolean fileExists(sensor, String attribute){
 			if(resp.status==200) res=true
 		}
 	} catch (e){
+		String sensor_name = sensor.label != null ? sensor.label : sensor.name
 		if (e.message.contains("Not Found")){
-			debug "File DOES NOT Exists for ${sensor.name} (${attribute})",null,iN2
+			debug "File DOES NOT Exists for ${sensor_name} (${attribute})",null,iN2
 		} else {
-			error"Find file ${sensor.name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
+			error"Find file ${sensor_name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
 		}
 	}
 	return res
@@ -382,6 +383,8 @@ Map readFile(sensor, String attribute){
 		}
 	} catch (ignored) {}
 
+	readTmpFLD[pNm]=sBLK
+	readTmpFLD= readTmpFLD
 	String uri = "http://${location.hub.localIP}:8080/local/${filename_}"
 	Map params = [
 		uri: uri,
@@ -411,7 +414,8 @@ Map readFile(sensor, String attribute){
 		List parse = convertToList((List<Map>)jsonSlurper.parseText(readTmpFLD[pNm]))
 		return [size: readTmpFLD[pNm].size(), data: parse ]
 	} catch (e) {
-		error"Read file ${sensor.name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
+		String sensor_name = sensor.label != null ? sensor.label : sensor.name
+		error"Read file ${sensor_name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
 	}
 	readTmpFLD[pNm]=sNL
 	readTmpFLD= readTmpFLD
@@ -493,6 +497,8 @@ List getFileData(sensor, String attribute){
 		}
 	} catch (ignored) {}
 
+	readTmpFLD[pNm]=sBLK
+	readTmpFLD= readTmpFLD
 	String uri = "http://${location.hub.localIP}:8080/local/${filename_}"
 
 	Map params = [
@@ -523,7 +529,8 @@ List getFileData(sensor, String attribute){
 		parse_data = convertToList((List<Map>)jsonSlurper.parseText(readTmpFLD[pNm]))
 		return parse_data
 	} catch (e) {
-		error"Get File Data ${sensor.name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
+		String sensor_name = sensor.label != null ? sensor.label : sensor.name
+		error"Get File Data ${sensor_name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
 	}
 	readTmpFLD[pNm]=sNL
 	readTmpFLD= readTmpFLD
@@ -588,7 +595,8 @@ void appendFile(sensor, String attribute){
 			writeFile(sensor, attribute, write_data)
 */
 		} else {
-			error "Append File ${sensor.name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
+			String sensor_name = sensor.label != null ? sensor.label : sensor.name
+			error "Append File ${sensor_name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
 		}
 	}
 	myDetail null,"append file"
@@ -600,6 +608,7 @@ Boolean writeFile(sensor, String attribute, String contents) {
 	String pNm=filename_
 
 	if (!login()) return false
+	if(readTmpFLD[pNm]==sNL) { readTmpFLD[pNm]=sBLK; readTmpFLD= readTmpFLD }
 	Integer sz=readTmpFLD[pNm].size()
 	if(sz> 4 && sz==contents?.size() && contents==readTmpFLD[pNm]) {
 		if(eric()) trace "writeFile no changes",null
@@ -641,7 +650,8 @@ Content-Disposition: form-data; name="folder"
 		return true
 	}
 	catch (e) {
-		error "Write File ${sensor.name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
+		String sensor_name = sensor.label != null ? sensor.label : sensor.name
+		error "Write File ${sensor_name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
 	}
 	readTmpFLD[pNm]=sNL
 	readTmpFLD= readTmpFLD
