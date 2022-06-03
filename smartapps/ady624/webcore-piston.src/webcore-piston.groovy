@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update May 28, 2022 for Hubitat
+ * Last update June 3, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -27,6 +27,7 @@
 //file:noinspection GroovyUnusedAssignment
 //file:noinspection unused
 //file:noinspection GroovyAssignabilityCheck
+//file:noinspection GroovyFallthrough
 
 @Field static final String sVER='v0.3.114.20220203'
 @Field static final String sHVER='v0.3.114.20220418_HE'
@@ -3884,6 +3885,8 @@ private void scheduleTimer(Map r9,Map timer,Long lastRun=lZ){
 		case sN: level=i7; break
 		case 'y': level=i8; break
 	}
+	if(isEric(r9))
+		myDetail r9,"interval: $interval delta: $delta level: $level intervalUnit: $intervalUnit",iN2
 	Long time=lZ
 	if(delta==lZ){
 		//let's get the offset
@@ -6327,7 +6330,11 @@ private evaluateOperand(Map r9,Map node,Map oper,Integer index=null,Boolean trig
 			}
 			if(mv)break
 		case sE: //expression
-			mv=movt+evaluateExpression(r9,(Map)operand.exp,ovt)
+			if(ovt in [sMS,sS,sM,sH,sD,'w',sN,'y'])
+				mv=movt+evaluateExpression(r9,(Map)operand.exp)
+			else
+				mv=movt+evaluateExpression(r9,(Map)operand.exp,ovt)
+			//mv=movt+evaluateExpression(r9,(Map)operand.exp)
 			break
 		case sU: //argument
 			mv=getArgument(r9,(String)operand.u)
