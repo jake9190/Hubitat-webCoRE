@@ -13433,7 +13433,7 @@ void hubiTool_create_tile(){
 	childDevice=getChildDevice("webCoRE_${app.id}")
 	if(!childDevice){
 		log.debug("Creating Device $dname")
-		childDevice=addChildDevice("ady624", "webCoRE Tile Device", "webCoRE_${app.id}", null,[completedSetup: true, label: dname])
+		childDevice=addChildDevice("ady624", "webCoRE Graphs Tile Device", "webCoRE_${app.id}", null,[completedSetup: true, label: dname])
 		log.info "Created HTTP Switch [${childDevice}]"
 
 	}
