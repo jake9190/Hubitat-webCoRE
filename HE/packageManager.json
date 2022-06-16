@@ -62,33 +62,31 @@
       "id": "0e1a298f-b61e-409d-9a70-a866036693fa",
       "name": "webCoRE Graphs Tile Device",
       "namespace": "ady624",
-      "location": "https://raw.githubusercontent.com/tchoward/Hubitat/master/hubigraph_tile.groovy",
+      "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/devicetypes/ady624/webcore-graph.src/webcore-graph.groovy",
       "required": false
     }
 
   ],
   "files" : [
-                {
-                        "id":"a930f16d-d5f4-4f37-b874-6b0dcfd47ace",
-                        "name": "HubiGraph.js",
-                        "location": "https://raw.githubusercontent.com/tchoward/Hubitat/master/HubiGraph.js"
-                },
-                {
-                        "id":"a7af9806-4b0e-4032-a78e-a41e27e4d685",
-                        "name": "WeatherTile.js",
-                        "location": "https://raw.githubusercontent.com/tchoward/Hubitat/master/WeatherTile.js"
-                },
-                {
-                        "id":"ba8d5ae0-1fbd-430a-bae0-bb5c0bd17ebd",
-                        "name": "WeatherTile2.js",
-                        "location": "https://raw.githubusercontent.com/tchoward/Hubitat/master/WeatherTile2.js"
-                },
-                {
-                        "id":"f06ea400-fe7a-49ef-8c50-6418f0a78dc6",
-                        "name": "WeatherTile2.css",
-                        "location": "https://raw.githubusercontent.com/tchoward/Hubitat/master/WeatherTile2.css"
-                }
-
-        ]
-
+    {
+      "id":"a930f16d-d5f4-4f37-b874-6b0dcfd47ace",
+      "name": "HubiGraph.js",
+      "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/resources/files/Hubigraph.js"
+    },
+    {
+      "id":"a7af9806-4b0e-4032-a78e-a41e27e4d685",
+      "name": "WeatherTile.js",
+      "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/resources/files/WeatherTile.js"
+    },
+    {
+      "id":"ba8d5ae0-1fbd-430a-bae0-bb5c0bd17ebd",
+      "name": "WeatherTile2.js",
+      "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/resources/files/WeatherTile2.js"
+    },
+    {
+      "id":"f06ea400-fe7a-49ef-8c50-6418f0a78dc6",
+      "name": "WeatherTile2.css",
+      "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/resources/files/WeatherTile2.css"
+    }
+  ]
 }

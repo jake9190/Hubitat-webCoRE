@@ -1,5 +1,5 @@
 metadata{
-	definition( name: "webCoRE Tile Device", namespace: "ady624", author: "Thomas Howard") {
+	definition( name: "webCoRE Graphs Tile Device", namespace: "ady624", author: "Thomas Howard") {
 		// Indicate what capabilities the device should be capable of
 		
 		capability "Actuator"
