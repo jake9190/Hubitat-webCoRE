@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update June 3, 2022 for Hubitat
+ * Last update June 16, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -30,7 +30,7 @@
 //file:noinspection GroovyFallthrough
 
 @Field static final String sVER='v0.3.114.20220203'
-@Field static final String sHVER='v0.3.114.20220418_HE'
+@Field static final String sHVER='v0.3.114.20220428_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -10883,8 +10883,9 @@ private static List<Integer> hexToHsl(String hex){
 
 	Double max=Math.max(Math.max(r,g),b)
 	Double min=Math.min(Math.min(r,g),b)
-	Double h=dZ
-	Double s=dZ
+	Double h,s
+	h=dZ
+	s=dZ
 	Double l=(max+min)/2.0D
 
 	if(max==min){
@@ -10912,9 +10913,12 @@ private Map log(message,Map r9,Integer shift=iN2,Exception err=null,String cmd=s
 	if(cmd==sTIMER){
 		return [(sM):message.toString(),(sT):wnow(),(sS):shift,(sE):err]
 	}
-	String myMsg=sNL
-	Exception merr=err
-	Integer mshift=shift
+	String myMsg
+	myMsg=sNL
+	Exception merr
+	merr=err
+	Integer mshift
+	mshift=shift
 	if(message instanceof Map){
 		mshift=(Integer)message.s
 		merr=message.e
@@ -10929,12 +10933,14 @@ private Map log(message,Map r9,Integer shift=iN2,Exception err=null,String cmd=s
 		// -1 end of routine,level down
 		// anything else: nothing happens
 //		Integer maxLevel=4
-		Integer level=r9[sDBGLVL] ? (Integer)r9[sDBGLVL]:iZ
+		Integer level
+		level=r9[sDBGLVL] ? (Integer)r9[sDBGLVL]:iZ
 		String ss='╔'
 		String sb='║'
 		String se='╚'
-		String prefix=sb
-		String prefix2=sb
+		String prefix,prefix2
+		prefix=sb
+		prefix2=sb
 //		String pad=sBLK //"░"
 		switch(mshift){
 			case iZ:
