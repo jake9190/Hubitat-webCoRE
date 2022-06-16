@@ -12141,7 +12141,9 @@ Map getCurrentDailyStorage(sensor, String attribute, String fname=sNL){
 /** fuel stream method */
 Map getCurrentDailyStorageFS(){
 	List<Map> a=getFuelStreamData(null)
-	Integer sz=a.toString().size()
+	List<Map> file_data
+	file_data=rtnFileData(a) // we are measure as stored size
+	Integer sz=file_data.toString().size()
 	Map json=[size: sz, data: a ]
 	if(json?.data){
 
@@ -12506,7 +12508,9 @@ List<Map> cleanFuelStream(List<Map> istream){
 	nsz=stream.size()
 	debug "cleanFuelStream first trim, size: $nsz, days: $storage",null
 
-	Double storageSize= stream.toString().size() / 1024.0D
+	List<Map> tstream
+	tstream= rtnFileData(stream) // need to work with as stored size
+	Double storageSize= tstream.toString().size() / 1024.0D
 	Integer max=(gtSetting('maxSize') ?: 95) as Integer
 
 	debug "cleanFuelStream prep, storageSize: $storageSize, max: $max",null
