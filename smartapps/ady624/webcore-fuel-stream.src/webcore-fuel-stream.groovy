@@ -20,7 +20,7 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  *
- *  Last update June 15, 2022 for Hubitat
+ *  Last update June 16, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment

@@ -7126,7 +7126,7 @@ private void traverseExpressions(node,Closure closure,prm,parentNode=null){
 private void updateDeviceList(Map r9){
 	List a=((List)((Map)r9[sDEVS])*.value.id).unique()
 	if(isDbg(r9))myDetail r9,"updateDeviceList ${a.size()} (${a}) (${r9[sDEVS]})",iN2
-	if(a && a!='null') {
+	if(a){
 		if(isDbg(r9))myDetail r9,"updateDeviceList UPDATED (${a}) (${r9[sDEVS]})",iN2
 		app.updateSetting('dev', [(sTYPE): 'capability', (sVAL): a])
 		// settings update do not happen till next execution
