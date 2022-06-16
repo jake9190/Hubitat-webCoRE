@@ -799,6 +799,7 @@ function getTime(secs) {
 
 function getDewPointS(dew) {
     
+        console.log("getDewPointS: " + dew);
         if (dew < 50) return "DRY";
         else if (dew < 55) return "NORMAL";
         else if (dew < 60) return "OPTIMAL";
@@ -806,6 +807,7 @@ function getDewPointS(dew) {
         else if (dew < 70) return "MOIST";
         else if (dew < 75) return "WET";
         else return "MISERABLE";
+        console.log("getDewPointS: ran off bottom");
 
 }
 
@@ -1029,7 +1031,7 @@ function setForecastTile(weather) {
 
     weather.forEach((value, key) => {
        
-        //console.log("setForecastTile: " + key + " "+value.value);
+        console.log("setForecastTile: " + key + " "+value.value);
         let val;
         switch (key){
             case 'description' : 
@@ -1049,10 +1051,12 @@ function setForecastTile(weather) {
                 break;
             case 'weather_icon' : break;
             case 'dewpoint_desc' :
+                //val = getString(value, value.out_units);
                 let a=  parseFloat(value.value);
-                //console.log("Calling getDewPointS: " + a);
+                console.log("Calling getDewPointS: " + a);
                 val = getDewPointS(a);
-                //console.log("setting dew "+ key + " " + val);
+                console.log("setting dew "+ key + " " + val);
+                //val = isNaN(val) ? val : val.toFixed(out.decimal);
                 setValue(val, key);
                 break;
             case 'precipitation' :
@@ -1094,4 +1098,3 @@ function getWeeklyForecastWeather() {
             console.log(error);
         });
 }
-
