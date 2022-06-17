@@ -20,7 +20,7 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  *
- *  Last update June 16, 2022 for Hubitat
+ *  Last update June 17, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -119,6 +119,7 @@ def updated(){
 
 	state[sDBGLVL]=iZ
 	state.remove('saveC')
+	state.remove('devInstruct')
 
 	readTmpFLD= [:] // clear memory file cache
 	fuelFLD=null // clear list of fuel streams cache
@@ -562,7 +563,7 @@ Map makeFuelDataEntry(String stream){
 	if(params)
 		ent += [q:params]
 
-	// todo deal with attribute being lastupdate - which means last time this attribute/stream value was updated
+	// deal with attribute being lastupdate - which means last time this attribute/stream value was updated
 	String sn = "lstUpd_${ent.id}_${ent.a}".toString()
 	if((Boolean)settings[sn]) ent += [aa:'lastupdate']
 
@@ -591,7 +592,7 @@ Map makeSensorDataEntry(sensor,String sid,String attr){
 	if(params)
 		ent += [q:params]
 
-	// todo deal with attribute being lastupdate - which means last time this attribute/stream value was updated
+	// deal with attribute being lastupdate - which means last time this attribute/stream value was updated
 	String sn = "lstUpd_${ent.id}_${ent.a}".toString()
 	if((Boolean)settings[sn]){
 		ent += [aa:'lastupdate']
@@ -603,9 +604,9 @@ Map makeSensorDataEntry(sensor,String sid,String attr){
 }
 
 /**
- * create state.datasources from settings (settings may be updated without update to state.dataSources
+ * create state.datasources from settings
  * @param multiple
- * @return
+ * @return list of data sources and update to state.datasSources
  */
 List<Map> createDataSources(Boolean multiple){
 
@@ -841,9 +842,7 @@ def gatherDataSources(Boolean multiple=true, Boolean ordered=false, Boolean allo
 	List<Map> dataSources
 	dataSources=[]
 	Integer sz
-	if(settings[fvarn] || settings[varn]){
-		dataSources = createDataSources(multiple)
-	}
+	dataSources = createDataSources(multiple)
 
 	sz=dataSources.size()
 
@@ -906,8 +905,10 @@ def mainShare1(String instruct, String okSet,Boolean multiple=true){
 //def deviceBar(){
 //def deviceTimeline(){
 //def deviceTimegraph(){
+//def deviceHeatmap(){
 //def deviceLinegraph(){
-def deviceShare1(Boolean ordered=false){
+def deviceShare1(Boolean ordered=false,Boolean allowLastActivity=false){
+
 	myDetail null,"deviceShare1: $ordered",iN2
 	dynamicPage(name: "deviceSelectionPage", nextPage:"attributeConfigurationPage"){
 		if(state.devInstruct){
@@ -918,7 +919,7 @@ def deviceShare1(Boolean ordered=false){
 				hubiForm_container(container, 1)
 			}
 		}
-		gatherDataSources(true, ordered)
+		gatherDataSources(true, ordered, allowLastActivity)
 	}
 }
 
@@ -929,7 +930,8 @@ def deviceShare1(Boolean ordered=false){
 //def attributeLinegraph(){
 def attributeShare1(Boolean ordered=false, String var_color="background"){
 	myDetail null,"attributeShare1: $ordered $var_color",iN2
-	List a=createDataSources(true)
+
+	List<Map> dataSources= createDataSources(true)
 
 	dynamicPage(name: "attributeConfigurationPage"){
 /*		hubiForm_section("Directions", 1, "directions", "", ""){
@@ -958,8 +960,6 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 			hubiForm_container(container, 1)
 		} */
 
-		List<Map> dataSources
-		dataSources=state.dataSources
 		dataSources.each{ Map ent ->
 			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
@@ -978,7 +978,7 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 
 				String tvar="var_${sid}_${attribute}_lts".toString()
 				if((Boolean)parent.ltsAvailable(rid, attribute)){
-					hubiForm_section("${typ}: ${dn} - ${attribute}", 1, "directions", sid){
+					hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "directions", sid+attribute){
 						container << hubiForm_sub_section("Long Term Storage in use")
 //						container << hubiForm_switch([title: "<b>Long Term Storage Available, Use it?</b>", name: tvar, default: false, submit_on_change: false])
 						hubiForm_container(container, 1)
@@ -991,7 +991,7 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 				}
 			}
 
-			hubiForm_section("${typ}: ${dn} - ${attribute}", 1, "directions", sid){
+			hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "directions", sid+attribute+s1){
 				container << hubiForm_sub_section("Override ${typ} Name on Graph")
 
 				container << hubiForm_text_input("<small></i>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
@@ -1148,7 +1148,7 @@ private Double getValue(String id, String attr, val){
 	if(settings["attribute_${id}_${attr}_${val}"]!=null){
 		ret=Double.parseDouble(settings["attribute_${id}_${attr}_${val}"].toString())
 	} else{
-		ret=Double.parseDouble(val - reg )
+		ret=Double.parseDouble("${val}" - reg )
 	}
 	return ret
 }
@@ -1163,7 +1163,7 @@ static Double extractNumber(String input){
  *
  * @param ent
  * @param time
- * @return
+ * @return Internal data format as List<Map>
  */
 List<Map> CgetData(Map ent, Date time, Boolean multiple=true){
 
@@ -1285,15 +1285,13 @@ def deviceGauge(){
 
 		gatherDataSources(false)
 
-		List a=createDataSources(false)
+		List<Map> dataSources= createDataSources(false)
 		def val
 		String dn
 		dn='unknown'
 		String typ
 		typ=dn
 
-		List<Map> dataSources
-		dataSources=state.dataSources
 		if(dataSources){
 			dataSources.each{ Map ent ->
 
@@ -1325,7 +1323,6 @@ def deviceGauge(){
 }
 
 def graphGauge(){
-	List a=createDataSources(false)
 
 	Integer num_
 
@@ -1785,6 +1782,10 @@ Map gtSensorFmt(Boolean curStates=false,Boolean multiple=true){
 	return sensors_fmt
 }
 
+static String sLblTyp(String typ){
+	if(typ=='fuel') return sBLK
+	else return 'Sensor '
+}
 
 
 
@@ -1806,7 +1807,7 @@ def deviceBar(){
 }
 
 def attributeBar(){
-	List a=createDataSources(true)
+	List<Map> dataSources= createDataSources(true)
 
 	dynamicPage(name: "attributeConfigurationPage"){
 		List container
@@ -1824,8 +1825,6 @@ def attributeBar(){
 
 		//Integer count=0
 //	TODO
-		List<Map> dataSources
-		dataSources=state.dataSources
 		if(dataSources){
 			dataSources.each{ Map ent ->
 				//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
@@ -1837,7 +1836,7 @@ def attributeBar(){
 				String typ=((String)ent.t).capitalize()
 
 				container=[]
-				hubiForm_section("${typ}: ${dn} - ${attribute}", 1, "directions", sid){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "directions", sid+attribute){
 
 					input( type: "enum", name: "attribute_${sid}_${attribute}_decimals",
 							title: "<b>Number of Decimal Places to Display</b>",
@@ -1880,7 +1879,6 @@ def attributeBar(){
 
 def graphBar(){
 
-	List a=createDataSources(true)
 	dynamicPage(name: "graphSetupPage"){
 		List container
 		hubiForm_section("General Options", 1, "", ""){
@@ -1980,18 +1978,13 @@ Map getChartOptions_bar(){
 			String attrib_string="attribute_${sid}_${attribute}_color"
 			String transparent_attrib_string="attribute_${sid}_${attribute}_color_transparent"
 			colors << (settings[transparent_attrib_string] ? "transparent" : settings[attrib_string])
-
 		}
 	}
 
 	String axis1,axis2
-	if(graph_type == "1"){
-		axis1="hAxis"
-		axis2="vAxis"
-	} else{
-		axis1="vAxis"
-		axis2="hAxis"
-	}
+	Boolean gt1= (graph_type=="1")
+	axis1= gt1 ? "hAxis" : "vAxis"
+	axis2= gt1 ? "vAxis" : "hAxis"
 
 	Map options=[
 		"graphUpdateRate": Integer.parseInt(graph_update_rate),
@@ -2007,10 +2000,10 @@ Map getChartOptions_bar(){
 			"backgroundColor": graph_background_color_transparent ? "transparent" : graph_background_color,
 			"isStacked": false,
 			"chartArea": [
-				"left": graph_type == "1" ? graph_v_buffer : graph_h_buffer,
+				"left": gt1 ? graph_v_buffer : graph_h_buffer,
 				"right" : 10,
 				"top": 10,
-				"bottom": graph_type == "1" ? graph_h_buffer : graph_v_buffer ],
+				"bottom": gt1 ? graph_h_buffer : graph_v_buffer ],
 			"legend" : [ "position" : sNONE ],
 			(axis1): [ "viewWindow" :
 							["max" : graph_max,
@@ -2393,7 +2386,7 @@ def getSubscriptions_bar(){
 
 			_ids << sid
 
-			if(typ=='Fuel') isPoll=true
+			//if(typ=='Fuel') isPoll=true
 
 			_attributes[sid]=[]
 			labels[sid]=[:]
@@ -2538,7 +2531,7 @@ def deviceTimeline(){
 }
 
 def attributeTimeline(){
-	List aa=createDataSources(true)
+	List<Map> dataSources= createDataSources(true)
 
 	//state.count_=0
 	dynamicPage(name: "attributeConfigurationPage"){
@@ -2546,11 +2539,11 @@ def attributeTimeline(){
 		hubiForm_section("Directions", 1, "directions", ""){
 			container=[]
 			container << hubiForm_text("""Configure what counts as a 'start' or 'end' event for each attribute on the timeline.
-													For example, Switches start when they are 'on' and end when they are 'off'.\n\nSome attributes will automatically populate.
-													You can change them if you have a different configuration (chances are you won't).
-													Additionally, for devices with numeric values, you can define a range of values that count as 'start' or 'end'.
-													For example, to select all the times a temperature is above 70.5 degrees fahrenheit, you would set the start to '> 70.5', and the end to '< 70.5'.
-													Supported comparitors are: '<', '>', '<=', '>=', '==', '!='.\n\nBecause we are dealing with HTML, '<' is abbreviated to &amp;lt; after you save. That is completely normal. It will still work.""" )
+									For example, Switches start when they are 'on' and end when they are 'off'.\n\nSome attributes will automatically populate.
+									You can change them if you have a different configuration (chances are you won't).
+									Additionally, for devices with numeric values, you can define a range of values that count as 'start' or 'end'.
+									For example, to select all the times a temperature is above 70.5 degrees fahrenheit, you would set the start to '> 70.5', and the end to '< 70.5'.
+									Supported comparitors are: '<', '>', '<=', '>=', '==', '!='.\n\nBecause we are dealing with HTML, '<' is abbreviated to &amp;lt; after you save. That is completely normal. It will still work.""" )
 
 			hubiForm_container(container, 1)
 
@@ -2560,8 +2553,8 @@ def attributeTimeline(){
 		}
 
 //	TODO
-		List<Map> dataSources
-		dataSources=state.dataSources
+		//List<Map> dataSources
+		///dataSources=state.dataSources
 		Integer cnt
 		cnt=0
 		if(dataSources){
@@ -2575,7 +2568,7 @@ def attributeTimeline(){
 				String dn=ent.displayName
 				String typ=((String)ent.t).capitalize()
 
-				hubiForm_section("${typ}: ${dn} - ${attribute}", 1, "directions", sid){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "directions", sid+attribute){
 					container=[]
 
 					container << hubiForm_text_input("Override Device Name<small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
@@ -2670,15 +2663,15 @@ Map buildData_timeline(){
 
 //			log.warn "got sensor: $sensor attribute: $attribute	data1: $data"
 
-			List<Map>data1=data.collect{ Map it-> [date: ((Date)it.date).getTime(), value: "${it.value}".toString()]}
+			List<Map>data1=data.collect{ Map it-> [date: it.t, value: "${it.value}".toString()]}
 
 			resp[sid][attribute]=data1.findAll{ Map it-> (Long)it.date > graph_time}
 
 			List<Map> temp=([]+data1) as List<Map>
-				//temp=temp.sort{ (Long)it.date }
+			//temp=temp.sort{ (Long)it.date }
 			resp[sid][attribute]=temp
 
-//				log.warn "FINAL got sensor: $sensor attribute: $attribute	data1: $temp"
+//			log.warn "FINAL got sensor: $sensor attribute: $attribute	data1: $temp"
 
 		}
 	}
@@ -3238,11 +3231,12 @@ def getSubscriptions_timeline(){
 
 			_ids << sid
 
-			if(typ=='Fuel') isPoll=true
+			//if(typ=='Fuel') isPoll=true
 
 			definitions[sid]=[:]
 			labels[sid]=[:]
-			definitions[sid][attribute]=["start": settings["attribute_${sid}_${attribute}_start"], "end": settings["attribute_${sid}_${attribute}_end"]]
+			definitions[sid][attribute]=["start": settings["attribute_${sid}_${attribute}_start"] ?: sSPC,
+										 "end": settings["attribute_${sid}_${attribute}_end"] ?: sSPC ]
 			labels[sid][attribute]=settings["graph_name_override_${sid}_${attribute}"]
 		}
 	}
@@ -3628,7 +3622,7 @@ def graphTimegraph(){
 
 				String asasn= "attribute_${sid}_${attribute}_states"
 
-				hubiForm_section("${typ}: ${dn} - ${attribute}", 1, "direction",sid){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "direction",sid+attribute){
 
 					container=[]
 /*
@@ -3988,9 +3982,9 @@ private Map buildData_timegraph(){
 
 			List<Map> data
 			data=CgetData(ent,then)
+			//return [date: d, value: sum.round(decimals), t: d.getTime()]
 
 // TODO FIX
-			//return [date: d, value: sum.round(decimals), t: d.getTime()]
 			data=data.collect{ Map it -> [date: it.t, value: getValue(sid, attribute, it.value)]}
 
 			resp[sid][attribute]=data.findAll{ Map it -> (Long)it.date > graph_time}
@@ -4241,7 +4235,7 @@ function getSubscriptions(){
 }
 
 function getGraphData(){
-	return jQuery.get("${state.localEnpointURL}getData/?access_token=${state.endpointSecret}", (data) =>{
+	return jQuery.get("${state.localEndpointURL}getData/?access_token=${state.endpointSecret}", (data) =>{
 		console.log("Got Graph Data");
 		graphData=data;
 	});
@@ -4788,14 +4782,14 @@ def getSubscriptions_timegraph(){
 			ids << sid
 			//TODO
 
-			if(typ=='Fuel') isPoll=true
+			//if(typ=='Fuel') isPoll=true
 //		String sid=sensor.id.toString()
 		//only take what we need
 			//Map sensors_fmt=gtSensorFmt()
 			sensors_[sid]=[ id: sid /*, idAsLong: sensor.idAsLong */, displayName: dn ]
 
 			attributes[sid]= attributes[sid] ?: []
-			attributes[sid] << settings["attributes_${sid}"]
+			attributes[sid] << attribute
 
 			String attr=attribute
 
@@ -4889,9 +4883,11 @@ def getSubscriptions_timegraph(){
 
 
 def mainHeatmap(){
-	mainShare1(sNL,'graph_update_rate')
+	mainShare1("""Choose Numeric Attributes or common sensor attributes (like on/off, open/close, present/not present,
+			detected/clear, active/inactive, wet/dry, last Activity)""",
+			'graph_update_rate')
 }
-
+/*
 static String getFilterName(filter){
 	switch (filter){
 		case "capability.*": return "Sensor"
@@ -4903,9 +4899,10 @@ static String getFilterName(filter){
 		case "capability.switch": return "Switch"
 	}
 	return sNL
-}
+} */
 
 def deviceHeatmap(){
+	deviceShare1(false,true)
 
 //	String filterText="capability.*"
 /*
@@ -4931,6 +4928,7 @@ def deviceHeatmap(){
 			["lastupdate": "Last Update"],
 	]
 */
+	/*
 	dynamicPage(name: "deviceSelectionPage", nextPage:"attributeConfigurationPage"){
 		List container
 
@@ -4942,7 +4940,7 @@ def deviceHeatmap(){
 
 		}
 		gatherDataSources(true,false,true)
-		// TODO missing last update
+*/
 /*
 		String default_
 		hubiForm_section("Attribute Filter", 1, "", ""){
@@ -5015,7 +5013,7 @@ def deviceHeatmap(){
 			}
 		}
  */
-	}
+//	}
 }
 
 def attributeHeatmap(){
@@ -5843,7 +5841,7 @@ def getSubscriptions_heatmap(){
 			String attribute=ent.a
 			String typ=((String) ent.t).capitalize()
 
-			if(typ=='Fuel') isPoll=true
+			//if(typ=='Fuel') isPoll=true
 
 			_ids << sid
 			_attributes[sid] = _attributes[sid] ?: []
@@ -6139,7 +6137,7 @@ def graphLinegraph(){
 				String attribute=ent.a
 				String dn=ent.displayName
 
-				hubiForm_section("${dn} - ${attribute}", 1,"",sid){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "",sid+attribute){
 
 					container=[]
 					input( type: "enum", name: "graph_axis_number_${sid}_${attribute}", title: "<b>Graph Axis Side</b>", defaultValue: "0", options: availableAxis)
@@ -6151,7 +6149,7 @@ def graphLinegraph(){
 							name: "attribute_${sid}_${attribute}",
 							default: 2, min: 1, max: 20)
 
-/* allready done in attributesPage
+/* already done in attributesPage
 					container << hubiForm_text_input("<b>Override Device Name</b><small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
 							"graph_name_override_${sid}_${attribute}",
 							"%deviceName%: %attributeName%", false) */
@@ -6165,13 +6163,6 @@ def graphLinegraph(){
 						startVal=a.start
 						endVal=a.end
 					}
-					/*String defltS, defltE
-                    defltS=sBLK; defltE=sBLK
-                    Map a=gtStartEndTypes(ent,attribute)
-                    if(a){
-                        defltS=a.start
-                        defltE=a.end
-                    } */
 				//	String startVal=supportedTypes[attribute] ? supportedTypes[attribute].start : ""
 				//	String endVal=supportedTypes[attribute] ? supportedTypes[attribute].end : ""
 
@@ -6881,7 +6872,7 @@ def getSubscriptions_linegraph(){
 
 			String attr=attribute
 
-			if(typ=='Fuel') isPoll=true
+			//if(typ=='Fuel') isPoll=true
 
 //	sensors.each{sensor->
 			ids << sid // sensor.idAsLong
@@ -6892,7 +6883,7 @@ def getSubscriptions_linegraph(){
 			sensors_[sid]=[ id: sid /* , idAsLong: sensor.idAsLong */, displayName: dn ]
 
 			attributes[sid]= attributes[sid] ?: []
-			attributes[sid] << settings["attributes_${sid}"]
+			attributes[sid] << attribute
 
 			labels[sid]= labels[sid] ?: [:]
 		//	((List<String>)settings["attributes_${sid}"]).each{ String attr ->
@@ -7019,7 +7010,7 @@ def attributeRangebar(){
 
 //				Integer cnt=1
 				//state.count_++
-				hubiForm_section("${typ}: ${dn} - ${attribute}", 1, "direction",sid){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "direction",sid+attribute){
 					container=[]
 
 					String tvar="var_${sid}_${attribute}_lts".toString()
@@ -7164,14 +7155,14 @@ Map buildData_rangebar(){
 
 			List<Map> data=CgetData(ent, then)
 
-//				log.warn "got sensor: $sensor attribute: $attribute data1: $data"
-				//List data1=data.findAll{ (Long)it.date > graph_time}
+//			log.warn "got sensor: $sensor attribute: $attribute data1: $data"
+			//List data1=data.findAll{ (Long)it.date > graph_time}
 			List<Double> temp=data.collect{ Map it -> getValue(sid,attribute,it.value) }
 
-				//List temp=sensor.statesSince(attribute, then, [max: 1000]).collect{ it.getFloatValue() }
+			//List temp=sensor.statesSince(attribute, then, [max: 1000]).collect{ it.getFloatValue() }
 			Integer sz=data.size()
 			//Float v= sensor.currentState(attribute).getFloatValue()
-			Float v= ${data[sz-1].value}.toFloat()
+			Float v= "${data[sz-1].value}".toFloat()
 
 			if(temp.size() == 0){
 				resp[sid][attribute]=[current: v, min: v, max: v]
@@ -7680,7 +7671,7 @@ def getSubscriptions_rangebar(){
 			String attribute=ent.a
 			String typ=((String) ent.t).capitalize()
 
-			if(typ=='Fuel') isPoll=true
+			//if(typ=='Fuel') isPoll=true
 
 	//sensors.each{ sensor ->
 	//	String sid=sensor.id.toString()
@@ -13682,6 +13673,7 @@ Boolean hubiTools_check_list(List<Map> dataSources, List<Map> list_){
 @Field static final String sSWITCH='switch'
 
 
+@Field static final String s1='1'
 @Field static final Integer iZ=0
 @Field static final Integer i1=1
 @Field static final Integer i2=2

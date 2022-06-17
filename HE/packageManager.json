@@ -40,7 +40,7 @@
       "namespace": "ady624",
       "location": "https://raw.githubusercontent.com/imnotbob/webCoRE/hubitat-patches/smartapps/ady624/webcore-fuel-stream.src/webcore-fuel-stream.groovy",
       "required": false,
-      "oauth": false
+      "oauth": true
     }
   ],
   "drivers": [
