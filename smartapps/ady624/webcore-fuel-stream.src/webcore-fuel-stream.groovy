@@ -19,8 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *
- *  Last update June 17, 2022 for Hubitat
+ *  Last update June 19, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -502,7 +501,7 @@ void clearFvarn(Boolean multiple){
 		for(String stream_nm in ifstreams){
 			stream= findStream(stream_nm)
 			// @return Map [i:, c: , n: ,w:1, t: getFormattedDate(new Date())]
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			if(stream){ // stream exists
 				String name=encodeStreamN(stream)
 				String s='f'+stream.i.toString()+"_"+name
@@ -733,7 +732,7 @@ def gatherDataSources(Boolean multiple=true, Boolean ordered=false, Boolean allo
 							stream= findStream(stream_nm)
 							// Map [i:, c: , n: ,w:1, t: getFormattedDate(new Date())]
 
-							//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+							//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 							if(stream && stream.i && stream.n){
 								String name=encodeStreamN(stream)
 
@@ -961,7 +960,7 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 		} */
 
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -969,6 +968,8 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 			String attribute=ent.a
 			String dn=ent.displayName
 			String typ=((String)ent.t).capitalize()
+			String hint= typ=='Fuel' ? " (Canister ${ent.c} Name ${ent.n})" : sBLK
+
 			container=[]
 
 			//if(ent.t=='fuel'){
@@ -991,7 +992,7 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 				}
 			}
 
-			hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "directions", sid+attribute+s1){
+			hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}${hint}", 1, "directions", sid+attribute+s1){
 				container << hubiForm_sub_section("Override ${typ} Name on Graph")
 
 				container << hubiForm_text_input("<small></i>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
@@ -1192,8 +1193,8 @@ List<Map> CgetData(Map ent, Date time, Boolean multiple=true){
  */
 List<Map> gtDataSourceData(Map ent, Boolean multiple=true){
 	myDetail null,"gtDataSourceData $ent $multiple",i1
-	//	Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
-	//	Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
+	//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
+	//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 	String attribute=ent.a
 	String typ=((String)ent.t).capitalize()
@@ -1679,7 +1680,7 @@ def getSubscriptions_gauge(){
 
 	Map subscriptions
 	subscriptions=[:]
-	//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+	//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 	//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 	if(state.dataSources){
 
@@ -1756,7 +1757,7 @@ Map gtSensorFmt(Boolean curStates=false,Boolean multiple=true){
 
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -1827,16 +1828,17 @@ def attributeBar(){
 //	TODO
 		if(dataSources){
 			dataSources.each{ Map ent ->
-				//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				String sid=ent.id
 				String attribute=ent.a
 				String dn=ent.displayName
 				String typ=((String)ent.t).capitalize()
+				String hint= typ=='Fuel' ? " (Canister ${ent.c} Name ${ent.n})" : sBLK
 
 				container=[]
-				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "directions", sid+attribute){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}${hint}", 1, "directions", sid+attribute){
 
 					input( type: "enum", name: "attribute_${sid}_${attribute}_decimals",
 							title: "<b>Number of Decimal Places to Display</b>",
@@ -1848,7 +1850,7 @@ def attributeBar(){
 							"1", false)
 
 
-					container << hubiForm_text_input("<b>Override Device Name</b><small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
+					container << hubiForm_text_input("<b>Override ${typ} Name</b><small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
 							"graph_name_override_${sid}_${attribute}",
 							"%deviceName%: %attributeName%", false)
 					container << hubiForm_color	("Bar Background",			"attribute_${sid}_${attribute}_background", "#3e4475", false, true)
@@ -1943,7 +1945,7 @@ Map buildData_bar(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -1969,7 +1971,7 @@ Map getChartOptions_bar(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -2377,7 +2379,7 @@ def getSubscriptions_bar(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -2559,7 +2561,7 @@ def attributeTimeline(){
 		cnt=0
 		if(dataSources){
 			dataSources.each{ Map ent ->
-				//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				//state.count_++
@@ -2567,11 +2569,12 @@ def attributeTimeline(){
 				String attribute=ent.a
 				String dn=ent.displayName
 				String typ=((String)ent.t).capitalize()
+				String hint= typ=='Fuel' ? " (Canister ${ent.c} Name ${ent.n})" : sBLK
 
-				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "directions", sid+attribute){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}${hint}", 1, "directions", sid+attribute){
 					container=[]
 
-					container << hubiForm_text_input("Override Device Name<small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
+					container << hubiForm_text_input("Override ${typ} Name<small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
 						"graph_name_override_${sid}_${attribute}",
 						"%deviceName%: %attributeName%", false)
 
@@ -2649,7 +2652,7 @@ Map buildData_timeline(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -3221,7 +3224,7 @@ def getSubscriptions_timeline(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -3333,20 +3336,20 @@ def graphTimegraph(){
 			container << hubiForm_slider (title: "<b>Minutes</b>", name: "graph_timespan_minutes",
 					default: 0, min: 0, max: 60, units: " seconds", submit_on_change: true)
 
-			Long secs
+			Long msecs
 			if(graph_timespan_weeks==null){
-				secs=86400000L
+				msecs=86400000L
 			} else{
-				secs=(Long)((Double)(graph_timespan_weeks)*604800000+
+				msecs= Math.round((Double)(graph_timespan_weeks)*604800000+
 						(Double)(graph_timespan_days)*86400000+
 						(Double)(graph_timespan_hours)*3600000+
 						(Double)(graph_timespan_minutes)*60000)
 			}
 
-			app.updateSetting("graph_timespan", [type: "number", value: secs])
-			settings["graph_timespan"]=secs
+			app.updateSetting("graph_timespan", [type: "number", value: msecs])
+			settings["graph_timespan"]=msecs
 
-			Integer points=graph_point_span ? (secs/Double.parseDouble((String)graph_point_span)).toInteger() : 280
+			Integer points=graph_point_span ? (msecs/Double.parseDouble((String)graph_point_span)).toInteger() : 280
 
 			if(points > 2000){
 				container << hubiForm_text ("""<span style="color: red; font-weight: bold;">WARNING:</span> <b>${(points)} Points </b>will be generated per Attribute per Graph<br><small>Too many points will cause webCoRE graphs to hang or take a long time to generate</small>""")
@@ -3562,7 +3565,7 @@ def graphTimegraph(){
 		dataSources=state.dataSources
 		if(dataSources){
 			dataSources.each{ Map ent ->
-				//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				String sid=ent.id
@@ -3606,7 +3609,7 @@ def graphTimegraph(){
 //	dataSources=state.dataSources
 		if(dataSources){
 			dataSources.each{ Map ent ->
-				//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				String sid=ent.id
@@ -3614,6 +3617,7 @@ def graphTimegraph(){
 				String attribute=ent.a
 				String dn=ent.displayName
 				String typ=((String) ent.t).capitalize()
+				String hint= typ=='Fuel' ? " (Canister ${ent.c} Name ${ent.n})" : sBLK
 
 
 //		sensors.each{ sensor ->
@@ -3622,7 +3626,7 @@ def graphTimegraph(){
 
 				String asasn= "attribute_${sid}_${attribute}_states"
 
-				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "direction",sid+attribute){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}${hint}", 1, "direction",sid+attribute){
 
 					container=[]
 /*
@@ -3934,7 +3938,8 @@ def graphTimegraph(){
 					}
 
 
-/*					container << hubiForm_sub_section("Override Display Name on Graph")
+/* already done in attributesPage
+					container << hubiForm_sub_section("Override Display Name on Graph")
 
 					container << hubiForm_text_input("<small></i>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
 							"graph_name_override_${sid}_${attribute}",
@@ -3972,7 +3977,7 @@ private Map buildData_timegraph(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -3985,7 +3990,7 @@ private Map buildData_timegraph(){
 			//return [date: d, value: sum.round(decimals), t: d.getTime()]
 
 // TODO FIX
-			data=data.collect{ Map it -> [date: it.t, value: getValue(sid, attribute, it.value)]}
+			data=data.collect{ Map it -> [date: (Long)it.t, value: getValue(sid, attribute, it.value)]}
 
 			resp[sid][attribute]=data.findAll{ Map it -> (Long)it.date > graph_time}
 
@@ -3993,7 +3998,7 @@ private Map buildData_timegraph(){
 			if(settings["attribute_${sid}_${attribute}_bad_value"]==true){
 				Float min=Float.valueOf(settings["attribute_${sid}_${attribute}_min_value"].toString())
 				Float max=Float.valueOf(settings["attribute_${sid}_${attribute}_max_value"].toString())
-				resp[sid][attribute]= ((List<Map>)resp[sid][attribute]).findAll{ Map it -> it.value > min && it.value < max}
+				resp[sid][attribute]= ((List<Map>)resp[sid][attribute]).findAll{ Map it -> (Double)it.value > min && (Double)it.value < max}
 			}
 		}
 	}
@@ -4083,7 +4088,7 @@ Map getChartOptions_timegraph(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -4126,7 +4131,7 @@ Map getChartOptions_timegraph(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -4770,7 +4775,7 @@ def getSubscriptions_timegraph(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -4801,7 +4806,7 @@ def getSubscriptions_timegraph(){
 //		((List<String>)settings["attributes_${sid}"]).each{ String attr ->
 			if((List)settings["attribute_${sid}_${attr}_states"] && settings["attribute_${sid}_${attr}_custom_states"] == true){
 				states_[sid][attr]=[:]
-				((List<String>)settings["attribute_${sid}_${attr}_states"]).each{states->
+				((List<String>)settings["attribute_${sid}_${attr}_states"]).each{String states->
 					states_[sid][attr][states]=settings["attribute_${sid}_${attr}_${states}"]
 				}
 			}
@@ -4850,7 +4855,7 @@ def getSubscriptions_timegraph(){
 
 	Map obj=[
 		"id": isPoll ? 'poll' : 'sensor',
-		ids: ids.sort(),
+		ids: ids, //.sort(),
 		sensors: sensors_,
 		attributes: attributes,
 		labels : labels,
@@ -4970,7 +4975,7 @@ def deviceHeatmap(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -5036,7 +5041,7 @@ def attributeHeatmap(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -5097,7 +5102,7 @@ def graphHeatmap(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 	//Get Device Count
@@ -5250,7 +5255,7 @@ def buildData_heatmap(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -5288,7 +5293,7 @@ def getChartOptions_heatmap(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -5834,7 +5839,7 @@ def getSubscriptions_heatmap(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -5961,8 +5966,8 @@ def graphLinegraph(){
 		dataSources=state.dataSources
 		if(dataSources){
 			dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
-			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
+				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				String sid=ent.id
 				String attribute=ent.a
@@ -6130,7 +6135,7 @@ def graphLinegraph(){
 
 		if(dataSources){
 			dataSources.each{ Map ent ->
-				//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				String sid=ent.id
@@ -6234,7 +6239,7 @@ private Map buildData_linegraph(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -6409,7 +6414,7 @@ Map getChartOptions_linegraph(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -6862,7 +6867,7 @@ def getSubscriptions_linegraph(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -6998,19 +7003,20 @@ def attributeRangebar(){
 		dataSources=state.dataSources
 		if(dataSources){
 			dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
-			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
+				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				String sid=ent.id
 				String rid=ent.rid
 				String attribute=ent.a
 				String dn=ent.displayName
 				String typ=((String) ent.t).capitalize()
+				String hint= typ=='Fuel' ? " (Canister ${ent.c} Name ${ent.n})" : sBLK
 
 
 //				Integer cnt=1
 				//state.count_++
-				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, "direction",sid+attribute){
+				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}${hint}", 1, "direction",sid+attribute){
 					container=[]
 
 					String tvar="var_${sid}_${attribute}_lts".toString()
@@ -7023,7 +7029,7 @@ def attributeRangebar(){
 						settings[tvar]= false
 					}
 
-					container << hubiForm_text_input("<b>Override Device Name</b><small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
+					container << hubiForm_text_input("<b>Override ${typ} Name</b><small></i><br>Use %deviceName% for DEVICE and %attributeName% for ATTRIBUTE</i></small>",
 							"graph_name_override_${sid}_${attribute}",
 							"%deviceName%: %attributeName%", false)
 
@@ -7144,7 +7150,7 @@ Map buildData_rangebar(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -7182,7 +7188,7 @@ Map getChartOptions_rangebar(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -7663,7 +7669,7 @@ def getSubscriptions_rangebar(){
 	dataSources=state.dataSources
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -12394,9 +12400,8 @@ public void updateFuelStream(Map req){ // append
 	myDetail null,"updateFuelStream $req",iN2
 	if(!req)return
 	List<Map> stream= getFuelStreamData(req)
-	// TODO internal format conversion
-	//Boolean a=stream.add([d: req.d, i: wnow()])
 	// [[ date: Date, value: v, t: long]]
+	// old internal format conversion //Boolean a=stream.add([d: req.d, i: wnow()])
 	Date n= new Date()
 	Boolean a=stream.add([value: req.d, date: n, t: n.getTime()])
 	storeFuelUpdate(stream,req)
@@ -12478,11 +12483,10 @@ List<Map> cleanFuelStream(List<Map> istream){
 	//ensure max size is obeyed
 
 	List<Map> stream
+	//[date: date, value: v, t: t]
 	stream=istream
 	if(!stream) return []
 
-	Boolean a
-	stream.each{ Map it -> a=it.keySet().remove('t') }
 
 	String msg
 	msg=sBLK
@@ -12505,6 +12509,7 @@ List<Map> cleanFuelStream(List<Map> istream){
 	Integer max=(gtSetting('maxSize') ?: 95) as Integer
 
 	debug "cleanFuelStream prep, storageSize: $storageSize, max: $max",null
+	Boolean a
 	if(storageSize.toInteger() > max){
 		Integer points=stream.size()
 		Double averageSize=points > 0 ? (storageSize/points).toDouble() : 0.0D
@@ -12514,7 +12519,7 @@ List<Map> cleanFuelStream(List<Map> istream){
 		pointsToRemove=pointsToRemove > 0 ? pointsToRemove : 0
 
 		msg +="Size ${storageSize}KB Points ${points} Avg $averageSize Remove $pointsToRemove".toString()
-		List<Map> toBeRemoved=stream.sort{ Map it -> it.i }.take(pointsToRemove)
+		List<Map> toBeRemoved=stream.sort{ Map it -> it.t }.take(pointsToRemove)
 		a=stream.removeAll(toBeRemoved)
 	}
 
@@ -12534,6 +12539,7 @@ void storeFuelUpdate(List<Map>istream,Map req,Boolean frc=false){
 	Boolean res
 	List<Map>stream
 	stream=cleanFuelStream(istream)
+	//[date: date, value: v, t: t]
 
 	stream= rtnFileData(stream)
 	if(!(Boolean)state.useFiles){
@@ -12542,7 +12548,7 @@ void storeFuelUpdate(List<Map>istream,Map req,Boolean frc=false){
 	if(!res) warn "storeFuelUpdate failed",null
 }
 
-/** fuel stream only - receives internal format, stores as file format in HE DB */
+/** fuel stream only - receives file format, stores in HE DB */
 Boolean storeFuelDBData(List<Map>stream){
 	myDetail null,"storeFuelDBData $stream",iN2
 	if(!(Boolean)state.useFiles){
@@ -12552,7 +12558,7 @@ Boolean storeFuelDBData(List<Map>stream){
 	return false
 }
 
-/** fuel stream only - receives internal format, stores as file format  in file */
+/** fuel stream only - receives file format, stores in file */
 Boolean storeFuelFileData(List<Map>istream,Boolean frc){
 	myDetail null,"storeFuelFileData $istream $frc",iN2
 	if((Boolean)gtSt('useFiles')){
@@ -12601,7 +12607,8 @@ static String getFormattedDate(Date date=new Date()){
 // TODO: Keep updated0
 
 static String cleanHtml(String htm){
-	return htm.replace('\t', sSPC).replace('\n', sSPC).replace('    ', sSPC).replace('   ', sSPC).replace('  ',sSPC).replaceAll('> ','>').replaceAll(' >','>')
+	return htm.replace('\t', sBLK).replace('\n', sBLK).replace('  ', sBLK).replaceAll('> ','>').replaceAll(' >','>')
+	//return htm.replace('\t', sSPC).replace('\n', sSPC).replace('    ', sSPC).replace('   ', sSPC).replace('  ',sSPC).replaceAll('> ','>').replaceAll(' >','>')
 }
 
 // Material-Design-lite
@@ -12830,38 +12837,48 @@ String hubiForm_enum(Map map){
 </div>
 
 <div class="mdl-cell mdl-cell--12-col mdl-textfield mdl-js-textfield" style="" data-upgraded=",MaterialTextfield">
-<label for="settings[${var}]" class="control-label"><b>${title}</b></label>
+	<label for="settings[${var}]" class="control-label">
+	<b> ${title} </b>
+	</label>
 
-	<select id="settings[${var}]" name="settings[${var}]"
-		class="selectpicker form-control mdl-switch__input ${submitOnChange} SumoUnder" placeholder="Click to set" data-default="${defaultVal}" tabindex="-1">
-			<option class="optiondefault" value="" style="display: block;">No selection</option>
+	<select id="settings[${var}]" name="settings[${var}]" class="selectpicker form-control mdl-switch__input ${submitOnChange} SumoUnder" placeholder="Click to set" data-default="${defaultVal}" tabindex="-1">
+		<option class="optiondefault" value="" style="display: block;">No selection</option>
 """
+	String selectedStringS
 	list.each{ String item ->
 		String selectedString
-		if(actualVal == item)
-			selectedString=/selected="selected"/
-		else
+		if(actualVal == item){
+			selectedString = / selected="selected"/
+			selectedStringS = item
+		}else
 			selectedString=""
 
-		html_ += """<option value="${item}" ${selectedString}>${item}</option>
-"""
+		html_ += """
+		<option value="${item}"${selectedString}>${item}</option>"""
 	}
 	html_ += """
 	</select>
+"""
 
+/*
+	html_ += """
 	<div class="optWrapper">
 		<ul class="options">
+			<li class="opt optiondefault"><label>No selection</label></li>
 """
-	list.each{ item ->
-		html_ += """			<li class="opt selected"><label>${item}</label></li>
-"""
+	list.each{ String item ->
+		html_ += actualVal==item ? """<li class="opt selected"><label>${item}</label></li>""" : """<li class="opt"><label>${item}</label></li>"""
 	}
 	html_ += """
 		</ul>
 	</div>
+"""
+ */
+
+	html_ += """
 </div>
 
-"""
+	"""
 
 	return cleanHtml(html_)
 }
@@ -13335,7 +13352,7 @@ def hubiForm_list_reorder(String var, String var_color, String solid_background=
 		count_=0
 		if(dataSources){
 			dataSources.each{ Map ent ->
-				//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+				//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 				//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 				String sid=ent.id
@@ -13457,7 +13474,7 @@ void hubiTools_validate_order(List<String> all){
      */
 	if(dataSources){
 		dataSources.eachWithIndex{ Map ent, Integer idx ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			// TODO need to include attribute to make unique
@@ -13499,7 +13516,7 @@ void hubiTools_validate_order(List<String> all){
 	order=[]
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
@@ -13570,7 +13587,7 @@ String hubiTools_get_name_from_id(id){ //, sensors){
 	if(dataSources){
 		for (Map ent in dataSources){
 		//dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 			if(id == ent.id){
 				return_val=ent.displayName
@@ -13611,7 +13628,7 @@ Boolean hubiTools_check_list(List<Map> dataSources, List<Map> list_){
 	//check for addition/changes
 	if(dataSources){
 		dataSources.each{ Map ent ->
-			//Map ent=[t: 'fuel', id: 'f'+id, rid: id, displayName: stream, n: name, c: canister, a: name]
+			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
 			String sid=ent.id
