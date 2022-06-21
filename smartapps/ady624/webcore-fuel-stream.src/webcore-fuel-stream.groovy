@@ -3279,6 +3279,7 @@ def mainTimegraph(){
 
 def deviceTimegraph(){
 	deviceShare1()
+	app.removeSetting('graph_timespan')
 }
 
 def attributeTimegraph(){
