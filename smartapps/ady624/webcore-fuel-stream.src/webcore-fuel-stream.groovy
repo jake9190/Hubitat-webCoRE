@@ -4100,7 +4100,7 @@ Map getChartOptions_timegraph(){
 //		String sid=sensor.id.toString()
 //		((List<String>)settings["attributes_${sid}"]).each{ String attribute ->
 			String type_
-			type_=settings["graph_type_${sid}_${attribute}"].toLowerCase()
+			type_= settings["graph_type_${sid}_${attribute}"] != null ? settings["graph_type_${sid}_${attribute}"].toLowerCase() : 'Line'
 			if(type_ == "stepped") type_="steppedArea"
 			Integer axes_=settings["graph_axis_number_${sid}_${attribute}"] == "Left" ? 0 : 1
 			String stroke_color=settings["var_${sid}_${attribute}_stroke_color"]
