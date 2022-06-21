@@ -605,7 +605,7 @@ Map makeSensorDataEntry(sensor,String sid,String attr){
 /**
  * create state.datasources from settings
  * @param multiple
- * @return list of data sources and update to state.datasSources
+ * @return list of data sources and update to state.dataSources
  */
 List<Map> createDataSources(Boolean multiple){
 
@@ -8245,7 +8245,7 @@ def deviceWeather2(){
 
 		],
 		[
-				title: 'Forecast Percent Precipitation', var: "forcast_percent_precipitation", type: "chance_precipitation", period:"daily.0",
+				title: 'Forecast Percent Precipitation', var: "forecast_percent_precipitation", type: "chance_precipitation", period:"daily.0",
 				icon: "cloud-question", icon_loc: "left",  icon_space: sSPC,
 				h: 2,  w: 8, baseline_row: 13,  baseline_column: 1,
 				alignment: "center", text: sBLK,  decimals: 1,
