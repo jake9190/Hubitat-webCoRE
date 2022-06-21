@@ -19,7 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last update June 19, 2022 for Hubitat
+ *  Last update June 21, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -3422,7 +3422,7 @@ def graphTimegraph(){
 
 			container << hubiForm_switch	([title: "Show String Formatting Help", name: "dummy", default: false, submit_on_change: true])
 			if((Boolean)settings.dummy){
-				List<String> rows=[]
+				List<List<String>> rows=[]
 				List<String> header=["<small>Name", "Format", "Result"]
 				rows << ["Year", "Y", "2020"]
 				rows << ["Month Number", "M", "12"]
@@ -5211,7 +5211,7 @@ def graphHeatmap(){
 		hubiForm_section("Graph Size", 1, "", ""){
 			container=[]
 			Integer default_=Math.ceil(Math.sqrt(count_)).intValue()
-			Integer cols=graph_num_columns ? graph_num_columns : default_
+			Integer cols=graph_num_columns ? "${graph_num_columns}".toInteger() : default_
 			Integer rows=Math.ceil(count_/cols).intValue()
 			container << hubiForm_slider (title: "Number of Columns<br><small>"+count_+" Devices/Attributes -- "+cols+" X "+rows+"</small>",
 					name: "graph_num_columns",
@@ -12679,7 +12679,7 @@ static String hubiForm_subcontainer(Map map){
 static String hubiForm_table(Map map){
 
 	List<String> header=(List<String>)map.header
-	List<String> rows=(List<String>)map.rows
+	List<List<String>> rows=(List<List<String>>)map.rows
 	List<String> footer=map.footer ? (List<String>)map.footer : []
 
 	String html_
@@ -12695,7 +12695,7 @@ static String hubiForm_table(Map map){
 	<tbody>
 """
 	//Integer count=0
-	rows.each{ String row->
+	rows.each{ List<String> row->
 
 		html_ += """<tr role="row" class="odd">
 """
