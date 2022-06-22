@@ -19,7 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last update June 21, 2022 for Hubitat
+ *  Last update June 22, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -4758,7 +4758,7 @@ def getOptions_timegraph(){
 }
 
 def getSubscriptions_timegraph(){
-	List ids=[]
+	List<String> ids=[]
 	Map sensors_=[:]
 	Map attributes=[:]
 	Map labels=[:]
@@ -4785,7 +4785,7 @@ def getSubscriptions_timegraph(){
 			String typ=((String)ent.t).capitalize()
 
 //	sensors.each{sensor->
-			ids << sid
+			if(!ids.contains(sid)) ids << sid
 			//TODO
 
 			//if(typ=='Fuel') isPoll=true
@@ -6853,7 +6853,7 @@ def getOptions_linegraph(){
 }
 
 def getSubscriptions_linegraph(){
-	List ids=[]
+	List<String> ids=[]
 	Map sensors_=[:]
 	Map attributes=[:]
 	Map labels=[:]
@@ -6881,7 +6881,7 @@ def getSubscriptions_linegraph(){
 			//if(typ=='Fuel') isPoll=true
 
 //	sensors.each{sensor->
-			ids << sid // sensor.idAsLong
+			if(!ids.contains(sid)) ids << sid // sensor.idAsLong
 //		String sid=sensor.id.toString()
 
 		//only take what we need
