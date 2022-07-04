@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update June 16, 2022 for Hubitat
+ * Last update July 04, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -1568,22 +1568,25 @@ private static Map cleanEvt(Map evt){
 // This can a) lock semaphore b) wait for semaphore c) queue event d) just fall through (no locking or waiting)
 @CompileStatic
 private LinkedHashMap lockOrQueueSemaphore(Boolean synchr,Map event,Boolean queue,Map r9){
-	Long tt1=wnow()
-	Long startTime=tt1
-	Long r_semaphore=lZ
-	Long semaphoreDelay=lZ
-	String semaphoreName=sNL
-	Boolean didQ=false
-	Boolean waited=false
+	Long tt1,startTime,r_semaphore,semaphoreDelay,lastSemaphore
+	tt1=wnow()
+	startTime=tt1
+	r_semaphore=lZ
+	semaphoreDelay=lZ
+	String semaphoreName,mSmaNm
+	semaphoreName=sNL
+	Boolean didQ,waited,clrC
+	didQ=false
+	waited=false
 
 	if(synchr){
-		String mSmaNm=sAppId()
+		mSmaNm=sAppId()
 		waited=getTheLockW(mSmaNm,sLCK1)
 		tt1=wnow()
 
-		Long lastSemaphore
-		Boolean clrC=false
-		Integer qsize=iZ
+		clrC=false
+		Integer qsize
+		qsize=iZ
 		while(true){
 			Long t0=theSemaphoresVFLD[mSmaNm]
 			Long tt0=t0!=null ? t0:lZ
@@ -1599,7 +1602,8 @@ private LinkedHashMap lockOrQueueSemaphore(Boolean synchr,Map event,Boolean queu
 			if(queue){
 				if(event!=null){
 					Map mEvt=event
-					List<Map> evtQ=theQueuesVFLD[mSmaNm]
+					List<Map> evtQ
+					evtQ=theQueuesVFLD[mSmaNm]
 					evtQ=evtQ!=null ? evtQ:(List<Map>)[]
 					qsize=evtQ.size()
 					if(qsize>i12)clrC=true
@@ -1664,23 +1668,23 @@ private LinkedHashMap getCachedMaps(String meth=sNL,Boolean retry=true,Boolean U
 	String s=sAppId()
 	String myId=s
 	String mSmaNm=s
-	LinkedHashMap a,result
-	a=[:] as LinkedHashMap
+	LinkedHashMap result,t
+	t=[:] as LinkedHashMap
 	getTheLock(mSmaNm,sI)
 	result=theCacheVFLD[myId]
 	if(result){
 		if(result[sCACHE] instanceof Map && result[sBLD] instanceof Integer){
-			result=(LinkedHashMap)(a+result)
+			result=(LinkedHashMap)(t+result)
 			releaseTheLock(mSmaNm)
 			return result
 		}
-		theCacheVFLD[myId]=[:] as LinkedHashMap
+		theCacheVFLD[myId]=t
 		theCacheVFLD=theCacheVFLD
 	}
 	releaseTheLock(mSmaNm)
 	if(retry){
-		a=getDSCache(meth,Upd)
-		if(!Upd)return a
+		t=getDSCache(meth,Upd)
+		if(!Upd)return t
 		return getCachedMaps(meth,false,Upd)
 	}
 //	if(eric())log.warn 'cached map nf'
@@ -2802,7 +2806,7 @@ private void finalizeEvent(Map r9,Map iMsg,Boolean success=true){
 @CompileStatic
 private static List<Map> sgtSch(Map r9){ return (List<Map>)r9[sSCHS] }
 
-/** Add to active schedules  */
+/** Add to active schedules */
 @CompileStatic
 private static Boolean spshSch(Map r9,Map sch){ return ((List<Map>)r9[sSCHS]).push(sch) }
 
@@ -2832,8 +2836,9 @@ private void processSchedules(Map r9,Boolean scheduleJob=false){
 	if(!gtPOpt(r9,'mps'))((Map)r9[sST]).new=(String)((Map)r9[sST]).autoNew ?: sTRUE
 
 	Boolean myPep=isPep(r9)
-	List<Map> schedules=sgetSchedules(sPROCS,myPep)
-	List<Map> ts=[]+schedules
+	List<Map> schedules,ts
+	schedules=sgetSchedules(sPROCS,myPep)
+	ts=[]+schedules
 	Boolean lg=isDbg(r9)
 
 	Boolean a
@@ -3621,7 +3626,7 @@ private Boolean executeTask(Map r9,List devices,Map statement,Map task,Boolean a
 				//if not selected, return the null to fill in parameter
 				p=t0==null || matchCast(r9,t0,tt1) ? t0:evaluateExpression(r9,v,tt1).v
 		}
-		//ensure value type is successfuly passed through
+		//ensure value type is successfully passed through
 		Boolean a=prms.push(p)
 	}
 
@@ -4273,6 +4278,8 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 	]
 	if(reason!=sNL)mmschedule.r=reason
 	if(data!=sNL)mmschedule.d=data
+	Boolean fnd
+
 	//not all wakeups are suspend/resume
 	if(toResume){ // state to save across a sleep
 		Map e=(Map)r9[sEVENT]
@@ -4280,16 +4287,20 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 		if((String)e[sNM]==sTIME && es!=null && (Integer)es.s && stmtNum(task)>=iZ && data!=sNL && !data.startsWith(sCLN))
 			mmschedule.svs=(Integer)es.s // dealing a sleep before r9.wakingUp
 
-		Boolean fnd=false
-		def myResp=r9.response
+		fnd=false
+		def myResp,myJson,a
+
+		myResp=r9.response
 		if(myResp.toString().size()>10000){ myResp=[:]; fnd=true } // state can only be total 100KB
-		def myJson=r9.json
+
+		myJson=r9.json
 		if(myJson.toString().size()>10000){ myJson=[:]; fnd=true }
 		if(fnd)debug 'trimming from scheduled wakeup saved $response and/or $json due to large size',r9
 
 		fnd=false
-		Map mstk=[:]
-		def a=(Double)gtSysVarVal(r9,sDLLRINDX); if(a!=null)fnd=true
+		Map mstk,evt
+		mstk=[:]
+		a=(Double)gtSysVarVal(r9,sDLLRINDX); if(a!=null)fnd=true
 		mstk.index=a
 		a=(List)gtSysVarVal(r9,sDLLRDEVICE); if(a!=null)fnd=true
 		mstk[sDEV]=a
@@ -4302,13 +4313,14 @@ private void requestWakeUp(Map r9,Map statement,Map task,Long timeOrDelay,String
 		if(fnd)mmschedule[sSTACK]=mstk
 // what about previousEvent httpContentType httpStatusCode httpStatusOk iftttStatusCode iftttStatusOk "\$mediaId" "\$mediaUrl" "\$mediaType" mediaData (big)
 
-		Map evt=[:]+(Map)r9[sCUREVT]
+		evt=[:]+(Map)r9[sCUREVT]
 		if(evt)evt=cleanEvt(evt)
 		mmschedule.evt=evt
-		def ttt=gtSysVarVal(r9,sDARGS)
-		if(ttt)mmschedule.args=ttt
+
+		a=gtSysVarVal(r9,sDARGS)
+		if(a)mmschedule.args=a
 	}
-	Boolean a=spshSch(r9,mmschedule)
+	fnd=spshSch(r9,mmschedule)
 	if(msg||tmsg){
 		String s= wakeS(sBLK,mmschedule)
 		if(msg)debug msg+s,r9 else trace tmsg+s,r9
@@ -4334,7 +4346,8 @@ private Long do_setLevel(Map r9,device,List prms,String cmd,Integer val=null){
 	Integer psz=prms.size()
 	String mat=psz>i1 ? (String)prms[i1]:sNL
 	if(ntMatSw(r9,mat,device,cmd))return lZ
-	Integer delay=iZ
+	Integer delay
+	delay=iZ
 	Boolean a
 	List larg=[arg]
 	if(cmd==sSTLVL){ // setLevel takes seconds duration argument (optional)
@@ -4352,7 +4365,7 @@ private Long do_setLevel(Map r9,device,List prms,String cmd,Integer val=null){
 	return lZ
 }
 
-// cmd_ are wrappers for phyiscal commands with added parameters by webCoRE - these are in LWCMDS
+// cmd_ are wrappers for physical commands with added parameters by webCoRE - these are in LWCMDS
 private Long cmd_setLevel(Map r9,device,List prms){ return do_setLevel(r9,device,prms,sSTLVL) }
 
 private Long cmd_setInfraredLevel(Map r9,device,List prms){ return do_setLevel(r9,device,prms,sSTIFLVL) }
@@ -4368,7 +4381,8 @@ private Long cmd_setColorTemperature(Map r9,device,List prms){ return do_setLeve
 
 @CompileStatic
 private static Map gtColor(Map r9,String colorValue){
-	Map color=(colorValue=='Random')? getRandomColor():getColorByName(colorValue)
+	Map color
+	color=(colorValue=='Random')? getRandomColor():getColorByName(colorValue)
 	if(color==null) color=hexToColor(colorValue)
 	if(color!=null){
 		color=[
@@ -5885,12 +5899,14 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 	String msg='loadState '
 	if(isEric(r9)&& sD)debug msg+"${sD}",r9
 	Boolean wOn= sD.containsKey(sSWITCH) ? (String)sD[sSWITCH]==sON :null
-	Boolean isOn= sD.containsKey(sSWITCH) ? gtSwitch(r9,device)==sON :null
+	Boolean isOn
+	isOn= sD.containsKey(sSWITCH) ? gtSwitch(r9,device)==sON :null
 	Boolean chgHSL= sD.containsKey(sLVL) && sD.containsKey(sSATUR) && sD.containsKey(sHUE)
 	Boolean chgLvl= !chgHSL && sD.containsKey(sLVL) ? true : null
 	Boolean chgCtemp= sD.containsKey(sCLRTEMP) ?: null
 	String scheduleDevice= hashD(r9,device)
-	Long del=lZ
+	Long del
+	del=lZ
 	if((chgLvl || chgCtemp) && isOn==false){
 		executePhysicalCommand(r9,device,sON)
 		isOn=true
@@ -5912,14 +5928,16 @@ private Long vcmd_loadStateLocally(Map r9,device,List prms,Boolean global=false)
 	}
 
 	def value
-	Integer cnt=0
+	Integer cnt
+	cnt=0
+	String exactCommand,fuzzyCommand,fuzzyCommand1,t0
 	for(String attr in newattrs){
 		value=vals[cnt]
 		cnt+=i1
-		String exactCommand=sNL
-		String fuzzyCommand=sNL
-		String fuzzyCommand1=sNL
-		String t0="Restoring attribute '$attr' to value '$value'".toString()
+		exactCommand=sNL
+		fuzzyCommand=sNL
+		fuzzyCommand1=sNL
+		t0="Restoring attribute '$attr' to value '$value'".toString()
 		for(command in PhysicalCommands()){
 			if(sMa(command.value)==attr){
 				if(command.value.v==null) fuzzyCommand=(String)command.key
@@ -5989,14 +6007,17 @@ private static String sffwdng(Map r9){
 
 @CompileStatic
 private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean async){
-	String myS=sBLK
+	String myS
+	myS=sBLK
 	Integer myC=stmtNum(cndtns)
 	if(isEric(r9)){
 		myS=("evaluateConditions #${myC} "+sffwdng(r9)+"$cndtns ").toString()
 		myDetail r9,myS,i1
 	}
-	Long t=wnow()
-	Map msg=null
+	Long t
+	t=wnow()
+	Map msg
+	msg=null
 	Boolean lg=isDbg(r9)
 	if(lg)msg=timer sBLK,r9
 	//override condition id
@@ -6005,7 +6026,8 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 	Boolean collC= collection==sC // collection is sR or sC
 	Boolean not= collC ? !!cndtns.n:!!cndtns.rn
 	String grouping= collC ? (String)cndtns.o:(String)cndtns.rop // operator, restriction operator
-	Boolean value= grouping!=sOR
+	Boolean value
+	value= grouping!=sOR
 	List<Map> cndtnsCOL=cndtns[collection] ? (List<Map>)cndtns[collection] : []
 
 	Boolean isFlwby= grouping=='followed by'
@@ -6015,15 +6037,20 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 			//dealing with a followed by condition
 			Integer steps= cndtnsCOL.size()
 			String sidx='c:fbi:'+myC.toString()
-			Integer ladderIndex= matchCastI(r9,((Map)r9[sCACHE])[sidx])  // gives back iZ if null
+			Integer ladderIndex
+			ladderIndex= matchCastI(r9,((Map)r9[sCACHE])[sidx])  // gives back iZ if null
 			String sldt='c:fbt:'+myC.toString()
-			Long ladderUpdated=(Long)cast(r9,((Map)r9[sCACHE])[sldt],sDTIME) // gives back current dtime if null
-			Boolean didC=false
+			Long ladderUpdated
+			ladderUpdated=(Long)cast(r9,((Map)r9[sCACHE])[sldt],sDTIME) // gives back current dtime if null
+			Boolean didC
+			didC=false
 			if(ladderIndex>=steps) value=false
 			else{
 				t=wnow()
-				Map cndtn=cndtnsCOL[ladderIndex]
-				Long duration=lZ
+				Map cndtn
+				cndtn=cndtnsCOL[ladderIndex]
+				Long duration
+				duration=lZ
 				if(ladderIndex){
 					Map tv=(Map)evaluateOperand(r9,null,(Map)cndtn.wd)
 					duration=longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv)))
@@ -6052,7 +6079,8 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 					didC=false
 					ladderUpdated=t
 					cancelStatementSchedules(r9,myC)
-					String ms=sBLK
+					String ms
+					ms=sBLK
 					if(lg)ms="Condition group #${myC} made progress up the ladder; currently at step $ladderIndex of $steps"
 					if(ladderIndex<steps){
 						//delay decision, there are more steps to go through
@@ -6089,7 +6117,8 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 	}else{
 		if(cndtnsCOL){
 			//cto == disable condition traversal optimizations
-			Boolean canopt= !gtPOpt(r9,'cto') && grouping in [sOR,sAND]
+			Boolean canopt
+			canopt= !gtPOpt(r9,'cto') && grouping in [sOR,sAND]
 			if(canopt){
 				Integer i=iZ
 				for(Map cndtn in cndtnsCOL){
@@ -6107,7 +6136,8 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 		}
 	}
 
-	Boolean result=false //null
+	Boolean result
+	result=false //null
 	if(value!=null) result=not ? !value:!!value
 	if((value!=null && myC!=iZ) || runThru){
 		if(!runThru){
@@ -8500,7 +8530,7 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 		if(!LS) LS=fill_LS()
 		lPLSMIN=[sPLUS,sMINUS]
 		if(!LT1) LT1=fill_TIM()
-		LN=[sNUMBER,sINT,sLONG] // number is ambiguious for devices
+		LN=[sNUMBER,sINT,sLONG] // number is ambiguous for devices
 		LD=[sDEC,sFLOAT]
 		LT2=[sDEV,sVARIABLE]
 		tL2=[sNEG,sDNEG,sBNOT]

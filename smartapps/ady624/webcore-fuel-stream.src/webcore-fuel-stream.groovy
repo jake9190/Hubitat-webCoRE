@@ -19,7 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last update June 22, 2022 for Hubitat
+ *  Last update July 04, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -906,6 +906,7 @@ def mainShare1(String instruct, String okSet,Boolean multiple=true){
 //def deviceTimegraph(){
 //def deviceHeatmap(){
 //def deviceLinegraph(){
+//def deviceRangebar(){
 def deviceShare1(Boolean ordered=false,Boolean allowLastActivity=false){
 
 	myDetail null,"deviceShare1: $ordered",iN2
@@ -932,7 +933,7 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 
 	List<Map> dataSources= createDataSources(true)
 
-	dynamicPage(name: "attributeConfigurationPage"){
+	dynamicPage(name: "attributeConfigurationPage", nextPage:"graphSetupPage"){
 /*		hubiForm_section("Directions", 1, "directions", "", ""){
 			List container=[]
 			container << hubiForm_text("""Configure what counts as a 'start' or 'end' event for each attribute on the timeline.
@@ -1017,7 +1018,8 @@ def local_graph_url(){
 
 def preview_tile(){
 	List container
-	hubiForm_section("Preview", 10, "show_chart", ""){
+	String typ= (String)settings.graphType
+	hubiForm_section("Preview of graph type: ${typ}", 10, "show_chart", ""){
 		container=[]
 		container << hubiForm_graph_preview()
 
@@ -1810,7 +1812,7 @@ def deviceBar(){
 def attributeBar(){
 	List<Map> dataSources= createDataSources(true)
 
-	dynamicPage(name: "attributeConfigurationPage"){
+	dynamicPage(name: "attributeConfigurationPage", nextPage:"graphSetupPage"){
 		List container
 /*		hubiForm_section("Directions", 1, "directions", ""){
 			container=[]
@@ -2536,7 +2538,7 @@ def attributeTimeline(){
 	List<Map> dataSources= createDataSources(true)
 
 	//state.count_=0
-	dynamicPage(name: "attributeConfigurationPage"){
+	dynamicPage(name: "attributeConfigurationPage", nextPage:"graphSetupPage"){
 		List container
 		hubiForm_section("Directions", 1, "directions", ""){
 			container=[]
@@ -3278,7 +3280,7 @@ def mainTimegraph(){
 }
 
 def deviceTimegraph(){
-	app.removeSetting('graph_timespan')
+//	app.removeSetting('graph_timespan')
 	deviceShare1()
 }
 
@@ -5120,7 +5122,7 @@ def graphHeatmap(){
 		hubiForm_section("General Options", 1, "", ""){
 
 			container=[]
-			input( type: "enum", name: "graph_type",		title: "<b>Select Graph Type</b>", multiple: false, required: false, options: typeEnum, defaultValue: "value", submitOnChange: true)
+			input( type: "enum", name: "graph_type",title: "<b>Select Graph Type</b>", multiple: false, required: false, options: typeEnum, defaultValue: "value", submitOnChange: true)
 			inputGraphUpdateRate()
 
 			if(!graph_type) graph_type="value"
@@ -6949,10 +6951,13 @@ def getSubscriptions_linegraph(){
  */
 
 def mainRangebar(){
-	mainShare1(sNL,'graph_timespan')
+	mainShare1("Choose Numeric Attribute Only",'graph_timespan')
 }
 
 def deviceRangebar(){
+	deviceShare1(true,false)
+
+	/*
 	dynamicPage(name: "deviceSelectionPage", nextPage:"attributeConfigurationPage"){
 		List container
 
@@ -6961,7 +6966,7 @@ def deviceRangebar(){
 			container << hubiForm_text("Choose Numeric Attribute Only")
 			hubiForm_container(container, 1)
 		}
-		gatherDataSources(true,true)
+		gatherDataSources(true,true) */
 /*		List container
 		hubiForm_section("Device Selection", 1, "", ""){
 			// TODO need to offer option for fuel stream, then no attribute
@@ -6980,13 +6985,13 @@ def deviceRangebar(){
 				}
 			}
 		}*/
-	}
+	//}
 }
 
 def attributeRangebar(){
 
 	//state.count_=0
-	dynamicPage(name: "attributeConfigurationPage"){
+	dynamicPage(name: "attributeConfigurationPage", nextPage:"graphSetupPage"){
 		List container
 		/*
 		hubiForm_section("Directions", 1, "directions", ""){
@@ -12428,8 +12433,8 @@ static String getFSFileName(String sensorId, String attribute){
 	return s
 }
 
-@CompileStatic
 /** fuel stream only - return an attribute string for this fuel stream */
+@CompileStatic
 String fuelNattr(){
 	Map fs=(Map)gtSt("fuelStream")
 //state.fuelStream=[i: settings.id, c: (settings.canister ?: sBLK), n: settings.name, w: 1, t: getFormattedDate(new Date())]

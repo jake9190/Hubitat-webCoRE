@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update June 16, 2022 for Hubitat
+ * Last update July 04, 2022 for Hubitat
  */
 
 //file:noinspection unused
@@ -489,8 +489,8 @@ def pageSettings(){
 			if((Boolean)customEndpoints){
 				Boolean req=false
 				if((Boolean)customEndPoints && (Boolean)localHubUrl) req=true
-				input "customWebcoreInstanceUrl", sSTR, (sTIT): "Custom webcore webserver (local webserver url different from dashboard.webcore.co)", default: null, (sREQ): req
-				if((Boolean)localHubUrl && !customWebcoreInstanceUrl) paragraph "If you use a local hub API url you MUST use a custom webcore server url, as dashboard.webcore.co site is restricted to Hubitat and Smartthing's cloud API access only"
+				input "customWebcoreInstanceUrl", sSTR, (sTIT): "Custom webCoRE webserver (local webserver url different from dashboard.webcore.co)", default: null, (sREQ): req
+				if((Boolean)localHubUrl && !customWebcoreInstanceUrl) paragraph "If you use a local hub API url you MUST use a custom webCoRE server url, as dashboard.webcore.co site is restricted to Hubitat and Smartthing's cloud API access only"
 				input "localHubUrl", sBOOL, (sTIT): "Use local hub URL for API access?", submitOnChange: true, default: false, (sREQ): false
 			}else{
 				app.clearSetting('localHubUrl')
@@ -2268,7 +2268,7 @@ List listFuelStreams(Boolean includeLTS=true){
 	String n=handleFuelS()
 	List chlds = wgetChildApps().findAll{ (String)it.name==n }
 	chlds.each { it ->
-		List a = it.getFuelStreams(includeLTS)
+		List a = (List)it.getFuelStreams(includeLTS)
 		if(a) result+= a
 	}
 	return result
@@ -2289,8 +2289,6 @@ private api_intf_fuelstreams_list(){
 		if(a) result << a
 	}
 	*/
-
-	// LTS can return multple streams
 
 	render contentType: sAPPJAVA, data: "${params.callback}(${JsonOutput.toJson(["fuelStreams" : result])})"
 }
@@ -2709,7 +2707,7 @@ private getStorageApp(Boolean install=false){
 			try{
 				weatDev=addChildDevice("ady624", n1, hashId("${wnow()}"), null, [label: label1])
 			}catch(ignored){
-//				error "Please install the webCoRE Weather Devicefor \$weather notification to work"
+//				error "Please install the webCoRE Weather Device for \$weather notification to work"
 //				return null
 			}
 		}
@@ -3806,7 +3804,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	contactSensor		: [ (sN): "Contact Sensor",			(sD): "contact sensors",			(sA): "contact",									],
 	currentMeter		: [ (sN): "Current Meter",			(sD): "current meter sensors",		(sA): "amperage",								],
 	doorControl			: [ (sN): "Door Control",			(sD): "automatic doors",			(sA): "door",		(sC): [sCLOSE, sOPEN],					],
-	doubleTapableButton	: [ (sN): "Double Tapable Button",	(sD): "double tapable buttons",		(sA): "doubleTapped",	(sM): true,	(sC): ["doubleTap"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/	],
+	doubleTapableButton	: [ (sN): "Double Tappable Button",	(sD): "double tappable buttons",		(sA): "doubleTapped",	(sM): true,	(sC): ["doubleTap"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/	],
 	energyMeter			: [ (sN): "Energy Meter",			(sD): "energy meters",				(sA): "energy",									],
 	estimatedTimeOfArrival	: [ (sN): "Estimated Time of Arrival",	(sD): "moving devices (ETA)",		(sA): "eta",									],
 	fanControl			: [ (sN): "Fan Control",			(sD): "fan devices",				(sA): "speed",		(sC): ["setSpeed", "cycleSpeed"],					],
@@ -3846,7 +3844,7 @@ private Map timer(String message, Integer shift=-2, err=null)	{ log message, shi
 	relativeHumidityMeasurement	: [ (sN): "Relative Humidity Measurement",	(sD): "humidity sensors",			(sA): "humidity",											],
 	relaySwitch			: [ (sN): "Relay Switch",			(sD): "relay switches",			(sA): sSWITCH,		(sC): [sOFF, sON],							],
 	releasableButton	: [ (sN): "Releasable Button",		(sD): "releasable buttons",		(sA): "released",		(sM): true,	(sC): ["release"], /* (sS): "numberOfButtons,numButtons", i: "buttonNumber",*/			],
-//	samsungTV			: [ (sN): "Samsung TV",		(sD): "Samsung TVs",			(sA): "switch",	(sC): ["mute", sOFF, sON, "setPictureMode", "setSoundMode", "setVoulume", "showMessage", "unmute", "volumeDown", "volumeUp"],										],
+//	samsungTV			: [ (sN): "Samsung TV",		(sD): "Samsung TVs",			(sA): "switch",	(sC): ["mute", sOFF, sON, "setPictureMode", "setSoundMode", "setVolume", "showMessage", "unmute", "volumeDown", "volumeUp"],										],
 	securityKeypad		: [ (sN): "Security Keypad",		(sD): "security keypads",			(sA): "securityKeypad",	(sC): ["armAway", "armHome", "deleteCode", "disarm", "getCodes", "setCode", "setCodeLength", "setEntryDelay", "setExitDelay"],										],
 	sensor				: [ (sN): "Sensor",					(sD): "sensors",					(sA): "sensor",											],
 	shockSensor			: [ (sN): "Shock Sensor",			(sD): "shock sensors",				(sA): "shock",											],
@@ -4876,8 +4874,10 @@ static String myObj(obj){
 
 @SuppressWarnings('GroovyAssignabilityCheck')
 Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
-	Map ret=[:]
-	def myv=v
+	Map ret
+	ret=[:]
+	def myv
+	myv=v
 	if(toHubV){ // from webcore(9 types) -> global(5 types + 3 overloads + sDYN becomes sSTR)
 		//noinspection GroovyFallthrough
 		switch(typ) {
@@ -4893,8 +4893,10 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 			case sDEV:
 				// HE this is a List<String> -> String of words separated by a space (can split())
 				List<String> dL= v instanceof List ? (List<String>)v : (v ? (List<String>)[v]:[])
-				String res=sNULL
-				Boolean ok=true
+				String res
+				res=sNULL
+				Boolean ok
+				ok=true
 				dL.each{ String it->
 					if(ok && it && it.size()==34 && it.startsWith(sCOLON) && it.endsWith(sCOLON)){
 						res= res ? res+sSPC+it : it
@@ -4974,7 +4976,8 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 			case sSTR:
 				// if(dtyp==sDEV)
 				List<String> dvL=[]
-				Boolean ok=true
+				Boolean ok
+				ok=true
 				String[] t1=((String)v).split(sSPC)
 				t1.each{ String it ->
 					// sDEV is a string in global, need to detect if it is really devices :xxxxx:
@@ -4988,8 +4991,9 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 				// cannot really return a string to dynamic type here res=sDYN
 			case sDTIME: // global times: everything is datetime -> these come in as a string and needs to be a long of appropriate type
 				String iD=v
-				String mtyp=sDTIME
-				String res=v
+				String mtyp,res
+				mtyp=sDTIME
+				res=v
 				if(iD.endsWith("9999") || iD.startsWith("9999")) {
 					Date nTime=new Date()
 					String format="yyyy-MM-dd'T'HH:mm:ss.sssXX"
@@ -5014,7 +5018,8 @@ Map<String,Object> fixHeGType(Boolean toHubV, String typ, v, String dtyp){
 					}
 				}
 				Date tt1=(Date)toDateTime(res)
-				Long lres=tt1.getTime()
+				Long lres
+				lres=tt1.getTime()
 				if(mtyp==sTIME){
 					Date m1=new Date(lres)
 					Long m2=Math.round((m1.hours*3600+m1.minutes*60+m1.seconds)*1000.0D)
