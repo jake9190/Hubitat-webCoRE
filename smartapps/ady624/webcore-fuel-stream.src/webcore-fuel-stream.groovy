@@ -4373,7 +4373,7 @@ Map getChartOptions_timegraph(){
 			"graphReduction": graph_max_points,
 			"graphTimespan": Long.parseLong("${graph_timespan}"),
 			"graphUpdateRate": Integer.parseInt(graph_update_rate),
-			"graphPointSpan": Integer.parseInt(graph_point_span),
+			"graphPointSpan": Long.parseLong(graph_point_span),
 			"graphRefreshRate" : Integer.parseInt(graph_refresh_rate),
 			"overlays": [ "display_overlays" : show_overlay,
 							"horizontal_alignment" : overlay_horizontal_placement,
