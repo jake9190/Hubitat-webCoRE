@@ -19,7 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last update July 04, 2022 for Hubitat
+ *  Last update July 06, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -44,6 +44,14 @@ private static String handle(){ return "webCoRE" }
 @Field static final String sHVER='v0.3.114.20220428_HE'
 public static String version(){ return sVER }
 public static String HEversion(){ return sHVER }
+
+
+@CompileStatic
+static Boolean eric(){ return true }
+@CompileStatic
+static Boolean eric1(){ return true }
+@CompileStatic
+private Boolean isEric(){ eric1() && isDbg() }
 
 definition(
 	namespace:"ady624",
@@ -79,6 +87,7 @@ def installed(){
 	log.debug "Installed with settings: ${settings}"
 	if(app_name) app.updateLabel(app_name)
 	state[sDBGLVL]=iZ
+	state[sLOGNG]=iZ
 }
 
 def uninstalled(){
@@ -117,6 +126,12 @@ def updated(){
 	if(app_name) app.updateLabel(app_name)
 
 	state[sDBGLVL]=iZ
+	String tt1=(String)gtSetting(sLOGNG)
+	Integer tt2=(Integer)state[sLOGNG]
+	String tt3=tt2.toString()
+	if(tt1==sNL)setLoggingLevel(tt2 ? tt3:s0)
+	else if(tt1!=tt3)setLoggingLevel(tt1)
+
 	state.remove('saveC')
 	state.remove('devInstruct')
 
@@ -135,14 +150,14 @@ def updated(){
 	}
 
 	if(typ=='longtermstorage'){
-		myDetail null,"updated",i1
+		if(isDbg()) myDetail null,"updated",i1
 		unschedule()
 		clearSch()
 		clearSema()
 		if(sensors){
 
 			sensors.each{ sensor->
-				String sid=sensor.id.toString()
+				String sid=gtSensorId(sensor)
 				List att=settings["${sid}_attributes"]
 				if(att){
 					att.each{ String attribute->
@@ -156,10 +171,18 @@ def updated(){
 			runNextSched()
 			schedule("17 9/30 * ? * * *", checkSched, [overwrite: false]) // watchDog for lts
 		}
-		myDetail null,"updated"
+		if(isDbg()) myDetail null,"updated"
 	}
 }
 
+void setLoggingLevel(String level){
+	Integer mlogging
+	mlogging=level.isInteger()? level.toInteger():iZ
+	mlogging=Math.min(Math.max(iZ,mlogging),i3)
+	app.updateSetting(sLOGNG,[(sTYPE):sENUM,(sVAL):mlogging.toString()])
+	state[sLOGNG]=mlogging
+//	if(mlogging==iZ)state[sLOGS]=[]
+}
 
 
 @Field static final Map<String,Map<String,String>> jumpFLD=[
@@ -424,16 +447,15 @@ def disableAPIPage(){
 
 
 
-@Field static List<Map>fuelFLD
 
 @Field static final String sFuelDelim ='-'
 /**
  * Encode a stream identifier Map to settings String
- * @param stream
- * @return
+ * @param stream [i:app.id, c: 'LTS', n:sid+'_'+attribute,w:1,t: getFormattedDate(new Date())]
+ * @return id-canister||name
  */
+@CompileStatic
 static String encodeStreamN(Map stream){
-	//[i:app.id, c: 'LTS', n:sid+'_'+attribute,w:1,t: getFormattedDate(new Date())]
 	String streamName="${(stream.c ?: sBLK)}||${stream.n}"
 	String id="${stream.i}"
 
@@ -444,9 +466,10 @@ static String encodeStreamN(Map stream){
 
 /**
  * Decode a settings string to a search map for the stream
- * @param stream
- * @return
+ * @param stream id-canister||name
+ * @return [i:id, c: canister, n:name]
  */
+@CompileStatic
 Map decodeStreamN(String stream){
 	// parse out i, c, n
 	//String streamName="${(stream.c ?: sBLK)}||${stream.n}"
@@ -456,9 +479,17 @@ Map decodeStreamN(String stream){
 	String c=tname1[0]
 	String n=tname1[1]
 
-	myDetail null,"decodeStreamN stream: $stream tname: $tname id: $i tname1: $tname1",iN2
+	if(isEric())myDetail null,"decodeStreamN stream: $stream tname: $tname id: $i tname1: $tname1",iN2
 
 	return [i:i, c:c, n:n]
+}
+
+// cache of fuelstreams
+@Field static List<Map>fuelFLD
+
+List<Map> gtFuelList(){
+	fuelFLD= !fuelFLD ? parent.listFuelStreams(false) : fuelFLD
+	return fuelFLD
 }
 
 /**
@@ -466,15 +497,14 @@ Map decodeStreamN(String stream){
  * @param name - settings encoded stream name
  * @return Map [i:, c: , n: ,w:1, t: getFormattedDate(new Date())]
  */
+@CompileStatic
 Map findStream(String name){
 	String s= "findStream $name"
-	myDetail null,s,i1
+	if(isEric())myDetail null,s,i1
 	Map stream
 	stream=null
 
-	List<Map> fstreams
-	fuelFLD= !fuelFLD ? parent.listFuelStreams(false) : fuelFLD
-	fstreams=fuelFLD
+	List<Map>fstreams= gtFuelList()
 
 	Integer i
 	String c,n
@@ -482,21 +512,26 @@ Map findStream(String name){
 	if(name){
 		// parse out i, c, n
 		Map r=decodeStreamN(name)
-		i=r.i
-		c=r.c
-		n=r.n
+		i=(Integer)r.i
+		c=(String)r.c
+		n=(String)r.n
 
 		stream= fstreams.find{ Map it -> it.i==i && it.c==c && it.n==n }
 	}
-	myDetail null,s+" found $stream  c: $c i:$i n:$n"
+	if(isEric())myDetail null,s+" found $stream  c: $c i:$i n:$n"
 
 	return stream
 }
 
-void clearFvarn(Boolean multiple){
-	String fvarn=multiple ? 'fstreams' : 'fstream_'
-	if(settings[fvarn]){
-		List<String> ifstreams=multiple ? settings[fvarn] : [settings[fvarn]]
+/**
+ * Clear fuel stream settings (for cases only a single data can be used)
+ * @param multiple
+ */
+void clearFvarn(String fvarn, Boolean multiple){
+	//String fvarn=multiple ? 'fstreams' : 'fstream_'
+	def fl= gtSetting(fvarn)
+	if(fl){
+		List<String> ifstreams=multiple ? fl : [fl]
 		Map stream
 		for(String stream_nm in ifstreams){
 			stream= findStream(stream_nm)
@@ -504,113 +539,218 @@ void clearFvarn(Boolean multiple){
 			//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 			if(stream){ // stream exists
 				String name=encodeStreamN(stream)
-				String s='f'+stream.i.toString()+"_"+name
-				app.removeSetting(s+'_quantization') // remove quant settings
+				String sid='f'+stream.i.toString()
+				String attr='stream'
+				quantRmInput(sid, attr)
+				rmAllowLastInput(sid, attr)
+				//String s='f'+stream.i.toString()+"_"+name
+				//wremoveSetting(s+'_quantization') // remove quant settings
 			}
 		}
-		app.removeSetting(fvarn)
+		wremoveSetting(fvarn)
 	}
 }
 
+/**
+ * Clear sensor settings (for cases only a single data can be used)
+ * @param multiple
+ */
 void clearVarn(Boolean multiple){
 	String varn=multiple ? 'sensors' : 'sensor_'
 	String attrn
 	attrn = multiple ? sNL : 'attribute_'
-	if(settings[varn]){
-		List items= multiple ? settings[varn] : [settings[varn]]
+	def sl= gtSetting(varn)
+	if(sl){
+		List items= multiple ? sl : [sl]
 		items.each{sensor ->
-			String sid='d'+sensor.id.toString()
+			String sid='d'+gtSensorId(sensor)
 			attrn=multiple ? "attributes_${sid}".toString() : "attribute_"
-			if(settings[attrn]){
-				List<String> attrs = multiple ? settings[attrn] : [settings[attrn]]
+			def al= gtSetting(attrn)
+			if(al){
+				List<String> attrs = multiple ? al : [al]
 				attrs.each{ String attr ->
-					//quantInput(sid,attr)
-					String s="${sid}_${attr}".toString()
-					app.removeSetting(s+'_quantization') // remove quant settings
+					quantRmInput(sid, attr)
+					rmAllowLastInput(sid, attr)
+//					String s="${sid}_${attr}".toString()
+//					wremoveSetting(s+'_quantization') // remove quant settings quantInput(sid,attr)
 				}
-				app.removeSetting(attrn)
+				wremoveSetting(attrn)
+				attrn= sNL
 			}
 		}
-		app.removeSetting(varn)
+		wremoveSetting(varn)
 	}
-	if(attrn && settings[attrn]){
-		app.removeSetting(attrn)
+	if(attrn && gtSetting(attrn)){
+		wremoveSetting(attrn)
 	}
 }
 
+void clearQuants(){
+	Integer i
+	String sb
+	for (i=0; i<10; i++){
+		sb= i.toString()
+		String sid= 'q'+sb
+		String attribute= sid+'attr'
 
+		quantRmInput(sid, attribute)
+		rmAllowLastInput(sid, attribute)
+		wremoveSetting(sid+'_type')
+		wremoveSetting(sid)
+	}
+}
 
-Map makeFuelDataEntry(String stream){
+Boolean hasQuants(){
+	Integer i
+	String s
+	for (i=0; i<10; i++){
+		s= i.toString()
+		String sid= 'q'+s
+		String typ=(String)gtSetting(sid+'_type')
+		if(typ in ['Fuel Stream','Sensor']) return true
+	}
+	return false
+}
+
+/**
+ * create a fuel stream dataSource entry
+ * @param stream
+ * @return Map [t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream' q: params]
+ */
+Map makeFuelDataEntry(String stream, String attr='stream'){
 	String s= "makeFuelDataEntry $stream "
 
+	if(!stream) return [:]
 	Map r=decodeStreamN(stream)
-	Integer i
-	i=r.i
-	String c,n
-	c=r.c
-	n=r.n
+	Integer i=(Integer)r.i
+	String c=(String)r.c
+	String n=(String)r.n
 	//[i:app.id, c: 'LTS', n:sid+'_'+attribute,w:1,t: getFormattedDate(new Date())]
 
 //String attribute=c+d+n+d+i.toString()
 //String fuelNattr(){
 
 	Map ent
-	ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
-
-	// if to return data quantized, add to ent
-	Map params= quantParams(ent.id,ent.a)
-	if(params)
-		ent += [q:params]
+	ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: attr]
 
 	// deal with attribute being lastupdate - which means last time this attribute/stream value was updated
 	String sn = "lstUpd_${ent.id}_${ent.a}".toString()
-	if((Boolean)settings[sn]) ent += [aa:'lastupdate']
+	if((Boolean)gtSetting(sn)) ent += [aa:'lastupdate']
 
 	stToPoll()
 
-	myDetail null, s + "ent: $ent", iN2
+	// sensors (devices) are in a setting so they show in use
+	// TODO will need to report to parent 'I'm using these fuel streams'
+
+	if(isEric())myDetail null, s+"ent: $ent", iN2
 	return ent
 }
 
+/**
+ * Set browser polling needs to be done because graph uses fuel stream or synthetic data
+ */
 void stToPoll(){
-	state.hasFuel=true
-	Integer i=graph_update_rate!=null ? graph_update_rate.toInteger() : -1
+	assignSt('hasFuel',true)
+	def ii= gtSetting('graph_update_rate')
+	Integer i= ii!=null ? "${ii}".toInteger() : -1
 	if(i>=0 && i<60000) {// remove invalid
-		app.removeSetting("graph_update_rate")
+		wremoveSetting('graph_update_rate')
 	}
 }
 
+/**
+ * create a sensor dataSource entry
+ * @param sensor
+ * @param sid
+ * @param attr
+ * @return Map [t: 'sensor', id: sid, rid: sensor.id, displayName: sensor.displayName, a: attr]
+ */
 Map makeSensorDataEntry(sensor,String sid,String attr){
 	String s= "makeSensorDataEntry $sensor $sid $attr "
 
 	Map ent
 	ent=[t: 'sensor', id: sid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
-	// if to return data quantized, add to ent
-	Map params= quantParams(ent.id,ent.a)
-	if(params)
-		ent += [q:params]
-
 	// deal with attribute being lastupdate - which means last time this attribute/stream value was updated
 	String sn = "lstUpd_${ent.id}_${ent.a}".toString()
-	if((Boolean)settings[sn]){
+	if((Boolean)gtSetting(sn)){
 		ent += [aa:'lastupdate']
 		stToPoll() // javascript code does not handle lastupdate/dynamic updates correctly for the attribute, it uses the sensor
 	}
 
-	myDetail null,s+"ent: $ent",iN2
+	// sensors (devices) are in a setting so they show in use
+	// TODO will need to report to parent 'I'm using these fuel streams'
+
+	if(isEric())myDetail null,s+"ent: $ent",iN2
 	return ent
+}
+
+private String gtSensorId(sensor){
+	return sensor.id.toString()
+}
+
+Map makeQuantDataEntry(String typ,String sid,String attrn){
+	String s= "makeQuantDataEntry $typ $sid $attrn "
+
+	String attribute
+	attribute=sNL
+
+	Map ent
+
+	if(typ in ['Fuel Stream']){
+		String stream= gtSetting(sid)
+		ent=makeFuelDataEntry(stream)
+		//ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: attr]
+		attribute= attrn
+	} else if(typ in ['Sensor']){
+		def sensor= gtSetting(sid)
+		String msid='d'+gtSensorId(sensor)
+		attribute= gtSetting(attrn)
+		ent=makeSensorDataEntry(sensor,msid,attribute)
+		//ent=[t: 'sensor', id: sid, rid: sensor.id, displayName: sensor.displayName, a: attr]
+	} else{
+		warn "no clear typ $typ",null
+		if(isEric())myDetail null,s+"ent: [:]",iN2
+		return [:]
+	}
+
+	if(!ent) return [:]
+
+	Map nent
+	nent=[t: 'quant', id: sid, ent: ent, rid: ent.rid, displayName: ent.displayName+' quant', a: attribute]
+
+	// if to return data quantized, add to ent
+	Map params= quantParams(nent.id,nent.a)
+	if(params){
+		nent+=[q: params]
+		stToPoll()
+	}
+	// deal with attribute being lastupdate - which means last time this attribute/stream value was updated
+	String sn = "lstUpd_${nent.id}_${nent.a}".toString()
+	if((Boolean)gtSetting(sn)){
+		nent += [aa:'lastupdate']
+		stToPoll() // javascript code does not handle lastupdate/dynamic updates correctly for the attribute, it uses the sensor
+	}
+
+	// sensors (devices) are in a setting so they show in use
+	// TODO will need to report to parent 'I'm using these fuel streams'
+
+	if(isEric())myDetail null,s+"ent: $nent",iN2
+	return nent
 }
 
 /**
  * create state.datasources from settings
- * @param multiple
+ * @param multiple - are allowed
  * @return list of data sources and update to state.dataSources
+ * Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
+ * Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
+ * Map ent=[t: 'quant', id: 'q'+qid, rid: id, displayName: <entered>,  a: 'quant' or actual attr, qp: [params], ent: [sensor or fuel]]
  */
 List<Map> createDataSources(Boolean multiple){
 
 	String s= "createDataSources $multiple "
-	myDetail null,s,i1
+	if(isEric())myDetail null,s,i1
 
 	String fvarn=multiple ? 'fstreams' : 'fstream_'
 	String varn=multiple ? 'sensors' : 'sensor_'
@@ -620,45 +760,353 @@ List<Map> createDataSources(Boolean multiple){
 	dataSources=[]
 	state.hasFuel=false
 
-	if(settings[fvarn] || settings[varn]){
+	Boolean hq= hasQuants()
+	def sl= gtSetting(varn)
+	def fl= gtSetting(fvarn)
 
-		if(settings[fvarn]){
-			myDetail null,s+"processing fuel streams ${settings[fvarn]}",iN2
-			List<String> ifstreams=multiple ? settings[fvarn] : [settings[fvarn]]
+	if(fl || sl || hq){
+
+		if(fl){
+			if(isEric())myDetail null,s+"processing fuel streams ${fl}",iN2
+			List<String> ifstreams=multiple ? fl : [fl]
 			ifstreams.each{ String stream ->
 
 				Map ent=makeFuelDataEntry(stream)
-				dataSources << ent
+				if(ent)dataSources << ent
 
 			}
 		}
 
-		if(settings[varn]){
-			myDetail null,s+"processing sensors${settings[varn]}",iN2
-			List items= multiple ? settings[varn] : [settings[varn]]
+		if(sl){
+			if(isEric())myDetail null,s+"processing sensors ${sl}",iN2
+			List items= multiple ? sl : [sl]
 			items.each{ sensor ->
-				String sid='d'+sensor.id.toString()
+				String sid='d'+gtSensorId(sensor)
 				attrn=multiple ? "attributes_${sid}".toString() : "attribute_"
 
-				if(settings[attrn]){
-					List<String> attrs=multiple ? settings[attrn] : [settings[attrn]]
+				def al= gtSetting(attrn)
+				if(al){
+					List<String> attrs=multiple ? al : [al]
 					attrs.each{ String attr ->
 						Map ent=makeSensorDataEntry(sensor,sid,attr)
-						dataSources << ent
+						if(ent) dataSources << ent
 					}
 				} else{
 					// we don't have complete settings for this sensor...
 				}
 			}
 		}
+
+		if(hq){
+			Integer i
+			String sb
+
+			for (i=0; i<10; i++){
+				sb= i.toString()
+				String sid= 'q'+sb
+				String attribute= sid+'attr'
+				String typ=(String)gtSetting(sid+'_type')
+				if(!(typ in ['Fuel Stream','Sensor'])){
+					quantRmInput(sid, attribute)
+					rmAllowLastInput(sid, attribute)
+					wremoveSetting(sid+'_type')
+					wremoveSetting(sid)
+				}else{
+					if(isEric()) myDetail null,s+"processing quants ${sid}",iN2
+
+					Map ent=makeQuantDataEntry(typ,sid,attribute)
+					if(ent)dataSources << ent
+				}
+			}
+		}
 	}
-	myDetail null,s
+	if(isEric())myDetail null,s
 	state.dataSources=dataSources
 	return dataSources
 }
 
+def gatherQuantSource(Boolean multiple,Boolean allowLastActivity) {
+	if(isEric())myDetail null,"gatherQuantSource $multiple",i1
 
-/** gather data source inputs for a graph and if source should be quantized when read
+	List container
+	container=[]
+
+	Integer i
+	String s,saveS
+	saveS=sNL
+	Boolean fndf
+	fndf=false
+
+	for (i=0; i<10; i++){
+		s= i.toString()
+		String sid= 'q'+s
+		//String attribute= sid+'attr'
+		String typ=(String)gtSetting(sid+'_type')
+		if (typ in ['Fuel Stream','Sensor']){
+			displayQuant(sid,allowLastActivity,false)
+		} else if(saveS==sNL) { saveS=s; fndf=true}
+	}
+
+	if(fndf){
+		displayQuant('q'+saveS,allowLastActivity,true)
+	} else {
+		container << hubiForm_text("<b>Did not find free slot quant list</b><br><small>More than 10 quants for chart</small>")
+		hubiForm_container(container, 1)
+	}
+	if(isEric())myDetail null,"gatherQuantSource $multiple"
+}
+
+def displayQuant(String sid, Boolean allowLastActivity, Boolean create=false){
+	List container
+	container=[]
+
+	String attribute= sid+'attr'
+
+	Boolean attrOk
+	attrOk=false
+	List<String> opts
+	opts= ['None','Fuel Stream','Sensor']
+
+	if(!create) {
+		String typ=(String)gtSetting(sid+'_type')
+		container << hubiForm_sub_section("Quantized source $sid")
+
+		opts = ['None',typ] // allow to turn off
+		container << hubiForm_enum (title:	"Source type",
+				name:	sid+'_type',
+				list:	opts,
+				default: typ,
+				submit_on_change: true)
+
+	} else {
+		container << hubiForm_sub_section("Create new quantized source $sid")
+
+		container << hubiForm_enum (title:	"Source type",
+				name:	sid+'_type',
+				list:	opts,
+				default: 'None',
+				submit_on_change: true)
+
+	}
+	hubiForm_container(container, 1)
+
+	String typ=(String)gtSetting(sid+'_type')
+	if(typ=='Fuel Stream'){
+		gatherFuelSource(sid,'Source Fuel Stream',false,allowLastActivity)
+		attrOk=true
+	}else if(typ=='Sensor'){
+		gatherSensorSource(sid,attribute,'Source Sensor','capability.*','Attribute',false,allowLastActivity)
+		if(gtSetting(attribute)) attrOk=true
+
+	}else{
+		// remove settings junk
+		wremoveSetting(sid)
+		quantRmInput(sid, attribute)
+		rmAllowLastInput(sid, attribute)
+	}
+	if(gtSetting(sid) && attrOk){
+		if(allowLastActivity) addAllowLastActivity(sid, attribute)
+		quantInput(sid,attribute)
+	}
+
+}
+
+
+// shared
+def quantInput(String sid, String attribute){
+	if(isEric())myDetail null,"quantInput $sid $attribute",iN2
+	String s="${sid}_${attribute}".toString()
+
+	List<Map<String,String>> quantizationEnum=[
+			["0": "None"], ["5" : "5 Minutes"], ["10" : "10 Minutes"], ["20" : "20 Minutes"], ["30" : "30 Minutes"],
+			["60" : "1 Hour"], ["120" : "2 Hours"], ["180" : "3 Hours"], ["240" : "4 Hours"], ["360" : "6 Hours"],
+			["480" : "8 Hours"], ["1440" : "24 Hours"], ["10080": "7 Days"]]
+
+	List<Map<String,String>> quantizationFunctionEnum=[
+			[(sNONE): "No Quantization"], ["sum": "Sum Values"], ["average" : "Average Values"], ["count" : "Count Events"],
+			["min" : "Minimum Value"], ["max" : "Maximum Value"]]
+
+	//paragraph('Return Quantize data when read? (None means no quantization)')
+	Boolean remove
+	remove=false
+
+	String sq=s+'_quantization'
+	if(isEric())myDetail null,"quantInput $sid $attribute ${sq}  ${gtSetting(sq)}",iN2
+	input( type: "enum", name: sq, title: "Data Quantization Timeframe (None means disabled)",
+			required: false, multiple: false, options: quantizationEnum, submitOnChange: true, defaultValue: s0)
+
+	String sqv= gtSetting(sq)
+	if(sqv && !(sqv in ['0']) ){
+		String sf= s+'_quantization_function'
+		input( type: "enum", name: sf, title: "Quantization Function",
+				required: false, multiple: false, options: quantizationFunctionEnum, submitOnChange: true, defaultValue: "average")
+
+		String sfv= gtSetting(sf)
+		if(sfv && sfv != sNONE){
+			input( type: "bool", name: s+"_boundary", title: "Quantize Data to Hour/Day Boundary (true changes reading time)?",
+					required: false, multiple: false, submitOnChange: true, defaultValue: false)
+
+			input( type: "enum", name: s+"_quantization_decimals", title: "Quantization Decimals to Maintain",
+					required: false, multiple: false, options: [[0: "Zero"], [1: "One"], [2: "Two"], [3: "Three"], [4: "Four"]],
+					submitOnChange: true, defaultValue: s1)
+
+		} else{
+			remove=true
+		}
+	} else{
+		remove=true
+	}
+	if(remove){
+		if(isEric())myDetail null,"quantInput removing",iN2
+		quantRmInput(sid, attribute)
+	}
+}
+
+
+void quantRmInput(String sid, String attribute){
+	String s=sid+'_'+attribute
+	wremoveSetting(s+'_quantization_function')
+	wremoveSetting(s+'_boundary')
+	wremoveSetting(s+'_quantization_decimals')
+	wremoveSetting(s+'_quantization')
+
+}
+
+def addAllowLastActivity(String sid, String attribute){
+	String s= 'lstUpd_'+sid+'_'+attribute
+	input( type: "bool", name: s, title: "Use last modified time for stream value?",
+			required: false, multiple: false, submitOnChange: false, defaultValue: false)
+
+}
+
+void rmAllowLastInput(String sid, String attribute){
+	String s= 'lstUpd_'+sid+'_'+attribute
+	wremoveSetting(s)
+}
+
+/**
+ *
+ * @param fvarn - creates a setting using this variable name
+ * @param ftit
+ * @param multiple
+ * @param allowLastActivity
+ * @return
+ */
+def gatherFuelSource(String fvarn,String ftit,Boolean multiple,Boolean allowLastActivity){
+	if(isEric())myDetail null,"gatherFuelSource $fvarn $multiple",i1
+	// fuel streams
+
+	List<Map> final_streams
+	List container
+	container=[]
+
+	List<Map>fstreams= gtFuelList()
+
+	Integer sz
+	sz=fstreams.size()
+
+	if(sz){
+		final_streams=[]
+		String deflt
+		deflt=sBLK
+
+		if(isEric())myDetail null,"gatherFuelSource fuelstreams $sz $fstreams",iN2
+
+		fstreams.each{ Map stream ->
+			// Map [i:, c: , n: ,w:1, t: getFormattedDate(new Date())]
+
+			String name=encodeStreamN(stream)
+
+			List<Map>fdata=parent.readFuelStream(stream)
+			sz=fdata.size()
+			if(sz){
+				//if(!deflt) deflt=name
+				final_streams << [(name) : "Fuel Stream $name :: [${fdata[sz-1].value}]"]
+			}
+		}
+
+		final_streams=final_streams.unique(false)
+		if(final_streams == []){
+			container << hubiForm_text("<b>No data found in stream</b><br><small>Please select a different Fuel Stream</small>")
+			hubiForm_container(container, 1)
+			wremoveSetting(fvarn)
+		} else{
+//			container << hubiForm_sub_section('Select Fuel Stream')
+//			hubiForm_container(container, 1)
+
+			input( type: "enum", name: fvarn, title: ftit, required: false, multiple: multiple, options: final_streams, defaultValue: deflt, submitOnChange: true )
+		}
+	} else{
+		// no fuel streams
+		container << hubiForm_text("<b>No fuel streams found</b><br>")
+		hubiForm_container(container, 1)
+	}
+
+	if(isEric())myDetail null,"gatherFuelSource $fvarn $multiple"
+
+}
+
+/**
+ *
+ * @param varn - creates a setting using this variable name
+ * @param attrStr - creates a setting using this variable name
+ * @param tit
+ * @param cap
+ * @param atit
+ * @param multiple
+ * @param allowLastActivity
+ * @return
+ */
+def gatherSensorSource(String varn, String attrStr, String tit, String cap, String atit, Boolean multiple, Boolean allowLastActivity){
+
+	if(isEric())myDetail null,"gatherSensorSource $varn $multiple",i1
+
+	List<Map> final_attrs
+	String attrn
+	List container
+
+	input (type: cap, name: varn, title: tit, multiple: multiple, submitOnChange: true)
+
+	if(settings[varn]){
+		List items= multiple ? settings[varn] : [settings[varn]]
+		items.each{ sensor ->
+			container=[]
+			String sid='d'+gtSensorId(sensor)
+
+			List attributes_=sensor.getSupportedAttributes()
+			//List sensor_attributes=sensor.getSupportedAttributes().collect{ it.getName() }.unique().sort()
+			final_attrs=[]
+
+			String deflt
+			deflt=sBLK
+			attributes_.each{ attribute->
+				String name=attribute.getName()
+				if(sensor.currentState(name)){
+					if(!deflt) deflt=name
+					final_attrs << [(name) : "$name ::: [${sensor.currentState(name).getValue()}]"]
+				}
+			}
+			final_attrs=final_attrs.unique(false)
+
+			attrn= attrStr + (multiple ? sid:sBLK)
+
+			if(final_attrs == []){
+				container << hubiForm_text("<b>No supported Numerical Attributes</b><br><small>Please select a different Sensor</small>")
+				hubiForm_container(container, 1)
+				wremoveSetting(attrn)
+			} else{
+				container << hubiForm_sub_section("${sensor.displayName}")
+				hubiForm_container(container, 1)
+
+				input( type: "enum", name: attrn, title: atit, required: false, multiple: multiple, options: final_attrs, defaultValue: deflt, submitOnChange: true )
+
+			}
+		}
+	}
+	if(isEric())myDetail null,"gatherSensorSource $varn $multiple"
+}
+
+/** gather data source inputs for a graph
  *
  * @param multiple - allow multiple sources
  * @param ordered - do ordering
@@ -667,195 +1115,90 @@ List<Map> createDataSources(Boolean multiple){
  */
 def gatherDataSources(Boolean multiple=true, Boolean ordered=false, Boolean allowLastActivity=false, String cap="capability.*"){
 
-	myDetail null,"gatherDataSources $multiple",i1
-
-	List container
+	if(isEric())myDetail null,"gatherDataSources $multiple",i1
 
 	String fvarn=multiple ? 'fstreams' : 'fstream_'
 	String ftit=multiple ? 'Choose fuel streams' : 'Fuel Stream'
 	String varn=multiple ? 'sensors' : 'sensor_'
 	String tit=multiple ? 'Choose sensors' : 'Sensor'
 	String atit=multiple ? 'Attributes to graph' : 'Attribute for Gauge'
-	String attrn
 
-	List<Map> final_streams
-	List<Map> final_attrs
-	List<Map> fstreams
-
-	List a=createDataSources(multiple)
+	List<Map> a=createDataSources(multiple)
 
 	hubiForm_section("Data Source Selection", 1, sBLK, sBLK){
-		container=[]
+
+		Boolean hq= hasQuants()
+		def sl,fl
+		sl= gtSetting(varn)
 
 		// fuel streams
-		fuelFLD= !fuelFLD ? parent.listFuelStreams(false) : fuelFLD
-		fstreams=fuelFLD
+		if(!multiple && (sl || hq) ) clearFvarn(fvarn,multiple)
 
-		if(!multiple && settings[varn]) clearFvarn(multiple)
-
-		if(multiple || (!multiple && !settings[varn])){
-			Integer sz
-			sz=fstreams.size()
-
-			if(sz){
-				myDetail null,"gatherDataSources fuelstreams $sz $fstreams",iN2
-				fstreams.each{ Map stream ->
-					// Map [i:, c: , n: ,w:1, t: getFormattedDate(new Date())]
-					final_streams=[]
-
-					String deflt
-					deflt=sBLK
-					String name=encodeStreamN(stream)
-
-					List<Map>fdata=parent.readFuelStream(stream)
-					sz=fdata.size()
-					if(sz){
-						if(!deflt) deflt=name
-						final_streams << [(name) : "Fuel Stream $name :: [${fdata[sz-1].value}]"]
-					}
-				}
-				final_streams=final_streams.unique(false)
-				if(final_streams == []){
-					container << hubiForm_text("<b>No data found in stream</b><br><small>Please select a different Fuel Stream</small>")
-					hubiForm_container(container, 1)
-					app.removeSetting(fvarn)
-				} else{
-					container << hubiForm_sub_section('Select Fuel Stream')
-					hubiForm_container(container, 1)
-
-					input( type: "enum", name: fvarn, title: ftit, required: false, multiple: multiple, options: final_streams, defaultValue: deflt, submitOnChange: true )
-
-					if(settings[fvarn]){
-						Map stream
-						List<String> ifstreams=multiple ? settings[fvarn] : [settings[fvarn]]
-						for(String stream_nm in ifstreams){
-							stream= findStream(stream_nm)
-							// Map [i:, c: , n: ,w:1, t: getFormattedDate(new Date())]
-
-							//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
-							if(stream && stream.i && stream.n){
-								String name=encodeStreamN(stream)
-
-								// loop ask if to return data quantized
-								String sid='f'+stream.i.toString()
-								String attribute='stream'
-								quantInput(sid,attribute)
-								if(allowLastActivity){ // lastupdate
-									String sa="${sid}_${attribute}".toString()
-									String s= "lstUpd_"+sa
-									input( type: "bool", name: s, title: "Use last modified time for stream value?",
-											required: false, multiple: false, submitOnChange: false, defaultValue: false)
-								}
-							}
-						}
-					}
-				}
-			} else{
-				// no fuel streams
-				container << hubiForm_text("<b>No fuel streams found</b><br>")
-				hubiForm_container(container, 1)
-			}
+		if(multiple || (!multiple && !sl && !hq)){
+			gatherFuelSource(fvarn,ftit,multiple,allowLastActivity)
 		}
 
-		if(!multiple && settings[fvarn]) clearVarn(multiple)
-
+		fl= gtSetting(fvarn)
 
 		// sensors
-		if(multiple || (!multiple && !settings[fvarn])){
+		if(!multiple && (fl || hq) ) clearVarn(multiple)
 
-			input (type: cap, name: varn, title: tit, multiple: multiple, submitOnChange: true)
+		if(multiple || (!multiple && !fl && !hq)){
+			String attrn=multiple ? "attributes_": "attribute_"
+			gatherSensorSource(varn, attrn, tit, cap, atit, multiple, allowLastActivity)
+		}
 
-			if(settings[varn]){
-				List items= multiple ? settings[varn] : [settings[varn]]
-				items.each{ sensor ->
-					container=[]
-					String sid='d'+sensor.id.toString()
+		sl= gtSetting(varn)
+		fl= gtSetting(fvarn)
 
-					List attributes_=sensor.getSupportedAttributes()
-					//List sensor_attributes=sensor.getSupportedAttributes().collect{ it.getName() }.unique().sort()
-					final_attrs=[]
+		// calculated, virtual, quant
+		if(!multiple && (fl || sl) ) clearQuants()
 
-					String deflt
-					deflt=sBLK
-					attributes_.each{ attribute->
-						String name=attribute.getName()
-						if(sensor.currentState(name)){
-							if(!deflt) deflt=name
-							final_attrs << [(name) : "$name ::: [${sensor.currentState(name).getValue()}]"]
-						}
-					}
-					final_attrs=final_attrs.unique(false)
-
-					attrn=multiple ? "attributes_${sid}".toString() : "attribute_"
-
-					if(final_attrs == []){
-						container << hubiForm_text("<b>No supported Numerical Attributes</b><br><small>Please select a different Sensor</small>")
-						hubiForm_container(container, 1)
-						app.removeSetting(attrn)
-					} else{
-						container << hubiForm_sub_section("${sensor.displayName}")
-						hubiForm_container(container, 1)
-
-						input( type: "enum", name: attrn, title: atit, required: false, multiple: multiple, options: final_attrs, defaultValue: deflt, submitOnChange: true )
-
-						if(settings[attrn]){
-							List<String> attrs=multiple ? settings[attrn] : [settings[attrn]]
-							attrs.each{ String attr ->
-								if(sid && attr){
-									quantInput(sid,attr)
-
-									if(allowLastActivity){ // lastupdate
-										String sa="${sid}_${attr}".toString()
-										String s= "lstUpd_"+sa
-										input( type: "bool", name: s, title: "Use last modified time for attribute value?",
-												required: false, multiple: false, submitOnChange: false, defaultValue: false)
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+		if(multiple || (!multiple && !fl && !sl)){
+			gatherQuantSource(multiple,allowLastActivity)
 		}
 	}
 
-/*	app.removeSetting('f1_1 - test||temp_quantization')
-	app.removeSetting('attribute_f1_1-test||temp_background_color')
-	app.removeSetting('attribute_f1_1-test||temp_background_color_transparent')
-	app.removeSetting('attribute_f1_1-test||temp_current_border_color')
-	app.removeSetting('attribute_f1_1-test||temp_current_border_color_transparent')
-	app.removeSetting('attribute_f1_1-test||temp_current_border_line_size')
-	app.removeSetting('attribute_f1_1-test||temp_decimals')
-	app.removeSetting('attribute_f1_1-test||temp_opacity')
-	app.removeSetting('attribute_f1_1-test||temp_scale')
-	app.removeSetting('attribute_f1_1-test||temp_show_value')
-	app.removeSetting('graph_name_override_f1_1 - test||temp')
-	app.removeSetting('attribute_f1_1 - test||temp_line_color')
-	app.removeSetting('attribute_f1_1 - test||temp_line_color_transparent')
-	app.removeSetting('f1_1 - test||temp_boundary')
-	app.removeSetting('f1_1 - test||temp_quantization_decimals')
-	app.removeSetting('f1_1 - test||temp_quantization_function')
-	app.removeSetting('d1057_temperature_boundary')
-	app.removeSetting('d1057_temperature_quantization')
-	app.removeSetting('d1057_temperature_quantization_decimals')
-	app.removeSetting('d1057_temperature_quantization_function') */
+/*	wremoveSetting('f1_1 - test||temp_quantization')
+	wremoveSetting('d1057_temperature_boundary')
+	wremoveSetting('d1057_temperature_quantization')
+	wremoveSetting('d1057_temperature_quantization_decimals')
+	wremoveSetting('d1057_temperature_quantization_function')
+
+	wremoveSetting('attribute_q0_q0_attr_background_color')
+	wremoveSetting('attribute_q0_q0_attr_background_color_transparent')
+	wremoveSetting('attribute_q0_q0_attr_current_border_color')
+	wremoveSetting('attribute_q0_q0_attr_current_border_color_transparent')
+
+	wremoveSetting('attribute_q0_q0_attr_current_border_line_size')
+	wremoveSetting('attribute_q0_q0_attr_decimals')
+	wremoveSetting('attribute_q0_q0_attr_opacity')
+	wremoveSetting('attribute_q0_q0_attr_scale')
+	wremoveSetting('attribute_q0_q0_attr_show_value')
+	wremoveSetting('graph_name_override_q0_q0_attr')
+	wremoveSetting('f1_stream_quantization')
+	wremoveSetting('q0_q0_attr_boundary')
+	wremoveSetting('q0_q0_attr_quantization')
+	wremoveSetting('q0_q0_attr_quantization_decimals')
+	wremoveSetting('q0_q0_attr_quantization_function')
+ */
+	wremoveSetting('debug')
+	wremoveSetting('dummy')
+	state.remove('lastOrder')
 
 	List<Map> dataSources
 	dataSources=[]
 	Integer sz
-	dataSources = createDataSources(multiple)
+	dataSources= createDataSources(multiple)
 
 	sz=dataSources.size()
 
-	// sensors (devices) are in a setting so they show in use
-	// TODO will need to report to parent 'I'm using these fuel streams'
-
 	if(ordered && multiple && sz>1){
-		log.debug "check order"
+		if(isEric())debug "check order",null
 		List<String> all=(1..dataSources.size()).collect{ Integer it -> sBLK + it.toString() }
 		hubiTools_validate_order(all)
 	}
-	myDetail null,"gatherDataSources $multiple"
+	if(isEric())myDetail null,"gatherDataSources $multiple"
 }
 
 
@@ -870,9 +1213,9 @@ def gatherDataSources(Boolean multiple=true, Boolean ordered=false, Boolean allo
 //def mainRangebar(){
 //def mainTimegraph(){
 def mainShare1(String instruct, String okSet,Boolean multiple=true){
-	myDetail null,"mainShare1: $okSet $multiple",iN2
+	if(isEric())myDetail null,"mainShare1: $okSet $multiple",iN2
 	List a=createDataSources(multiple)
-	if(!state.dataSources) app.removeSetting(okSet)
+	if(!state.dataSources) wremoveSetting(okSet)
 	if(instruct) state.devInstruct=instruct
 
 	dynamicPage(name: "mainPage"){
@@ -911,7 +1254,7 @@ def mainShare1(String instruct, String okSet,Boolean multiple=true){
 //def deviceRangebar(){
 def deviceShare1(Boolean ordered=false,Boolean allowLastActivity=false){
 
-	myDetail null,"deviceShare1: $ordered",iN2
+	if(isEric())myDetail null,"deviceShare1: $ordered",iN2
 	dynamicPage(name: "deviceSelectionPage", nextPage:"attributeConfigurationPage"){
 		if(state.devInstruct){
 			List container
@@ -931,7 +1274,7 @@ def deviceShare1(Boolean ordered=false,Boolean allowLastActivity=false){
 //def attributeHeatmap(){
 //def attributeLinegraph(){
 def attributeShare1(Boolean ordered=false, String var_color="background"){
-	myDetail null,"attributeShare1: $ordered $var_color",iN2
+	if(isEric())myDetail null,"attributeShare1: $ordered $var_color",iN2
 
 	List<Map> dataSources= createDataSources(true)
 
@@ -958,9 +1301,6 @@ def attributeShare1(Boolean ordered=false, String var_color="background"){
 
 			container=[]
 
-			//if(ent.t=='fuel'){
-
-			//}
 			if(typ=='Sensor'){
 
 				String tvar="var_"+sa+"_lts"
@@ -1038,7 +1378,12 @@ def put_settings(Boolean needOauth=true){
 				container << hubiForm_text_input("Rename the Application?", "app_name", "webCoRE ${typ}", true)
 			} else app.updateSetting('app_name', "webCoRE ${typ}") // cannot rename LTS
 			container << hubiForm_sub_section("Debugging")
-			container << hubiForm_switch([title: "Enable Debug Logging?", name: sDBG, default: false])
+
+			container << hubiForm_enum(title:	"Logging Level",
+					name:	sLOGNG,
+					list:	[s0,s1,s2,"3"],
+					default: state[sLOGNG] ? state[sLOGNG].toString():s0 )
+
 			if(needOauth && state.endpoint){
 				container << hubiForm_sub_section("Disable Oauth Authorization")
 				container << hubiForm_page_button("Disable API", "disableAPIPage", "100%", "cancel")
@@ -1050,9 +1395,12 @@ def put_settings(Boolean needOauth=true){
 }
 
 
-
-
-
+/**
+ * get data source entry for sid/attribute pair
+ * @param sid
+ * @param attribute
+ * @return
+ */
 Map findDataSourceEntry(String sid, String attribute){
 	Map ent
 	ent= null
@@ -1061,12 +1409,12 @@ Map findDataSourceEntry(String sid, String attribute){
 	if(dataSources){
 		ent= dataSources.find{ Map it -> it.id==sid && it.a==attribute }
 	}
-	myDetail null,"findDataSourceEntry: $sid $attribute $ent",iN2
+	if(isEric())myDetail null,"findDataSourceEntry: $sid $attribute $ent",iN2
 	return ent
 }
 
 /**
- *  get Last data item from a data source as internal map
+ * get Last data item from a data source as internal map
  * @param ent - data source entry
  * @param multiple
  * @return [date: date, value: v, t: t]
@@ -1104,7 +1452,7 @@ Map gtFloatMap(Map ent, Boolean multiple=true){
 		dt= (Date)lst.date
 		res= [current: val, date: dt]
 	}
-	myDetail null,"gtFloatMap $ent $multiple $res ",iN2
+	if(isEric())myDetail null,"gtFloatMap $ent $multiple $res ",iN2
 	return res
 }
 
@@ -1130,10 +1478,16 @@ Map gtLatestMap(Map ent, Boolean multiple=true){
 		dt= (Date)lst.date
 		res= [value: val, date: dt]
 	}
-	myDetail null,"gtLatestMap $ent $multiple $res ",iN2
+	if(isEric())myDetail null,"gtLatestMap $ent $multiple $res ",iN2
 	return res
 }
 
+/**
+ * get latest double
+ * @param ent
+ * @param multiple
+ * @return doubleVal
+ */
 Double getLatestVal(Map ent, Boolean multiple=true){
 	String val
 	val='0.0'
@@ -1143,7 +1497,7 @@ Double getLatestVal(Map ent, Boolean multiple=true){
 		val= "${lst.value}"
 	}
 
-	myDetail null,"getLatestVal $ent $multiple $val ",iN2
+	if(isEric())myDetail null,"getLatestVal $ent $multiple $val ",iN2
 	return extractNumber(val)
 }
 
@@ -1185,7 +1539,7 @@ List<Map> CgetData(Map ent, Date time, Boolean multiple=true){
 
 	if(!data2) data2= return_data ? [return_data[-1]] : data2
 
-	myDetail null,"CgetData: $ent $time ${data2.size()}",iN2
+	if(isEric())myDetail null,"CgetData: $ent $time ${data2.size()}",iN2
 	return data2
 }
 
@@ -1195,8 +1549,8 @@ List<Map> CgetData(Map ent, Date time, Boolean multiple=true){
  * @param multiple devices allowed (for proper settings selection)
  * @return Internal data format as List<Map>  [[date: date, value: v, t: t], ....]
  */
-List<Map> gtDataSourceData(Map ent, Boolean multiple=true){
-	myDetail null,"gtDataSourceData $ent $multiple",i1
+List<Map> gtDataSourceData(Map ent, Boolean multiple=true, String sensorV=sNL){
+	if(isEric())myDetail null,"gtDataSourceData $ent $multiple",i1
 	//Map ent=[t: 'fuel', id: 'f'+i.toString(), rid: i, sn: stream, displayName: 'Fuel Stream '+i.toString(), n: n, c: c, a: 'stream']
 	//Map ent=[t: 'sensor', id: 'd'+rid, rid: sensor.id, displayName: sensor.displayName, a: attr]
 
@@ -1214,11 +1568,13 @@ List<Map> gtDataSourceData(Map ent, Boolean multiple=true){
 	}
 
 	if(typ=='Sensor'){
-		String varn=multiple ? 'sensors' : 'sensor_' // have to get devices from settings
-		String rid=(String)ent.rid
-		def a=settings[varn]
+		String varn= sensorV ?: (multiple ? 'sensors' : 'sensor_') // have to get devices from settings
+		def a=gtSetting(varn)
 		List devs = multiple ? a : [a]
-		myDetail null,"varn: $varn devs ${devs} a: ${a}  rid: ${myObj(ent.rid)}",iN2
+
+		String rid=(String)ent.rid
+		if(isEric())myDetail null,"varn: $varn devs ${devs} a: ${a}  rid: ${myObj(ent.rid)}",iN2
+
 		if(devs.size()){
 			def sensor=devs.find{
 //				myDetail null,"${it.id} ${myObj(it.id)} ${myObj(rid)}",iN2
@@ -1231,12 +1587,16 @@ List<Map> gtDataSourceData(Map ent, Boolean multiple=true){
 		} else warn 'gtDataSourceData: no devices found',null
 	}
 
-	// if to return data quantized, quanitize it
-	Map params= quantParams(ent.id,attribute)
-	if(res && params)
-		res= quantizeData(res, params.qm , params.qf, params.qd, params.qb, false)
+	if(typ=='Quant'){
+		res=gtDataSourceData(ent.ent,false, (String)ent.id)
 
-	myDetail null,"gtDataSourceData ${ent} ${res.size()}"
+		// if to return data quantized, quanitize it
+		Map params= quantParams(ent.id,attribute)
+		if(res && params)
+			res= quantizeData(res, params.qm , params.qf, params.qd, params.qb, false)
+	}
+
+	if(isEric())myDetail null,"gtDataSourceData ${ent} ${res.size()}"
 	return res
 }
 
@@ -1272,12 +1632,12 @@ ${scriptIncludes()}
 // no attributeGauge
 
 def mainGauge(){
-	myDetail null,"mainGauge:",iN2
+	if(isEric())myDetail null,"mainGauge:",iN2
 	mainShare1(sNL,'gauge_title',false)
 }
 
 def deviceGauge(){
-	myDetail null,"deviceGauge:",iN2
+	if(isEric())myDetail null,"deviceGauge:",iN2
 
 	dynamicPage(name: "deviceSelectionPage", nextPage:"graphSetupPage"){
 		List container
@@ -1312,7 +1672,7 @@ def deviceGauge(){
 				hubiForm_section("Min Max Value", 1, sBLK, sBLK){
 					container=[]
 					container<< hubiForm_text("<b>Current ${typ} Value=</b>$val")
-					container << hubiForm_text_input ("Minimum Value for Gauge", "minValue_", sZ, false)
+					container << hubiForm_text_input ("Minimum Value for Gauge", "minValue_", s0, false)
 					container << hubiForm_text_input ("Maximum Value for Gauge", "maxValue_", "100", false)
 					hubiForm_container(container, 1)
 				}
@@ -1664,19 +2024,19 @@ window.onBeforeUnload=onBeforeUnload;
 def getGraph_gauge(){
 	String s=getGauge()
 	String ss= sBLK // s.replaceAll('<', '&lt;').replaceAll('>','&gt;')
-	myDetail null,"getGraph_gauge: $ss",iN2
+	if(isEric())myDetail null,"getGraph_gauge: $ss",iN2
 	return render(contentType: "text/html", data: s)
 }
 
 def getData_gauge(){
 	Double data=buildData_gauge()
-	myDetail null,"getData_gauge: $data",iN2
+	if(isEric())myDetail null,"getData_gauge: $data",iN2
 	return render(contentType: "text/json", data: JsonOutput.toJson([ (sVAL): data ]))
 }
 
 def getOptions_gauge(){
 	String s= JsonOutput.toJson(getChartOptions_gauge())
-	myDetail null,"getOptions_gauge: $s",iN2
+	if(isEric())myDetail null,"getOptions_gauge: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -1704,7 +2064,7 @@ def getSubscriptions_gauge(){
 		}
 	}
 	String s= JsonOutput.toJson(subscriptions)
-	myDetail null,"getSubscriptions_gauge: $s",iN2
+	if(isEric())myDetail null,"getSubscriptions_gauge: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -1719,7 +2079,7 @@ def getSubscriptions_gauge(){
 // Shared input method
 def inputGraphUpdateRate(){
 	String defl
-	defl=sZ
+	defl=s0
 	List opt
 	opt=rateEnum
 	if((Boolean)state.hasFuel){
@@ -1750,7 +2110,7 @@ def inputGraphUpdateRate(){
 
 // shared by bar, timeline, heatmap, rangebar
 Map gtSensorFmt(Boolean curStates=false,Boolean multiple=true){
-	myDetail null,"gtSensorFmt curStates: $curStates, multiple: $multiple",i1
+	if(isEric())myDetail null,"gtSensorFmt curStates: $curStates, multiple: $multiple",i1
 	Map sensors_fmt
 	sensors_fmt=[:]
 
@@ -1783,7 +2143,7 @@ Map gtSensorFmt(Boolean curStates=false,Boolean multiple=true){
 		}
 	}
 
-	myDetail null,"gtSensorFmt  $curStates $sensors_fmt"
+	if(isEric())myDetail null,"gtSensorFmt  $curStates $sensors_fmt"
 	return sensors_fmt
 }
 
@@ -2355,14 +2715,14 @@ def getGraph_bar(){
 def getData_bar(){
 	Map data=buildData_bar()
 	String s= JsonOutput.toJson(data)
-	myDetail null,"getData_bar: $data",iN2
+	if(isEric())myDetail null,"getData_bar: $data",iN2
 
 	return render(contentType: "text/json", data: s)
 }
 
 def getOptions_bar(){
 	String s= JsonOutput.toJson(getChartOptions_bar())
-	myDetail null,"getOptions_bar: $s",iN2
+	if(isEric())myDetail null,"getOptions_bar: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -2385,12 +2745,10 @@ def getSubscriptions_bar(){
 
 			String sid=ent.id
 			String attribute=ent.a
-			String typ=((String)ent.t).capitalize()
+			//String typ=((String)ent.t).capitalize()
 			String sa="${sid}_${attribute}".toString()
 
 			_ids << sid
-
-			//if(typ=='Fuel') isPoll=true
 
 			_attributes[sid]=[]
 			labels[sid]=[:]
@@ -2431,7 +2789,7 @@ def getSubscriptions_bar(){
 	]
 
 	String s= JsonOutput.toJson(subscriptions)
-	myDetail null,"getSubscriptions_bar: $s",iN2
+	if(isEric())myDetail null,"getSubscriptions_bar: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -2610,7 +2968,7 @@ def graphTimeline(){
 		hubiForm_section("General Options", 1, "directions", sBLK){
 			inputGraphUpdateRate()
 			input( type: "enum", name: "graph_timespan", title: "<b>Select Time span to Graph</b>", multiple: false, required: false, options: timespanEnum, defaultValue: "43200000")
-			input( type: "enum", name: "graph_combine_rate", title: "<b>Combine events with events less than ? apart</b>", multiple: false, required: false, options: lOpts, defaultValue: sZ)
+			input( type: "enum", name: "graph_combine_rate", title: "<b>Combine events with events less than ? apart</b>", multiple: false, required: false, options: lOpts, defaultValue: s0)
 
 			container=[]
 			container << hubiForm_color ("Background", "graph_background", "#FFFFFF", false)
@@ -2636,7 +2994,7 @@ def graphTimeline(){
 }
 
 Map buildData_timeline(){
-	myDetail null,"buildData_timeline",i1
+	if(isEric())myDetail null,"buildData_timeline",i1
 	Map resp=[:]
 //	Date now=new Date()
 	Date then
@@ -2681,13 +3039,13 @@ Map buildData_timeline(){
 
 		}
 	}
-	myDetail null,"buildData_timeline $resp"
+	if(isEric())myDetail null,"buildData_timeline $resp"
 	return resp
 }
 
 def getChartOptions_timeline(){
 
-	myDetail null,"getChartOptions_timeline",i1
+	if(isEric())myDetail null,"getChartOptions_timeline",i1
 	List colors=[]
 	List<Map> order=hubiTools_get_order(graph_order)
 	order.each{ Map device->
@@ -2724,7 +3082,7 @@ def getChartOptions_timeline(){
 		],
 	]
 
-	myDetail null,"getChartOptions_timeline $options"
+	if(isEric())myDetail null,"getChartOptions_timeline $options"
 
 	return options
 }
@@ -3202,14 +3560,14 @@ def getGraph_timeline(){
 def getData_timeline(){
 	Map data=buildData_timeline()
 	String s= JsonOutput.toJson(data)
-	myDetail null,"getData_timeline: $data",iN2
+	if(isEric())myDetail null,"getData_timeline: $data",iN2
 
 	return render(contentType: "text/json", data: s)
 }
 
 def getOptions_timeline(){
 	String s= JsonOutput.toJson(getChartOptions_timeline())
-	myDetail null,"getOptions_timeline: $s",iN2
+	if(isEric())myDetail null,"getOptions_timeline: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -3232,12 +3590,10 @@ def getSubscriptions_timeline(){
 
 			String sid=ent.id
 			String attribute=ent.a
-			String typ=((String) ent.t).capitalize()
+			//String typ=((String) ent.t).capitalize()
 			Map sensors_fmt=[:]
 
 			_ids << sid
-
-			//if(typ=='Fuel') isPoll=true
 
 			definitions[sid]=[:]
 			labels[sid]=[:]
@@ -3260,7 +3616,7 @@ def getSubscriptions_timeline(){
 			"order": order
 	]
 	String s= JsonOutput.toJson(subscriptions)
-	myDetail null,"getSubscriptions_timeline: $s",iN2
+	if(isEric())myDetail null,"getSubscriptions_timeline: $s",iN2
 	return render(contentType: "text/json", data: s)
 
 }
@@ -3281,7 +3637,7 @@ def mainTimegraph(){
 }
 
 def deviceTimegraph(){
-//	app.removeSetting('graph_timespan')
+//	wremoveSetting('graph_timespan')
 	deviceShare1()
 }
 
@@ -3295,7 +3651,8 @@ def graphTimegraph(){
 			["10":"10 Milliseconds"], ["1000":"1 Second"], ["5000":"5 Seconds"], ["30000":"30 Seconds"],
 			["60000":"1 Minute"], ["120000":"2 Minutes"], ["300000":"5 Minutes"], ["600000":"10 Minutes"],
 			["2400000":"30 minutes"], ["3600000":"1 Hour"], ["43200000":"12 Hours"],
-			["86400000":"1 Day"], ["259200000":"3 Days"], ["604800000":"1 Week"]]
+			["86400000":"1 Day"], ["259200000":"3 Days"], ["604800000":"1 Week"], ["1209600000":"2 Weeks"],
+			["2629800000":"1 Month"]]
 
 
 	dynamicPage(name: "graphSetupPage"){
@@ -3648,8 +4005,9 @@ def graphTimegraph(){
 					container << hubiForm_enum (title:			"Plot Type",
 							name:			"graph_type_${sid}_${attribute}".toString(),
 							list:			["Line", "Area", "Scatter", "Bar", "Stepped"],
-							default:		"Line") //,
-					//submit_on_change: true)
+							default:		"Line",
+							submit_on_change: true)
+					// TODO submit_on_change was commented out....
 
 					container << hubiForm_enum (title:			"Time Integration Function",
 							name:			"var_${sid}_${attribute}_function".toString(),
@@ -3793,7 +4151,7 @@ def graphTimegraph(){
 						if(typ=='Sensor'){
 							Boolean multiple=true
 							String varn=multiple ? 'sensors' : 'sensor_' // have to get devices from settings
-							def a=settings[varn]
+							def a=gtSetting(varn)
 							List devs = multiple ? a : [a]
 							if(devs.size()){
 								sensor=devs.find{
@@ -3865,7 +4223,7 @@ def graphTimegraph(){
 
 									subcontainer << hubiForm_text_input('<b>Value for "<mark>'+settings[csin]+'</mark></b>"',
 											csin+"_value",
-											sZ,
+											s0,
 											true)
 								}
 								container << hubiForm_subcontainer([objects: subcontainer, breakdown: [0.5, 0.5]])
@@ -3893,9 +4251,9 @@ def graphTimegraph(){
 							if(asas){
 								possible_values=asas
 								possible_values.each{val->
-									app.updateSetting("attribute_${sid}_${attribute}_${val}".toString(),sZ)
+									app.updateSetting("attribute_${sid}_${attribute}_${val}".toString(),s0)
 								}
-								app.removeSetting(asasn)
+								wremoveSetting(asasn)
 							}
 						}
 					}
@@ -3912,7 +4270,7 @@ def graphTimegraph(){
 
 							container << hubiForm_text_input("<b>Value of Missing Data</b>",
 									"attribute_${sid}_${attribute}_drop_value",
-									sZ, false)
+									s0, false)
 						}
 
 						container << hubiForm_switch([title: "<b>Extend Left Value?</b><br><small>When values are unavailable, extend value to left</small>",
@@ -3931,7 +4289,7 @@ def graphTimegraph(){
 
 						container << hubiForm_text_input("<b>Min Value to Exclude</b><br><small>If the recorded sensor value is <b>below</b> this value it will be dropped</small>",
 								"attribute_${sid}_${attribute}_min_value",
-								sZ, false)
+								s0, false)
 
 						container << hubiForm_text_input("<b>Max Value to Exclude</b><br><small>If the recorded sensor value is <b>above</b> this value it will be dropped</small>",
 								"attribute_${sid}_${attribute}_max_value",
@@ -4746,14 +5104,14 @@ def getData_timegraph(){
 
 	Map data=buildData_timegraph()
 	String s= JsonOutput.toJson(data)
-	myDetail null,"getData_timegraph: $data",iN2
+	if(isEric())myDetail null,"getData_timegraph: $data",iN2
 
 	return render(contentType: "text/json", data: s)
 }
 
 def getOptions_timegraph(){
 	String s= JsonOutput.toJson(getChartOptions_timegraph())
-	myDetail null,"getOptions_timegraph: $s",iN2
+	if(isEric())myDetail null,"getOptions_timegraph: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -4782,13 +5140,12 @@ def getSubscriptions_timegraph(){
 			String sid=ent.id
 			String attribute=ent.a
 			String dn=ent.displayName
-			String typ=((String)ent.t).capitalize()
+			//String typ=((String)ent.t).capitalize()
 
 //	sensors.each{sensor->
 			if(!ids.contains(sid)) ids << sid
 			//TODO
 
-			//if(typ=='Fuel') isPoll=true
 //		String sid=sensor.id.toString()
 		//only take what we need
 			//Map sensors_fmt=gtSensorFmt()
@@ -4870,7 +5227,7 @@ def getSubscriptions_timegraph(){
 	Map subscriptions=obj
 
 	String s= JsonOutput.toJson(subscriptions)
-	myDetail null,"getSubscriptions_timegraph: $s",iN2
+	if(isEric())myDetail null,"getSubscriptions_timegraph: $s",iN2
 
 	return render(contentType: "text/json", data: s)
 }
@@ -5072,7 +5429,7 @@ def attributeHeatmap(){
 }
 
 static String dd(Double num){
-	if(num<10.0D) return sZ+num.toInteger().toString()
+	if(num<10.0D) return s0+num.toInteger().toString()
 	else return num.toInteger().toString()
 }
 
@@ -5340,11 +5697,11 @@ def getChartOptions_heatmap(){
 					],
 					"legend" : [ "position" : sNONE ],
 					"hAxis": [ "textPosition": sNONE,
-							"gridlines" : [ "count" : sZ ]
+							"gridlines" : [ "count" : s0 ]
 					],
 
 					"vAxis": [ "textPosition": sNONE,
-							"gridlines" : [ "count" : sZ ]
+							"gridlines" : [ "count" : s0 ]
 					],
 					"annotations" : [	"alwaysOutside": "false",
 										"textStyle": [
@@ -5812,14 +6169,14 @@ def getGraph_heatmap(){
 def getData_heatmap(){
 	Map data=buildData_heatmap()
 	String s= JsonOutput.toJson(data)
-	myDetail null,"getData_heatmap: $s",iN2
+	if(isEric())myDetail null,"getData_heatmap: $s",iN2
 
 	return render(contentType: "text/json", data: s)
 }
 
 def getOptions_heatmap(){
 	String s= JsonOutput.toJson(getChartOptions_heatmap())
-	myDetail null,"getOptions_heatmap: $s",iN2
+	if(isEric())myDetail null,"getOptions_heatmap: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -5845,9 +6202,7 @@ def getSubscriptions_heatmap(){
 
 			String sid=ent.id
 			String attribute=ent.a
-			String typ=((String) ent.t).capitalize()
-
-			//if(typ=='Fuel') isPoll=true
+			//String typ=((String) ent.t).capitalize()
 
 			_ids << sid
 			_attributes[sid] = _attributes[sid] ?: []
@@ -5890,7 +6245,7 @@ def getSubscriptions_heatmap(){
 	]
 
 	String s= JsonOutput.toJson(subscriptions)
-	myDetail null,"getSubscriptions_heatmap: $s",iN2
+	if(isEric())myDetail null,"getSubscriptions_heatmap: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -6146,7 +6501,7 @@ def graphLinegraph(){
 				hubiForm_section("${sLblTyp(ent.t)}${dn} - ${attribute}", 1, sBLK,sid+attribute){
 
 					container=[]
-					input( type: "enum", name: "graph_axis_number_${sid}_${attribute}", title: "<b>Graph Axis Side</b>", defaultValue: sZ, options: availableAxis)
+					input( type: "enum", name: "graph_axis_number_${sid}_${attribute}", title: "<b>Graph Axis Side</b>", defaultValue: s0, options: availableAxis)
 					container << hubiForm_color("Line",
 							"graph_line_${sid}_${attribute}",
 							hubiTools_rotating_colors(cnt),
@@ -6196,19 +6551,19 @@ def graphLinegraph(){
 
 						container << hubiForm_text_input("Value for <mark>$endVal</mark>",
 								"attribute_${sid}_${attribute}_${endVal}",
-								sZ, false)
+								s0, false)
 						hubiForm_container(container, 1)
 
 					} else{
-						app.removeSetting(nnvars)
-						app.removeSetting(svars)
-						app.removeSetting(evars)
+						wremoveSetting(nnvars)
+						wremoveSetting(svars)
+						wremoveSetting(evars)
 						container << hubiForm_switch(title: "Display as a Drop Line", name: "attribute_${sid}_${attribute}_drop_line", default: false, submit_on_change: true)
 
 						if(settings["attribute_${sid}_${attribute}_drop_line"]==true){
 							container << hubiForm_text_input("Value to drop the Line",
 									"attribute_${sid}_${attribute}_drop_value",
-									sZ, false)
+									s0, false)
 							hubiForm_container(container, 1)
 							input( type: "enum", name: "attribute_${sid}_${attribute}_drop_time", title: "Drop Line Time", defaultValue: "300000", options: timespanEnum2 )
 
@@ -6247,8 +6602,7 @@ private Map buildData_linegraph(){
 			String rid=ent.rid
 			String attribute=ent.a
 			String dn=ent.displayName
-			String typ=((String) ent.t).capitalize()
-
+			//String typ=((String) ent.t).capitalize()
 
 			resp[sid]= resp[sid] ?: [:]
 			List tEvents
@@ -6874,11 +7228,10 @@ def getSubscriptions_linegraph(){
 			String sid=ent.id
 			String attribute=ent.a
 			String dn=ent.displayName
-			String typ=((String) ent.t).capitalize()
+			//String typ=((String) ent.t).capitalize()
 
 			String attr=attribute
 
-			//if(typ=='Fuel') isPoll=true
 
 //	sensors.each{sensor->
 			if(!ids.contains(sid)) ids << sid // sensor.idAsLong
@@ -6934,7 +7287,7 @@ def getSubscriptions_linegraph(){
 	Map subscriptions=obj
 
 	String s= JsonOutput.toJson(subscriptions)
-	myDetail null,"getSubscriptions_linegraph: $s",iN2
+	if(isEric())myDetail null,"getSubscriptions_linegraph: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -6954,36 +7307,6 @@ def mainRangebar(){
 
 def deviceRangebar(){
 	deviceShare1(true,false)
-
-	/*
-	dynamicPage(name: "deviceSelectionPage", nextPage:"attributeConfigurationPage"){
-		List container
-
-		hubiForm_section("Directions", 1, "directions", sBLK){
-			container=[]
-			container << hubiForm_text("Choose Numeric Attribute Only")
-			hubiForm_container(container, 1)
-		}
-		gatherDataSources(true,true) */
-/*		List container
-		hubiForm_section("Device Selection", 1, sBLK, sBLK){
-			// TODO need to offer option for fuel stream, then no attribute
-			input (type: "capability.*", name: "sensors", title: "Choose Sensors", multiple: true, submitOnChange: true)
-			if(sensors){
-				List<String> all=(1..sensors.size()).collect{ "" + it.toString() }
-				hubiTools_validate_order(all)
-				sensors.eachWithIndex{sensor, idx ->
-					String sid=sensor.id.toString()
-					List<String> sensor_attributes=sensor.getSupportedAttributes().collect{ it.getName() }.unique().sort()
-					container=[]
-					container << hubiForm_sub_section("${sensor.displayName}")
-					hubiForm_container(container, 1)
-					input( type: "enum", name: "attributes_${sid}", title: "Attributes to graph", required: true, multiple: true, options: sensor_attributes, defaultValue: "1", submitOnChange: false )
-
-				}
-			}
-		}*/
-	//}
 }
 
 def attributeRangebar(){
@@ -6991,14 +7314,7 @@ def attributeRangebar(){
 	//state.count_=0
 	dynamicPage(name: "attributeConfigurationPage", nextPage:"graphSetupPage"){
 		List container
-		/*
-		hubiForm_section("Directions", 1, "directions", sBLK){
-			container=[]
-			container << hubiForm_text("Choose Numeric Attributes Only")
 
-			hubiForm_container(container, 1)
-
-		}*/
 		hubiForm_section("Graph Order", 1, "directions", sBLK){
 			hubiForm_list_reorder("graph_order", "background", "#3e4475")
 		}
@@ -7068,7 +7384,7 @@ def graphRangebar(){
 			container << hubiForm_color ("Graph Background", "graph_background", "#FFFFFF", false)
 			container << hubiForm_slider (title: "Graph Bar Width (1%-100%)", name: "graph_bar_percent", default: 90, min: 1, max: 100, units: "%")
 			container << hubiForm_text_input("Graph Max", "graph_max", "100", false)
-			container << hubiForm_text_input("Graph Min", "graph_min", sZ, false)
+			container << hubiForm_text_input("Graph Min", "graph_min", s0, false)
 
 			hubiForm_container(container, 1)
 		}
@@ -7118,7 +7434,7 @@ Map buildData_rangebar(){
 	then=new Date()
 
 	switch ((String)settings.graph_timespan){
-		case sZ: //"Live":
+		case s0: //"Live":
 			break
 		case s1: //"Hourly":
 			use (TimeCategory){
@@ -7679,9 +7995,8 @@ def getSubscriptions_rangebar(){
 			String sid=ent.id
 			String rid=ent.rid
 			String attribute=ent.a
-			String typ=((String) ent.t).capitalize()
+			//String typ=((String) ent.t).capitalize()
 
-			//if(typ=='Fuel') isPoll=true
 
 	//sensors.each{ sensor ->
 	//	String sid=sensor.id.toString()
@@ -7720,7 +8035,7 @@ def getSubscriptions_rangebar(){
 	]
 
 	String s= JsonOutput.toJson(subscriptions)
-	myDetail null,"getSubscriptions_rangebar: $s",iN2
+	if(isEric())myDetail null,"getSubscriptions_rangebar: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -8059,14 +8374,15 @@ def deviceWeather2(){
 				Map<String,Map<String,Map>> sensor_list=[:]
 				sensors.each{sensor->
 					def attributes_=sensor.getSupportedAttributes()
-					sensor_list."${sensor.id}"=[:]
+					String sid=gtSensorId(sensor)
+					sensor_list."${sid}"=[:]
 					attributes_.each{ attribute_->
 						String name=attribute_.getName()
 						if(sensor.currentState(name)){
 							String units=sensor.currentState(name).getUnit()
 							def value=sensor.currentState(name).getValue()
-							sensor_list."${sensor.id}"."${name}"=[ sensor_name: "${sensor.displayName}", value: value, unit: units, supported_unit: getUnits(units, value)]
-							final_attrs << [("${sensor.id}.${name}".toString()) : "${sensor.displayName} (${name}) ::: [${sensor.currentState(name).getValue()} ${sensor.currentState(name).getUnit() ? sensor.currentState(name).getUnit() : ""} ]"]
+							sensor_list."${sid}"."${name}"=[ sensor_name: "${sensor.displayName}", value: value, unit: units, supported_unit: getUnits(units, value)]
+							final_attrs << [("${sid}.${name}".toString()) : "${sensor.displayName} (${name}) ::: [${sensor.currentState(name).getValue()} ${sensor.currentState(name).getUnit() ? sensor.currentState(name).getUnit() : ""} ]"]
 						}
 					}
 				}
@@ -8130,7 +8446,7 @@ def deviceWeather2(){
 			state.device_list=measurement_list
 		} else{
 			//TODO clear out unused settings, sensors
-			app.removeSetting('sensors')
+			wremoveSetting('sensors')
 		}
 	}
 }
@@ -8616,7 +8932,7 @@ String getPreviewWindow(String var, String page){
 
 	asynchttpGet(verifyDeviceCallback, params)
 
-	if(!settings["$var"]){ app.removeSetting(var.toString()) }
+	if(!settings["$var"]){ wremoveSetting(var.toString()) }
 
 	String html
 	html="""
@@ -9178,7 +9494,7 @@ List<String> formatNumericData(Map tile, ival){
 	val=ival
 	if(val == null)
 		val=0
-	return [(sVAL),  applyDecimals(tile, applyConversion(tile, val))]
+	return [(sVAL), applyDecimals(tile, applyConversion(tile, val))]
 }
 
 static Float getMinHour(Date date){
@@ -9274,7 +9590,7 @@ def getSensorData1(String measurement){
 
 void buildWeatherData(){
 
-	log.debug "buildWeatherData"
+	if(isEric())debug "buildWeatherData",null
 	//def selections=settings["tile_settings"]
 
 	String tdata=parent.getOpenWeatherData() // TODO parent.getWData()
@@ -9435,7 +9751,7 @@ String defineHTML_Header(){
 	<link rel="stylesheet" href="/local/f06ea400-fe7a-49ef-8c50-6418f0a78dc6-WeatherTile2.css">
 	<script>
 		const localURL =		"${state.localEndpointURL}";
-		const secretEndpoint=  "${state.endpointSecret}";
+		const secretEndpoint=	"${state.endpointSecret}";
 		const latitude =		"${latitude}";
 		const longitude =		"${longitude}";
 		const tile_key =		"${tile_key}";
@@ -10259,7 +10575,7 @@ String defineUpdateDataHTML(String var){
 
 	//TODO
 	if(!settings["$var"]){
-		//if (!settings["$var"]){ app.removeSetting(var.toString()) }
+		//if (!settings["$var"]){ wremoveSetting(var.toString()) }
 		app.updateSetting("${var}", [value: sBLK, type: "string"])
 	}
 
@@ -10511,12 +10827,12 @@ def tileForecast(){
 						if(defs1 != sNONE){
 							input( type: "enum", name: ts1, title: "Displayed Units", required: false, multiple: false, options: measurement.unit, defaultValue: defs1, submitOnChange: false)
 						}
-						if(settings[ts1] == defs1) app.removeSetting(ts1)
+						if(settings[ts1] == defs1) wremoveSetting(ts1)
 					} else{
 						hubiForm_container(container, 1)
 						for( String ts1 in [ "_font", "_font_weight", "_color", "_color_transparent", "_display_units", "_decimal", "_units" ]){
 							String s= mvar+ts1
-							if(settings[s]!=null) app.removeSetting(s)
+							if(settings[s]!=null) wremoveSetting(s)
 
 						}
 					}
@@ -10563,7 +10879,7 @@ def mainForecast(){
 					def v=settings[s]
 					//log.warn "checking $s $v == ${defs[i]}"
 					if(v!=null && v == defs[i]){
-						app.removeSetting(s)
+						wremoveSetting(s)
 						//log.warn "removed $s"
 
 					}
@@ -10734,7 +11050,7 @@ String defineHTML_Tile_forecast(){
 
 		//Left Icon
 		if(item.icon != sNONE && item.icon_loc == "left"){
-			log.debug(item.icon)
+			//log.debug(item.icon)
 			html+="""<span class="mdi ${item.icon}">${item.icon_space}</span>"""
 		}
 
@@ -10798,13 +11114,13 @@ def getGraph_forecast(){
 def getData_forecast(){
 	def data= parent.getWData() // getPWSData()
 	//String tdata=parent.getOpenWeatherData() // TODO parent.getWData()
-	myDetail null,"getData_forecast: $data",iN2
+	if(isEric())myDetail null,"getData_forecast: $data",iN2
 	return render(contentType: "text/json", data: JsonOutput.toJson(data))
 }
 
 def getOptions_forecast(){
 	String s= JsonOutput.toJson(getTileOptions_forecast())
-	myDetail null,"getOptions_forecast: $s",iN2
+	if(isEric())myDetail null,"getOptions_forecast: $s",iN2
 	return render(contentType: "text/json", data: s)
 }
 
@@ -10902,7 +11218,7 @@ def deviceLongtermstorage(){
 							error "Error: ",null,iN2,e
 						}
 						String sensor_name=sensor.label != null ? sensor.label : sensor.name
-						input( type: "enum", name: "${sensor.id}_attributes", title: "${sensor_name} attribute(s) to Store",
+						input( type: "enum", name: "${gtSensorId(sensor)}_attributes", title: "${sensor_name} attribute(s) to Store",
 								required: true, multiple: true, options: final_attrs, submitOnChange: false)
 					}
 				}
@@ -10919,7 +11235,7 @@ def optionsLongtermstorage(){
 
 	dynamicPage(name: "attributeConfigurationPage"){
 		sensors?.each{ sensor->
-			String sid=sensor.id.toString()
+			String sid=gtSensorId(sensor)
 			List att=settings["${sid}_attributes"]
 			if(att){
 				att.each{ String attribute->
@@ -10927,11 +11243,11 @@ def optionsLongtermstorage(){
 
 					String sensor_name=sensor.label != null ? sensor.label : sensor.name
 					hubiForm_section("${sensor_name} (${attribute})", 1, sBLK, sBLK){
-						String s="${sid}_${attr}".toString()
 
 						storageLimitInput(sid, attr)
 
-						input( type: "enum", name: s+"_time_every", title: "Store Data Every X Hours",
+						String s="${sid}_${attr}".toString()
+						input( type: "enum", name: s+"_time_every", title: "Attempt to Store Data Every X Hours",
 								required: true, multiple: false, options: hoursEnum, submitOnChange: false, defaultValue: 1)
 
 						input( type: "time", name: s+"_time", title: "Time to Start Storing Data",
@@ -10942,7 +11258,7 @@ def optionsLongtermstorage(){
 						List container
 						container=[]
 
-						List<Map> events=getAllDataLimit(sensor, attribute, 10)
+						List<Map> events=getAllDataLimit(sensor, attribute, 60)
 						Integer num_events=events?.size()
 						Date now=new Date()
 						if(num_events > 2){
@@ -11022,7 +11338,7 @@ def graphLongtermstorage(){
 				Double totalS
 				totalS=0.0D
 				sensors?.each{ sensor->
-					String sid=sensor.id.toString()
+					String sid=gtSensorId(sensor)
 					List att=settings["${sid}_attributes"]
 					if(att){
 
@@ -11063,13 +11379,14 @@ def graphLongtermstorage(){
 
 
 
+// TODO not used?
 /** LTS only called by parent is LTS stream with quant enabled?*/
 Boolean isQuant(id, String attribute){
 	if(isStorage(id,attribute)){
 		def sensor=sensors?.find{it.id == id}
-		String s= "${sensor.id}_${attribute}_quantization"
+		String s= "${gtSensorId(sensor)}_${attribute}_quantization"
 		String ts1= s+"_function"
-		return !(settings[ts1]==sNONE || settings[s]==null || settings[s]==sZ)
+		return !(settings[ts1]==sNONE || settings[s]==null || settings[s]==s0)
 	}
 	return false
 }
@@ -11086,7 +11403,7 @@ Boolean isStorage(id, String attribute){
 /** LTS only, called by schedule to add data to file from device events in DB */
 void updateData_LTS(Map data){
 
-	myDetail null,"updateData $data",i1
+	if(isEric())myDetail null,"updateData $data",i1
 	Map theEvent
 	theEvent=[:]+data
 
@@ -11100,7 +11417,8 @@ void updateData_LTS(Map data){
 
 		while(true){
 			def sensor=sensors?.find{ it.id == theEvent.id }
-			appendFile_LTS(sensor, (String)theEvent.attribute)
+			if(sensor) appendFile_LTS(sensor, (String)theEvent.attribute)
+			else warn "Sensor not found ${theEvent}",null
 			theEvent=null
 
 			getTheLock(pNm,'update Data')
@@ -11127,19 +11445,19 @@ void updateData_LTS(Map data){
 			}
 		}
 	}
-	myDetail null,"update Data ${msgt}"
+	if(isEric())myDetail null,"update Data ${msgt}"
 }
 
 
 
-// TODO Scheduling functions
+// Scheduling functions
 
 void getCronString(sensor, String attribute){
 
-	myDetail null,"getCronString $sensor $attribute",i1
+	if(isEric())myDetail null,"getCronString $sensor $attribute",i1
 	String dateFormat="yyyy-MM-dd'T'HH:mm:ss.SSSZ"
 
-	String sid=sensor.id.toString()
+	String sid=gtSensorId(sensor)
 	String attr=attribute.replaceAll(sSPC, "_")
 	Date date=wtimeToday( (String)settings["${sid}_${attr}_time"], mTZ())
 	//Date date=Date.parse(dateFormat, (String)settings["${sid}_${attr}_time"])
@@ -11149,7 +11467,7 @@ void getCronString(sensor, String attribute){
 //log.warn "$date $repeat ${sensor.id}"
 	addToSched(hrs: date.getHours(), mins: date.getMinutes(), repeatHrs: repeat, sid: sid, attribute: attribute)
 	//schedule("0 ${date.getMinutes()} ${date.getHours()}/${repeat} ? * * *", updateData, [overwrite: false, data: [id: sid, attribute: attribute]])
-	myDetail null,"getCronString $sensor $attribute"
+	if(isEric())myDetail null,"getCronString $sensor $attribute"
 }
 
 private void clearSch(){
@@ -11162,7 +11480,7 @@ private void clearSch(){
 }
 
 private addToSched(Map data){
-	myDetail null,"addToSched",i1
+	if(isEric())myDetail null,"addToSched",i1
 
 	Integer hrs=data.hrs
 	Integer mins=data.mins
@@ -11185,9 +11503,10 @@ private addToSched(Map data){
 
 	releaseTheLock(pNm)
 
-	myDetail null,"addToSched"
+	if(isEric())myDetail null,"addToSched"
 }
 
+@CompileStatic
 Long pushAhead(Integer hrs, Integer mins, Integer repeatHrs){
 	Long firstOffset= hrs*3600000 + mins*60000
 	Long baset= getMidnightTime() + firstOffset
@@ -11212,7 +11531,7 @@ private void wrunInMillis(Long t,String m,Map d){ runInMillis(t,m,d) }
 private runNextSched(Map a=[:]){
 	String msg
 	msg="runNextSched"
-	myDetail null,msg,i1
+	if(isEric())myDetail null,msg,i1
 
 	String pNm=sAppId()
 	Boolean didSomething, didSched
@@ -11260,16 +11579,16 @@ private runNextSched(Map a=[:]){
 		wrunInMillis(t,"runNextSched", [:])
 		state.nextSched=nextSched
 
-		myDetail null,msg+" schedule in $t msecs",iN2
+		if(isEric())myDetail null,msg+" schedule in $t msecs",iN2
 	} else{
-		myDetail null,msg+" no nextsched $nextSched or bad choice $n",iN2
+		if(isEric())myDetail null,msg+" no nextsched $nextSched or bad choice $n",iN2
 
 	}
 
 	releaseTheLock(pNm)
 
 	if(!didSomething && !didSched) msg += " did nothing"
-	myDetail null,msg
+	if(isEric())myDetail null,msg
 }
 
 void checkSched(){
@@ -11278,9 +11597,9 @@ void checkSched(){
 	next= next ?: 0L
 	if(wnow() > next+900000L){ // 15 mins late
 		String msg='checkSched'
-		myDetail null,msg,i1
+		if(isEric())myDetail null,msg,i1
 		runNextSched()
-		myDetail null,msg
+		if(isEric())myDetail null,msg
 	}
 }
 
@@ -11291,10 +11610,11 @@ void checkSched(){
 // TODO quant functions
 
 /** returns internal format entry */
+@CompileStatic
 Map sum(List<Map> events, Integer decimals, Boolean round, Integer granularity){
 	Float sum
 	sum=new Float(0)
-	events.each{event->
+	events.each{ Map event->
 		sum += Float.valueOf(event.value.toString())
 	}
 
@@ -11304,24 +11624,27 @@ Map sum(List<Map> events, Integer decimals, Boolean round, Integer granularity){
 }
 
 /** returns internal format entry */
+@CompileStatic
 Map average(List<Map>events, Integer decimals, Boolean round, Integer granularity){
 	Float sum
 	sum=new Float(0)
-	events.each{event->
+	Integer sz=events.size()
+	events.each{ Map event->
 		sum += Float.valueOf(event.value.toString())
 	}
-	sum /= events.size()
+	sum /= sz
 
-	Map tdate=[date : events[events.size()-1].date, boundary: round, granularity: granularity]
+	Map tdate=[date : events[sz-1].date, boundary: round, granularity: granularity]
 	Date d=roundDate(tdate)
 	return [date: d, value: sum.round(decimals), t: d.getTime(), q:1]
 }
 
 /** returns internal format entry */
+@CompileStatic
 Map min(List<Map>events, Integer decimals, Boolean round, Integer granularity){
 	Float min
 	min=Float.valueOf(events[0].value.toString())
-	events.each{event->
+	events.each{ Map event->
 		Float v=Float.valueOf(event.value.toString())
 		min=v < min ? v : min
 	}
@@ -11332,10 +11655,11 @@ Map min(List<Map>events, Integer decimals, Boolean round, Integer granularity){
 }
 
 /** returns internal format entry */
+@CompileStatic
 Map max(List<Map>events, Integer decimals, Boolean round, Integer granularity){
 	Float max
 	max=Float.valueOf(events[0].value.toString())
-	events.each{event->
+	events.each{ Map event->
 		Float v=Float.valueOf(event.value.toString())
 		max=v > max ? v : max
 	}
@@ -11346,11 +11670,13 @@ Map max(List<Map>events, Integer decimals, Boolean round, Integer granularity){
 }
 
 /** returns internal format entry */
+@CompileStatic
 Map count(List<Map>events, Integer decimals, Boolean round, Integer granularity){
 
-	Map tdate=[date : events[events.size()-1].date, boundary: round, granularity: granularity]
+	Integer sz=events.size()
+	Map tdate=[date : events[sz-1].date, boundary: round, granularity: granularity]
 	Date d=roundDate(tdate)
-	return [date: d, value: events.size(), t: d.getTime(), q:1]
+	return [date: d, value: sz, t: d.getTime(), q:1]
 }
 
 /*
@@ -11396,10 +11722,10 @@ List quantizeData(List<Map> events, String mins, String funct, Integer dec, Bool
 	Integer minutes=mins as Integer
 	String s
 	s='quantizeData '
-	myDetail null,s+"$mins $funct $dec $boundary",i1
+	if(isEric())myDetail null,s+"$mins $funct $dec $boundary",i1
 
 	if(minutes==0 || funct==sNONE){
-		myDetail null,s+"no change"
+		if(isEric())myDetail null,s+"no change"
 		return events
 	}
 
@@ -11428,10 +11754,10 @@ List quantizeData(List<Map> events, String mins, String funct, Integer dec, Bool
 				sz=tempEvents.size()
 				newEntry=tempEvents[0]
 				if(sz == 1 && newEntry.q == 1){ // deals with count cannot be re-processed
-					if(eric()) trace "DID NOT REPROCESS "+s+"$funct $sz",null
+					if(isEric()) trace "DID NOT REPROCESS "+s+"$funct $sz",null
 					newEvents.add(newEntry)
 				} else if (sz > 0 ){
-					if(eric()) trace s+"$funct $sz",null
+					if(isEric()) trace s+"$funct $sz",null
 					newEntry="${funct}"(tempEvents, decimals, boundary, minutes)
 					newEvents.add(newEntry)
 				}
@@ -11449,10 +11775,10 @@ List quantizeData(List<Map> events, String mins, String funct, Integer dec, Bool
 		if(	(sz == 1 && tempEvents[0].q==1) ||
 			(sz>0 && toStore && funct in ['average','count']) ){ // don't screw up average, count -> leave last unprocessed
 
-			if(eric()) trace s+"$funct adding $sz $tempEvents ",null
+			if(isEric()) trace s+"$funct adding $sz $tempEvents ",null
 			newEvents=newEvents + tempEvents
 		} else if (sz != 0){
-			if(eric()) trace s+"LAST $funct $sz",null
+			if(isEric()) trace s+"LAST $funct $sz",null
 			newEntry="${funct}"(tempEvents, decimals, boundary, minutes)
 			newEvents.add(newEntry)
 		}
@@ -11460,74 +11786,24 @@ List quantizeData(List<Map> events, String mins, String funct, Integer dec, Bool
 	}catch(e){
 		error s,null,iN2,e
 	}
-	myDetail null,s
+	if(isEric())myDetail null,s
 	return newEvents
 }
 
-// TODO this should be on the graph data selection
+
 // shared
-def quantInput(String sid, String attribute){
-	myDetail null,"quantInput $sid $attribute",iN2
-	String s="${sid}_${attribute}".toString()
-
-	List<Map<String,String>> quantizationEnum=[
-			["0": "None"], ["5" : "5 Minutes"], ["10" : "10 Minutes"], ["20" : "20 Minutes"], ["30" : "30 Minutes"],
-			["60" : "1 Hour"], ["120" : "2 Hours"], ["180" : "3 Hours"], ["240" : "4 Hours"], ["360" : "6 Hours"],
-			["480" : "8 Hours"], ["1440" : "24 Hours"]]
-
-	List<Map<String,String>> quantizationFunctionEnum=[
-			[(sNONE): "No Quantization"], ["sum": "Sum Values"], ["average" : "Average Values"], ["count" : "Count Events"],
-			["min" : "Minimum Value"], ["max" : "Maximum Value"]]
-
-	paragraph('Return Quantize data when read? (None means no quantization)')
-	Boolean remove
-	remove=false
-
-	myDetail null,"quantInput $sid $attribute ${s+"_quantization"}  ${settings[s+"_quantization"]}",iN2
-	input( type: "enum", name: s+"_quantization", title: "Data Quantization Timeframe",
-			required: false, multiple: false, options: quantizationEnum, submitOnChange: true, defaultValue: sZ)
-
-	if(settings[s+"_quantization"] && !(((String)settings[s+"_quantization"]) in ['0']) ){
-		input( type: "enum", name: s+"_quantization_function", title: "Quantization Function",
-				required: false, multiple: false, options: quantizationFunctionEnum, submitOnChange: true, defaultValue: "average")
-
-		if(settings[s+'_quantization_function']  && settings[s+'_quantization_function'] != sNONE){
-			input( type: "bool", name: s+"_boundary", title: "Quantize Data to Hour/Day Boundary (true changes reading time)?",
-					required: false, multiple: false, submitOnChange: false, defaultValue: false)
-
-			input( type: "enum", name: s+"_quantization_decimals", title: "Quantization Decimals to Maintain",
-					required: false, multiple: false, options: [[0: "Zero"], [1: "One"], [2: "Two"], [3: "Three"], [4: "Four"]],
-					submitOnChange: true, defaultValue: s1)
-
-		} else{
-			remove=true
-		}
-	} else{
-		remove=true
-	}
-	if(remove){
-		myDetail null,"quantInput removing",iN2
-		app.removeSetting(s+"_quantization_function")
-		app.removeSetting(s+"_boundary")
-		app.removeSetting(s+"_quantization_decimals")
-		app.removeSetting(s+"_quantization")
-	}
-}
-
-// TODO this should be on the fuel mainpage
-// shared?
-def storageLimitInput(String sid, String attribute){
+def storageLimitInput(String sid, String attribute, String defl="7", String varn=sNL){
 
 	List<Map<String,String>> storageEnum=[
 			["1" : "1 Day"], ["2" : "2 Days"], ["3" : "3 Days"], ["4" : "4 Days"], ["5" : "5 Days"], ["6" : "6 Days"],
 			["7" : "1 Week"], ["14" : "2 Weeks"], ["21" : "3 Weeks"],
-			["30" : "1 Month"], ["60" : "2 Months"], ["90" : "3 Months"], ["120" : "4 Months"], ["150" : "5 Months"], ["180" : "6 Months"],
-			["210" : "7 Months"], ["240" : "8 Months"], ["270" : "9 Months"], ["300" : "10 Months"], ["330" : "11 Months"],
+			["30" : "1 Month"], ["60" : "2 Months"], ["91" : "3 Months"], ["121" : "4 Months"], ["152" : "5 Months"], ["182" : "6 Months"],
+			["213" : "7 Months"], ["243" : "8 Months"], ["274" : "9 Months"], ["304" : "10 Months"], ["334" : "11 Months"],
 			["365" : "1 Year"], ["730" : "2 Years"], ["1095" : "3 Years"], ["1461" : "4 Years"]]
 
-	String s="${sid}_${attribute}".toString()
-	input( type: "enum", name: s+"_storage", title: "Duration of Storage to Maintain",
-			required: false, multiple: false, options: storageEnum, submitOnChange: false, defaultValue: "7")
+	String s= varn ?: (sid+'_'+attribute+'_storage')
+	input( type: "enum", name: s, title: "Duration of Storage to Maintain",
+			required: false, multiple: false, options: storageEnum, submitOnChange: false, defaultValue: defl)
 }
 
 
@@ -11551,7 +11827,7 @@ static Long averageFrequency(List<Map> events){
 /** pull device events from HE DB */
 List<Map> getEvents(Map map){
 
-	myDetail null,"getEvents $map",i1
+	if(isEric())myDetail null,"getEvents $map",i1
 	try{
 		def sensor=map.sensor
 		String attribute=map.attribute
@@ -11574,12 +11850,12 @@ List<Map> getEvents(Map map){
 		respEvents=respEvents.flatten() as List<Map>
 		respEvents=respEvents.reverse() as List<Map>
 
-		myDetail null,"getEvents $map ${respEvents.size()}"
+		if(isEric())myDetail null,"getEvents $map ${respEvents.size()}"
 		return respEvents as List<Map>
 	}catch(e){
 		error "getEvents",null,iN2,e
 	}
-	myDetail null,"getEvents"
+	if(isEric())myDetail null,"getEvents"
 	return null
 }
 
@@ -11649,11 +11925,17 @@ Boolean fileExists(sensor, String attribute, String fname=sNL){
 
 @Field volatile static Map<String,String> readTmpFLD=[:]
 
-/** returns Map that has internal format in map.data */
+/**
+ * returns Map that has internal format in map.data
+ * @param sensor
+ * @param attribute
+ * @param fname
+ * @return Map  [ size: x, data: List<Map> [[date: date, value: v, t: t], ....] ]
+ */
 Map readFile(sensor, String attribute, String fname=sNL){
 
 	String s= "readFile $sensor $attribute $fname"
-	myDetail null,s,i1
+	if(isEric())myDetail null,s,i1
 
 	String filename_=fname ?: getFileName(sensor, attribute)
 	String pNm=filename_
@@ -11664,8 +11946,8 @@ Map readFile(sensor, String attribute, String fname=sNL){
 		if(sz> 4){
 			JsonSlurper jsonSlurper=new JsonSlurper()
 			List<Map> parse=convertToList((List<Map>)jsonSlurper.parseText(readTmpFLD[pNm]))
-			if(eric()) trace "readFile cache hit",null
-			myDetail null,s
+			if(isEric())trace "readFile cache hit",null
+			if(isEric())myDetail null,s
 			return [size: sz, data: parse ]
 		}
 	} catch(ignored){}
@@ -11716,7 +11998,7 @@ Map readFile(sensor, String attribute, String fname=sNL){
 			JsonSlurper jsonSlurper=new JsonSlurper()
 			parse=convertToList((List<Map>)jsonSlurper.parseText(readTmpFLD[pNm]))
 		} else sz=0
-		myDetail null,s+" $sz"
+		if(isEric())myDetail null,s+" $sz"
 		return [size: sz, data: parse ]
 	} catch (e){
 		String sensor_name=sensor.label != null ? sensor.label : sensor.name
@@ -11729,22 +12011,22 @@ Map readFile(sensor, String attribute, String fname=sNL){
 	}
 	readTmpFLD[pNm]=sNL
 	readTmpFLD= readTmpFLD
-	myDetail null,s
+	if(isEric())myDetail null,s
 	return [size: 0, data: [] ]
 }
 
-static String getFileName(sensor, String attribute){
+String getFileName(sensor, String attribute){
 	String attr=attribute.replaceAll(sSPC, "_")
-	return "webCoRE_LTS_${sensor.id}_${attr}.json"
+	return "webCoRE_LTS_${gtSensorId(sensor)}_${attr}.json"
 }
 
 /** receives internal format */
 List<Map> pruneData(List<Map> input_data, Integer days){
 
-	myDetail null,"pruneData ${input_data.size()} time: $days",i1
+	if(isEric())myDetail null,"pruneData ${input_data.size()} time: $days",i1
 
 	if(days == 0 || !input_data){
-		myDetail null,"pruneData nochange"
+		if(isEric())myDetail null,"pruneData nochange"
 		return input_data
 	}
 	List return_data=[]+input_data
@@ -11762,12 +12044,12 @@ List<Map> pruneData(List<Map> input_data, Integer days){
 		date=(Long)input_data[0].t
 
 		while (date && return_data && date < startDate){
-			log.debug "date: $date startDate: $startDate return_data[0]: ${return_data[0]}"
-			def a=return_data.remove(0)
+			if(isEric())debug "date: $date startDate: $startDate return_data[0]: ${return_data[0]}",null
+			Map a=return_data.remove(0)
 			date=return_data ? (Long)return_data[0].t : null
 		}
 	}
-	myDetail null,"pruneData ${return_data.size()} time: $days"
+	if(isEric())myDetail null,"pruneData ${return_data.size()} time: $days"
 	return return_data
 }
 
@@ -11787,7 +12069,7 @@ static List<Map> addData(List<Map> main, List<Map> append){
 List<Map> getFileData(sensor, String attribute, String fname=sNL){
 	String s
 	s= "getFileData $sensor $attribute $fname"
-	myDetail null,s,i1
+	if(isEric())myDetail null,s,i1
 
 	List<Map> parse_data
 	parse_data =[]
@@ -11798,22 +12080,28 @@ List<Map> getFileData(sensor, String attribute, String fname=sNL){
 		s += " ${parse_data.size()}"
 	}
 
-	myDetail null,s
+	if(isEric())myDetail null,s
 	return parse_data
 }
+
+
+
 
 /** shared  - old LTS only method */
 Map quantParams(sensorId, String attr){
 	String sid=sensorId.toString()
-	String quantization_minutes=settings["${sid}_${attr}_quantization"] ? (String)settings["${sid}_${attr}_quantization"] : sZ
-	String quantization_function=settings["${sid}_${attr}_quantization_function"] ?
-			(String)settings["${sid}_${attr}_quantization_function"] : "average"
-	Integer quantization_decimals=settings["${sid}_${attr}_quantization_decimals"] ?
-			(Integer)settings["${sid}_${attr}_quantization_decimals"] : 1
-	Boolean quantization_boundary=settings["${sid}_${attr}_boundary"] ?
-			(Boolean)settings["${sid}_${attr}_boundary"] : false
+	String s="${sid}_${attr}".toString()
+	def v
+	v= settings[s+"_quantization"]
+	String quantization_minutes= v!=null ? (String)v : s0
+	v= settings[s+"_quantization_function"]
+	String quantization_function= v ? (String)v : "average"
+	v= settings[s+"_quantization_decimals"]
+	Integer quantization_decimals= v!=null ? (Integer)v : i1
+	v= settings[s+"_boundary"]
+	Boolean quantization_boundary= v!=null ? (Boolean)v : false
 
-	if(quantization_minutes!=sZ && quantization_function!=sNONE)
+	if(quantization_minutes!=s0 && quantization_function!=sNONE)
 		return [qm: quantization_minutes, qf: quantization_function, qd: quantization_decimals, qb: quantization_boundary]
 	return null
 }
@@ -11860,7 +12148,7 @@ List<Map>getAllDataLimit(sensor,String attribute, Integer maxdays=7){
 
 /**
  * Shared- Sensor data only - used by graphs and LTS returns all sensor data,
- * trying to go back at least -days (may be more or less than this)
+ * trying to go back at least mindays (may be more or less than this)
  *
  * @param sensor
  * @param attribute
@@ -11871,9 +12159,9 @@ List<Map>getAllDataLimit(sensor,String attribute, Integer maxdays=7){
  */
 List<Map>getAllData(sensor,String attribute, Integer mindays=1461, Boolean add=true, Boolean updateFile=false){
 
-	String sid=sensor.id.toString()
+	String sid=gtSensorId(sensor)
 
-	myDetail null,"getAllData $sensor $attribute $sid $mindays $add $updateFile",i1
+	if(isEric())myDetail null,"getAllData $sensor $attribute $sid $mindays $add $updateFile",i1
 
 	List<Map> parse_data
 	parse_data=[]
@@ -11919,7 +12207,7 @@ List<Map>getAllData(sensor,String attribute, Integer mindays=1461, Boolean add=t
 		all_data= convertToList([[v:state_,t:wnow()]])
 	}
 
-	myDetail null,"getAllData ${all_data.size()}"
+	if(isEric())myDetail null,"getAllData ${all_data.size()}"
 	return all_data
 }
 
@@ -11932,11 +12220,11 @@ List<Map>getAllData(sensor,String attribute, Integer mindays=1461, Boolean add=t
  * @param fname
  */
 void appendFile_LTS(sensor, String attribute, String fname=sNL){
-	myDetail null,"appendFile_LTS $sensor $attribute",i1
+	if(isEric())myDetail null,"appendFile_LTS $sensor $attribute",i1
 
 	String attr=attribute.replaceAll(sSPC, "_")
 
-	String sid=sensor.id.toString()
+	String sid=gtSensorId(sensor)
 
 	Integer storage=(String)settings["${sid}_${attr}_storage"] as Integer
 	List<Map> write_data
@@ -11963,10 +12251,15 @@ void appendFile_LTS(sensor, String attribute, String fname=sNL){
 		error "Append File ${sensor_name} (${attribute}) ($filename_} :: Exception: ",null,iN2,e
 	}
 
-	myDetail null,"appendFile_LTS"
+	if(isEric())myDetail null,"appendFile_LTS"
 }
 
-/** Shared Returns internal format from from various file formats */
+/**
+ * Shared Returns internal format from from various file formats
+ * @param json
+ * @return Internal data format as List<Map>  [[date: date, value: v, t: t], ....]
+ */
+@CompileStatic
 static List<Map> convertToList(List<Map>json){
 
 	List<Map> return_data=[]
@@ -11981,7 +12274,7 @@ static List<Map> convertToList(List<Map>json){
 			Date date=Date.parse(dateFormat, (String)data.date)
 			t= date.getTime()
 		} else if(data.i){
-			t= data.i
+			t= (Long)data.i
 		}
 		Date date=new Date(t)
 		v= data.containsKey('v') ? data.v : data.value
@@ -11995,6 +12288,7 @@ static List<Map> convertToList(List<Map>json){
 }
 
 /** shared (LTS & fuel) only method - convert different formats to file format */
+@CompileStatic
 static List<Map> rtnFileData(List<Map> events){
 	List<Map> file_data=[]
 	def v
@@ -12016,7 +12310,7 @@ static List<Map> rtnFileData(List<Map> events){
 Boolean writeFile(sensor, String attribute, List<Map> events, String fname=sNL){
 
 	String s= "writeFile $sensor $attribute $fname"
-	myDetail null,s,i1
+	if(isEric())myDetail null,s,i1
 
 	if(login()){
 
@@ -12040,8 +12334,8 @@ Boolean writeFile(sensor, String attribute, List<Map> events, String fname=sNL){
 			myDetail null,"last char NEW DATA is ${contents[sz1-1]}",iN2
 		} */
 		if(sz> 4 && sz==contents.size() && contents==readTmpFLD[pNm]){
-			if(eric()) trace "writeFile no changes",null
-			myDetail null,s+" TRUE"
+			if(isEric()) trace "writeFile no changes",null
+			if(isEric())myDetail null,s+" TRUE"
 			return true
 		}
 
@@ -12083,7 +12377,7 @@ Content-Disposition: form-data; name="folder"
 			}
 			readTmpFLD= readTmpFLD
 			if(res){
-				myDetail null,s+" TRUE"
+				if(isEric())myDetail null,s+" TRUE"
 				return true
 			}
 		} catch (e){
@@ -12093,7 +12387,7 @@ Content-Disposition: form-data; name="folder"
 		readTmpFLD[pNm]=sNL
 		readTmpFLD= readTmpFLD
 	}
-	myDetail null,s+" FALSE"
+	if(isEric())myDetail null,s+" FALSE"
 	return false
 }
 
@@ -12111,9 +12405,12 @@ Map getCurrentDailyStorage(sensor, String attribute, String fname=sNL){
 		Integer dsz=data.size()
 		Date first
 		Date then
-		if(dsz){
-			first=new Date((Long)data[0].t)
-			then=new Date((Long)data[dsz-1].t)
+		if(dsz) {
+			first = new Date((Long) data[0].t)
+			then = new Date((Long) data[dsz-1].t)
+		}else{
+			first=null
+			then=null
 		}
 
 		return [num_events: dsz, first: first, last: then, size: size]
@@ -12122,7 +12419,7 @@ Map getCurrentDailyStorage(sensor, String attribute, String fname=sNL){
 
 		try{
 			Integer storage
-			storage=(String)settings["${sensor.id}_${attribute}_storage"] as Integer
+			storage=(String)settings["${gtSensorId(sensor)}_${attribute}_storage"] as Integer
 			storage=storage ?: 30
 			List<Map> respEvents=getEvents(sensor: sensor, attribute: attribute, days: storage)
 
@@ -12231,8 +12528,8 @@ def mainFuelstream(){
 		section('Storage Limits'){
 			input "maxSize", "number", title: "Max size of this fuelStream data in KB", defaultValue: 95
 // Maxsize or n days (ie both limits hold)
-			input "storage_days", "number", title: "Max # of days of data in this fuelStream", defaultValue: 1461
-			//storageLimitInput(sid, attr)
+			//input "storage_days", "number", title: "Max # of days of data in this fuelStream", defaultValue: 1461
+			storageLimitInput(sNL, sNL,"1461",'storage_days')
 		}
 
 		List<Map> a
@@ -12310,7 +12607,7 @@ public List getFuelStreams(Boolean includeLTS){
 	if(includeLTS && (String)settings.graphType=='longtermstorage'){
 		if(sensors){
 			sensors.each{ sensor->
-				String sid=sensor.id.toString()
+				String sid=gtSensorId(sensor)
 				List<String> att=settings["${sid}_attributes"]
 				if(att){
 					att.each{ String attribute->
@@ -12326,13 +12623,13 @@ public List getFuelStreams(Boolean includeLTS){
 		Map fs=(Map)state.fuelStream
 		if(fs) res << fs
 	}
-	myDetail null,"getFuelStreams $includeLTS $res",iN2
+	if(isEric())myDetail null,"getFuelStreams $includeLTS $res",iN2
 	res
 }
 
 /** fuel stream or LTS only - called by main webCoRE for webCoRE console to get data in stream -> returns webCoRE IDE format */
 public List<Map> listFuelStreamData(String streamid){
-	myDetail null,"listFuelStreamData $streamid",iN2
+	if(isEric())myDetail null,"listFuelStreamData $streamid",iN2
 
 	// [[ d: itemvalue, i: item.t]]
 	List<Map> ideData=[]
@@ -12346,7 +12643,7 @@ public List<Map> listFuelStreamData(String streamid){
 		res=null
 		if(sensors && id && attribute){
 			for(sensor in sensors) {
-				if(id == sensor.id){
+				if(id == gtSensorId(sensor)){
 					res= getAllData(sensor,attribute,1461,true,false)
 					break
 				}
@@ -12373,7 +12670,7 @@ public List<Map> listFuelStreamData(String streamid){
 /** fuel stream only - called by pistons to read entire stream, returns internal format */
 public List<Map> readFuelStream(Map req){
 	if(!req)return null
-	myDetail null,"readFuelStream $req",iN2
+	if(isEric())myDetail null,"readFuelStream $req",iN2
 	return getFuelStreamData(req)
 }
 
@@ -12381,7 +12678,7 @@ public List<Map> readFuelStream(Map req){
 public void writeFuelStream(Map req){ // overwrite
 	if(!req)return
 	if(req.d instanceof List){
-		myDetail null,"writeFuelStream $req",iN2
+		if(isEric())myDetail null,"writeFuelStream $req",iN2
 		storeFuelUpdate((List)req.d,req,true)
 	}
 }
@@ -12389,7 +12686,7 @@ public void writeFuelStream(Map req){ // overwrite
 /** fuel stream only - called by pistons to clear fuel stream */
 public void clearFuelStream(Map req){
 	if(!req)return
-	myDetail null,"clearFuelStream $req",iN2
+	if(isEric())myDetail null,"clearFuelStream $req",iN2
 	storeFuelUpdate([],req,true)
 }
 
@@ -12401,7 +12698,7 @@ public void updateFuelStream(Map req){ // append
 //	def data=req.d
 //	def source=req.s
 
-	myDetail null,"updateFuelStream $req",iN2
+	if(isEric())myDetail null,"updateFuelStream $req",iN2
 	if(!req)return
 	List<Map> stream= getFuelStreamData(req)
 	// [[ date: Date, value: v, t: long]]
@@ -12419,7 +12716,7 @@ public void updateFuelStream(Map req){ // append
 /** fuel stream only - return file name for this fuel stream */
 String fuelName(){
 	String s= getFSFileName('f'+app.id.toString(),fuelNattr())
-	myDetail null,"fuelName $s",iN2
+	if(isEric())myDetail null,"fuelName $s",iN2
 	return s
 }
 
@@ -12427,7 +12724,7 @@ String fuelName(){
 static String getFSFileName(String sensorId, String attribute){
 	String attr=attribute.replaceAll(sSPC, "_")
 	String s= "WebCoRE_Fuel_${sensorId}_${attr}.json"
-	myDetail null,"getFSFileName $s",iN2
+	if(isEric())myDetail null,"getFSFileName $s",iN2
 	return s
 }
 
@@ -12441,22 +12738,26 @@ String fuelNattr(){
 	Integer i=(Integer)fs.i
 	String d='_'
 	String attribute=c+d+n+d+i.toString()
-	myDetail null,"fuelNattr $attribute",iN2
+	if(isEric())myDetail null,"fuelNattr $attribute",iN2
 	return attribute.replaceAll(sSPC, d)
 }
 
 /** fuel stream only - returns internal format read from fuel stream based on storage settings */
 public List<Map> getFuelStreamData(Map req,Boolean init=true){
-	myDetail null,"getFuelStreamData $req $init",iN2
+	if(isEric())myDetail null,"getFuelStreamData $req $init",iN2
 	// [[ date: Date, value, v, t: long]]
 	if(!(Boolean)state.useFiles){
 		return getFuelStreamDBData(init)
 	} else return getFuelStreamFData()
 }
 
-/** fuel stream only - returns internal format */
+/**
+ * fuel stream only - returns internal format
+ * @param init
+ * @return Internal data format as List<Map>  [[date: date, value: v, t: t], ....]
+ */
 List<Map> getFuelStreamDBData(Boolean init=true){
-	myDetail null,"getFuelStreamDBData $init",iN2
+	if(isEric())myDetail null,"getFuelStreamDBData $init",iN2
 	// [[ date: Date, value, v, t: long]]
 	if(!state.fuelStreamData){
 		if(init) state.fuelStreamData=[]
@@ -12468,7 +12769,7 @@ List<Map> getFuelStreamDBData(Boolean init=true){
 /** fuel stream only - returns internal format */
 List<Map> getFuelStreamFData(){
 	// [[ date: Date, value: v, t: long]]
-	myDetail null,"getFuelStreamFData",iN2
+	if(isEric())myDetail null,"getFuelStreamFData",iN2
 	if((Boolean)state.useFiles){
 		String attribute=fuelNattr()
 		def sensor=app
@@ -12496,23 +12797,24 @@ List<Map> cleanFuelStream(List<Map> istream){
 	msg=sBLK
 	Integer osz=stream.size()
 
+	//String s="${sid}_${attribute}".toString()   s+'_storage'
 	Integer storage=(gtSetting("storage_days") ?: 1461) as Integer
 
-	debug "cleanFuelStream, size: $osz, days: $storage",null
+	if(isEric())debug "cleanFuelStream, size: $osz, days: $storage",null
 
 	List<Map> parse_data=pruneData(stream, storage)
 	stream=parse_data
 
 	Integer nsz
 	nsz=stream.size()
-	debug "cleanFuelStream first trim, size: $nsz, days: $storage",null
+	if(isEric())debug "cleanFuelStream first trim, size: $nsz, days: $storage",null
 
 	List<Map> tstream
 	tstream= rtnFileData(stream) // need to work with as stored size
 	Double storageSize= tstream.toString().size() / 1024.0D
 	Integer max=(gtSetting('maxSize') ?: 95) as Integer
 
-	debug "cleanFuelStream prep, storageSize: $storageSize, max: $max",null
+	if(isEric())debug "cleanFuelStream prep, storageSize: $storageSize, max: $max",null
 	Boolean a
 	if(storageSize.toInteger() > max){
 		Integer points=stream.size()
@@ -12529,8 +12831,8 @@ List<Map> cleanFuelStream(List<Map> istream){
 
 	nsz=stream.size()
 	if(osz!=nsz){
-		debug "Trimmed fuel stream, $osz, $nsz",null
-		if(msg) debug msg,null
+		if(isEric())debug "Trimmed fuel stream, $osz, $nsz",null
+		if(msg && isDbg()) debug msg,null
 	}
 	return stream
 }
@@ -12539,7 +12841,7 @@ List<Map> cleanFuelStream(List<Map> istream){
 
 /** fuel stream only - receives internal format, stores as file format based on fuel stream storage settings */
 void storeFuelUpdate(List<Map>istream,Map req,Boolean frc=false){
-	myDetail null,"storeFuelUpdate $istream $req $frc",iN2
+	if(isEric())myDetail null,"storeFuelUpdate $istream $req $frc",iN2
 	Boolean res
 	List<Map>stream
 	stream=cleanFuelStream(istream)
@@ -12554,7 +12856,7 @@ void storeFuelUpdate(List<Map>istream,Map req,Boolean frc=false){
 
 /** fuel stream only - receives file format, stores in HE DB */
 Boolean storeFuelDBData(List<Map>stream){
-	myDetail null,"storeFuelDBData $stream",iN2
+	if(isEric())myDetail null,"storeFuelDBData $stream",iN2
 	if(!(Boolean)state.useFiles){
 		state.fuelStreamData=stream
 		return true
@@ -12564,7 +12866,7 @@ Boolean storeFuelDBData(List<Map>stream){
 
 /** fuel stream only - receives file format, stores in file */
 Boolean storeFuelFileData(List<Map>istream,Boolean frc){
-	myDetail null,"storeFuelFileData $istream $frc",iN2
+	if(isEric())myDetail null,"storeFuelFileData $istream $frc",iN2
 	if((Boolean)gtSt('useFiles')){
 		String attribute=fuelNattr()
 		def sensor=app
@@ -12610,6 +12912,7 @@ static String getFormattedDate(Date date=new Date()){
 
 // TODO: Keep updated0
 
+@CompileStatic
 static String cleanHtml(String htm){
 	return htm.replace('\t', sBLK).replace('\n', sBLK).replace('  ', sBLK).replaceAll('> ','>').replaceAll(' >','>')
 	//return htm.replace('\t', sSPC).replace('\n', sSPC).replace('    ', sSPC).replace('   ', sSPC).replace('  ',sSPC).replaceAll('> ','>').replaceAll(' >','>')
@@ -13343,7 +13646,7 @@ def hubiForm_list_reorder(String var, String var_color, String solid_background=
 	if(!result_){
 		settings["${var}"]=null
 		nres=sNL
-		app.removeSetting(var.toString())
+		wremoveSetting(var.toString())
 	}
 
 	//build list order
@@ -13448,25 +13751,25 @@ void hubiTool_create_tile(){
 	def childDevice
 	childDevice=getChildDevice("webCoRE_${app.id}")
 	if(!childDevice){
-		log.debug("Creating Device $dname")
+		if(isDbg()) debug "Creating Device $dname",null
 		childDevice=addChildDevice("ady624", "webCoRE Graphs Tile Device", "webCoRE_${app.id}", null,[completedSetup: true, label: dname])
-		log.info "Created HTTP Switch [${childDevice}]"
+		if(childDevice) info "Created HTTP Switch [${childDevice}]",null
 
 	}
 	else{
 
 		childDevice.label=dname
-		log.info "Device Label Updated to [${dname}]"
+		if(isDbg())debug "Device Label Updated to [${dname}]",null
 	}
 
 	//Send the html
 	String s= "${state.localEndpointURL}graph/?access_token=${state.endpointSecret}"
 	childDevice.setGraph(s)
-	log.info "Sent setGraph: ${s}"
+	if(isDbg())debug "Sent setGraph: ${s}",null
 }
 
 void hubiTools_validate_order(List<String> all){
-	myDetail null,"_validate_order $all",i1
+	if(isEric())myDetail null,"_validate_order $all",i1
 
 	List order
 	order=[]
@@ -13488,10 +13791,10 @@ void hubiTools_validate_order(List<String> all){
 			order << settings[varn]
 		}
 	}
-	myDetail null,"_validate_order $order",iN2
+	if(isEric())myDetail null,"_validate_order $order",iN2
 
 	//if we are initialized and need to check
-	myDetail null,"_validate_order ${state.lastOrder}",iN2
+	if(isEric())myDetail null,"_validate_order ${state.lastOrder}",iN2
 
 	if(state.lastOrder && ((List)state.lastOrder)[0]){
 		List remains=all.findAll{ String it -> !order.contains(it) }
@@ -13529,7 +13832,7 @@ void hubiTools_validate_order(List<String> all){
 			order << settings["displayOrder_${sid}"]
 		}
 	}
-	myDetail null,"_validate_order $order"
+	if(isEric())myDetail null,"_validate_order $order"
 	state.lastOrder=order
 }
 
@@ -13610,19 +13913,19 @@ String hubiTools_get_name_from_id(id){ //, sensors){
 }
 
 List<Map> hubiTools_get_order(String order){
-	myDetail(null,"_get_order ${order}",i1)
+	if(isEric())myDetail(null,"_get_order ${order}",i1)
 	List<String> split_=order.replace('"', '').replace('[', '').replace(']', '').replace("attribute_", sBLK).split(',')
 	List<Map> list_=[]
 	split_.each{ String device->
 		List<String> sub_=device.split('_')
 		list_ << [id: sub_[0], attribute:sub_[1]]
 	}
-	myDetail null,"_get_order $order $list_"
+	if(isEric())myDetail null,"_get_order $order $list_"
 	return list_
 }
 
 Boolean hubiTools_check_list(List<Map> dataSources, List<Map> list_){
-	myDetail null,"_check_list $dataSources $list_",i1
+	if(isEric())myDetail null,"_check_list $dataSources $list_",i1
 
 	Boolean result
 	result=true
@@ -13658,7 +13961,7 @@ Boolean hubiTools_check_list(List<Map> dataSources, List<Map> list_){
 	if(list_.size() == count_){
 		count_result=true
 	}
-	myDetail null,"_check_list $result $count_result"
+	if(isEric())myDetail null,"_check_list $result $count_result"
 	return (result && count_result)
 }
 
@@ -13694,8 +13997,9 @@ Boolean hubiTools_check_list(List<Map> dataSources, List<Map> list_){
 @Field static final String sSWITCH='switch'
 
 
-@Field static final String sZ='0'
+@Field static final String s0='0'
 @Field static final String s1='1'
+@Field static final String s2='2'
 @Field static final Integer iZ=0
 @Field static final Integer i1=1
 @Field static final Integer i2=2
@@ -13730,12 +14034,20 @@ static String formatTime(Date t){
 
 /** DEBUG FUNCTIONS		*/
 
+private Boolean isDbg(){ (Integer)state[sLOGNG]>i2 }
+private Boolean isTrc(){ (Integer)state[sLOGNG]>i1 }
+private Boolean isInf(){ (Integer)state[sLOGNG]>iZ }
+
 private void myDetail(Map r9,String msg,Integer shift=iN1){ Map a=log(msg,r9,shift,null,sWARN,true,false) }
 
 @Field static final String sTMSTMP='timestamp'
 @Field static final String sDBGLVL='debugLevel'
+@Field static final String sLOGNG='logging'
 @Field static final String sLOGS='logs'
 @Field static final String sTIMER='timer'
+
+@Field static final String sTEXT='text'
+@Field static final String sENUM='enum'
 
 @Field static final String sA='a'
 @Field static final String sB='b'
@@ -13821,7 +14133,7 @@ private Map log(message,Map r9,Integer shift=iN2,Exception err=null,String cmd=s
 	}
 	String myPad=sSPC
 	if(hasErr) myMsg+="$merr".toString()
-	if((mcmd in [sERROR,sWARN]) || hasErr || force || !svLog || !r9 || r9Is(r9,'logsToHE') || isEric(r9))log."$mcmd" myPad+prefix+sSPC+myMsg
+	if((mcmd in [sERROR,sWARN]) || hasErr || force || !svLog || !r9 || r9Is(r9,'logsToHE') || isEric())log."$mcmd" myPad+prefix+sSPC+myMsg
 	//}else log."$mcmd" myMsg
 	return [:]
 }
@@ -14074,12 +14386,12 @@ Boolean getTheLockW(String qname,String meth=sNL,Boolean longWait=false){
 			lockTimesVFLD[semaSNum]=t
 			lockTimesVFLD=lockTimesVFLD
 		}
-		if(eric())warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderVFLD[semaSNum]}",null
+		if(isEric())warn "waiting for ${qname} ${semaSNum} lock access, $meth, long: $longWait, holder: ${(String)lockHolderVFLD[semaSNum]}",null
 		wpauseExecution(waitT)
 		wait=true
 		if(elapseT(t)>30000L){
 			releaseTheLock(qname)
-			if(eric())warn "overriding lock $meth",null
+			if(isEric())warn "overriding lock $meth",null
 		}
 	}
 	lockTimesVFLD[semaSNum]=wnow()
@@ -14214,6 +14526,7 @@ private Map queueSemaphore(Map event){
 private Long wnow(){ return (Long)now() }
 private String sAppId(){ return ((Long)app.id).toString() }
 private void wpauseExecution(Long t){ pauseExecution(t) }
+private void wremoveSetting(String s){ app.removeSetting(s) }
 
 private gtSetting(String nm){ return settings."${nm}" }
 private gtSt(String nm){ return state."${nm}" }
@@ -14227,6 +14540,3 @@ private void assignAS(String nm,v){ atomicState."${nm}"=v }
 private Map gtState(){ return state }
 
 private gtLocation(){ return location }
-
-@CompileStatic
-static Boolean eric(){ return true }
