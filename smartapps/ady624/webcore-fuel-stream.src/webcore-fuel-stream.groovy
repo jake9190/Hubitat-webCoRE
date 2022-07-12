@@ -3663,11 +3663,11 @@ Map getSubscriptions_timeline(){
  */
 
 def mainTimegraph(){
-	mainShare1('Choose Numeric Attributes only','graph_timespan_ms')
+	mainShare1('Choose Numeric Attributes only','graph_timespan')
 }
 
 def deviceTimegraph(){
-//	wremoveSetting('graph_timespan_ms')
+//	wremoveSetting('graph_timespan')
 	deviceShare1()
 }
 
@@ -3692,7 +3692,7 @@ def graphTimegraph(){
 
 		hubiForm_section("General Options", 1, sBLK, sBLK){
 
-			//input( type: "enum", name: "graph_timespan_ms", title: "<b>Select Time span to Graph</b>", multiple: false, required: true, options: timespanEnum, defaultValue: "43200000")
+			//input( type: "enum", name: "graph_timespan, title: "<b>Select Time span to Graph</b>", multiple: false, required: true, options: timespanEnum, defaultValue: "43200000")
 			input( type: "enum", name: "graph_point_span", title: "<b>Integration Time</b><br><small>(The amount of time each data point covers)</small>",
 					multiple: false, required: true, options: timespanEnum2, defaultValue: "300000", submitOnChange: true)
 
@@ -3737,8 +3737,8 @@ def graphTimegraph(){
 						(Double)(graph_timespan_minutes)*60000)
 			}
 
-			app.updateSetting("graph_timespan_ms", [type: "number", value: msecs])
-			settings["graph_timespan_ms"]=msecs
+			app.updateSetting("graph_timespan", [type: "number", value: msecs])
+			settings["graph_timespan"]=msecs
 
 			Integer points=graph_point_span ? (msecs/Double.parseDouble((String)graph_point_span)).toInteger() : 280
 
@@ -4316,7 +4316,7 @@ String getData_timegraph(){
 	then=new Date()
 
 	use (TimeCategory){
-		Double val=Double.parseDouble("${graph_timespan_ms}")/1000.0
+		Double val=Double.parseDouble("${graph_timespan}")/1000.0
 		then -= (val.toInteger()).seconds
 		graph_time=then.getTime()
 	}
@@ -4358,7 +4358,7 @@ Map getOptions_timegraph(){
 
 	Map options=[
 			"graphReduction": graph_max_points,
-			"graphTimespan": Long.parseLong("${graph_timespan_ms}"),
+			"graphTimespan": Long.parseLong("${graph_timespan}"),
 			"graphUpdateRate": Integer.parseInt(graph_update_rate),
 			"graphPointSpan": Long.parseLong(graph_point_span),
 			"graphRefreshRate" : Integer.parseInt(graph_refresh_rate),
