@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update July 04, 2022 for Hubitat
+ * Last update July 08, 2022 for Hubitat
  */
 
 //file:noinspection unused
@@ -26,6 +26,8 @@
 //file:noinspection GroovySillyAssignment
 //file:noinspection GrDeprecatedAPIUsage
 //file:noinspection GroovyPointlessBoolean
+//file:noinspection SpellCheckingInspection
+//file:noinspection GrMethodMayBeStatic
 
 @Field static final String sVER='v0.3.114.20220203'
 @Field static final String sHVER='v0.3.114.20220428_HE'
@@ -96,13 +98,14 @@ preferences{
 	page((sNM): "pageUberCleanups")
 	page((sNM): "pageDumpR")
 	page((sNM): "pageRemove")
+	page((sNM): "graphDuplicationPage")
 	page((sNM):sPDPC)
 }
 
 @CompileStatic
-private static Boolean eric(){ return false }
+private static Boolean eric(){ return true }
 @CompileStatic
-private static Boolean graphsOn(){ return false }
+private static Boolean graphsOn(){ return true }
 
 //#include ady624.webCoRElib1
 
@@ -229,6 +232,7 @@ def pageMain(){
 			section((sTIT):"Graphs"){
 				href "pageGraphs", (sTIT): imgTitle("settings.png", inputTitleStr("Graphs")), (sREQ): false, state: "complete"
 			}
+			clearDuplicationItems()
 		}
 	}
 }
@@ -549,11 +553,79 @@ def pageSettings(){
 private pageGraphs(){
 	dynamicPage((sNM): "pageGraphs", uninstall: false, install: false){
 		section(){
+			List graphApps = getGraphApps()
 			app([(sTIT): 'List of streams and graphs', multiple: true, install: true, uninstall: false], 'fuelStreams', 'ady624', handleFuelS())
+			if(graphApps?.size()) {
+				input "graphDuplicateSelect", sENUM, title: "Duplicate Existing Graph", description: 'Tap to select...', options: graphApps.collectEntries { [(it?.id):it?.getLabel()] }, required: false, multiple: false, submitOnChange: true
+				if(settings.graphDuplicateSelect) {
+					href "graphDuplicationPage", title: "Create Duplicate Graph?", description: 'Tap to proceed...'
+				}
+			}
 		}
 	}
-
 }
+
+def graphDuplicationPage() {
+	return dynamicPage(name: "graphDuplicationPage", nextPage: "pageGraphs", uninstall: false, install: false) {
+		section() {
+			if((Boolean)state.graphDuplicated) {
+				paragraph "Graph already duplicated..." + "Return to graph page and select it"
+			} else {
+				def grf = getGraphApps()?.find { it?.id?.toString() == settings.graphDuplicateSelect?.toString() }
+				if(grf) {
+					Map grfData = grf.getSettingsAndStateMap() ?: [:]
+					String grfId = (String)grf.getId().toString()
+					if(grfData.settings && grfData.state) {
+						String myId=app.getId()
+						if(!childDupMapFLD[myId]) childDupMapFLD[myId] = [:]
+						if(!childDupMapFLD[myId].graphs) childDupMapFLD[myId].graphs = [:]
+						childDupMapFLD[myId].graphs[grfId] = grfData
+						log.debug "Dup Data: ${childDupMapFLD[myId].graphs[grfId]}"
+					}
+					grfData.settings["duplicateFlag"] = [type: sBOOL, value: true]
+					// grfData?.settings["actionPause"] = [type: sBOOL, value: true]
+					grfData.settings["duplicateSrcId"] = [type: "text", value: grfId]
+					def a=addChildApp("ady624", handleFuelS(), "${grfData.label} (Dup)", [settings: grfData.settings])
+					paragraph "Graph Duplicated..." + "<br>Return to Graph Page and look for the App with '(Dup)' in the name..."
+					state.graphDuplicated = true
+				} else { paragraph "Graph not Found" }
+			}
+		}
+	}
+}
+
+@Field volatile static Map<String, Map> childDupMapFLD        = [:]
+
+public Map getChildDupeData(String type, String childId) {
+	String myId=app.getId()
+	return (childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[myId][type][childId]) ? (Map)childDupMapFLD[myId][type][childId] : [:]
+}
+
+public void clearDuplicationItems() {
+	state.graphDuplicated = false
+	if(settings.graphDuplicateSelect) app.removeSetting("graphDuplicateSelect")
+	state.remove('graphDuplicated')
+}
+
+public void childAppDuplicationFinished(String type, String childId) {
+	log.trace "childAppDuplicationFinished($type, $childId)"
+//    Map data = [:]
+	String myId=app.getId()
+	if(childDupMapFLD[myId] && childDupMapFLD[myId][type] && childDupMapFLD[myId][type][childId]) {
+		childDupMapFLD[myId][type].remove(childId)
+	}
+	clearDuplicationItems()
+}
+
+
+
+List getGraphApps() {
+	return ((List)getAllChildApps())?.findAll {
+		String t= it?.gtSetting('graphType')
+		t && it?.name == handleFuelS() && !(t in ['longtermstorage'])
+	}
+}
+
 
 private pageFuelStreams(){
 	dynamicPage((sNM): "pageFuelStreams", uninstall: false, install: false){
@@ -2295,6 +2367,7 @@ private api_intf_fuelstreams_list(){
 
 private api_intf_fuelstreams_get(){
 	List result
+	result=[]
 	String id=(String)params.id
 	debug "Dashboard: Request received to get fuelstream data $id"
 
@@ -4348,7 +4421,7 @@ private static Map<String,Map> virtualCommands(){
 
 				// quantStream(istream, dstream, quantparams)
 				// graphStream(istream, graphparams, quantparams)
-		]
+		] as Map<String,Map>
 	}
 	return a
 }

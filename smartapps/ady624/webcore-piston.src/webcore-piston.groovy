@@ -28,6 +28,8 @@
 //file:noinspection unused
 //file:noinspection GroovyAssignabilityCheck
 //file:noinspection GroovyFallthrough
+//file:noinspection SpellCheckingInspection
+//file:noinspection GrMethodMayBeStatic
 
 @Field static final String sVER='v0.3.114.20220203'
 @Field static final String sHVER='v0.3.114.20220428_HE'
@@ -83,9 +85,9 @@ preferences{
 }
 
 @CompileStatic
-static Boolean eric(){ return false }
+static Boolean eric(){ return true }
 @CompileStatic
-static Boolean eric1(){ return false }
+static Boolean eric1(){ return true }
 
 //#include ady624.webCoRElib1
 
