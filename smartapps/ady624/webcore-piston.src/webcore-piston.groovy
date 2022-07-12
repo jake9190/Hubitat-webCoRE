@@ -85,9 +85,9 @@ preferences{
 }
 
 @CompileStatic
-static Boolean eric(){ return true }
+static Boolean eric(){ return false }
 @CompileStatic
-static Boolean eric1(){ return true }
+static Boolean eric1(){ return false }
 
 //#include ady624.webCoRElib1
 
