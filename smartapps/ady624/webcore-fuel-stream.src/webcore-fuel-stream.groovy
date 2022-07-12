@@ -13926,10 +13926,10 @@ static String dumpListDesc(List data,final Integer level,List<Boolean> lastLevel
 	cnt=i1
 	List<Boolean> newLevel=lastLevel
 
-	final List list1=data?.collect{it}
-	final Integer sz=list1.size()
+	List list1=data?.collect{it}
+	Integer sz=list1.size()
 	for(Object par in list1){
-		final String lbl=listLabel+"[${cnt-i1}]".toString()
+		String lbl=listLabel+"[${cnt-i1}]".toString()
 		if(par instanceof Map){
 			Map newmap=[:]
 			newmap[lbl]=(Map)par
@@ -14279,46 +14279,6 @@ public Map getSettingsAndStateMap(){
 	}
 
 
-/*	Map typeObj= getAppDuplTypes()
-	if(typeObj){
-		((Map<String, List<String>>)typeObj.stat).each{ String sk, List<String> sv->
-			sv?.each{
-				String svi-> if(settings.containsKey(svi)){
-					if(setObjs[svi]!=null) warn "overwriting ${setObjs[svi]} with ${sk}",null
-					setObjs[svi]= [type: sk, value: settings[svi] ]
-				}
-			}
-		}
-		((Map<String, List<String>>)typeObj.starts).each{ String sk, List<String> sv->
-			sv?.each{ String svi->
-				settings.findAll{ ((String)it.key).startsWith(svi) }?.each{ String fk, fv ->
-					vv= settings[fk]
-					if(sk=='time') vv= dateTimeFmt(wtoDateTime(vv), "HH:mm")
-					if(setObjs[fk]!=null) warn "overwriting ${setObjs[fk]} with ${sk}",null
-					setObjs[fk]= [type: sk, value: vv]
-				}
-			}
-		}
-		((Map<String, List<String>>)typeObj.ends).each{ String ek, List<String> ev->
-			ev?.each{ String evi->
-				settings.findAll{ ((String)it.key).endsWith(evi) }?.each{ String fk, fv->
-					vv= settings[fk]
-					if(ek=='time') vv= dateTimeFmt(wtoDateTime(vv), "HH:mm")
-					if(setObjs[fk]!=null) warn "overwriting ${setObjs[fk]} with ${ek}",null
-					setObjs[fk]= [type: ek, value: vv]
-				}
-			}
-		}
-		((Map<String,String>)typeObj.caps).each{ String ck, String cv->
-			settings.findAll{ it.key.endsWith(ck) }?.each{ String fk, fv->
-				setObjs[fk]= [type: "capability", value: (fv instanceof List ? fv?.collect{ it?.id?.toString() } : fv?.id?.toString ) ]
-			}
-		}
-		((Map<String, String>)typeObj.dev).each{ dk, dv->
-			settings.findAll{ it.key.endsWith(dk) }?.each{ String fk, fv-> setObjs[fk]= [type: "device", value: (fv instanceof List ? fv.collect{ it?.id?.toString() } : fv?.id?.toString() ) ] }
-		}
-	}*/
-
 	Map data= [:]
 	String newlbl= app?.getLabel()?.toString() //?.replace(" (A ${sPAUSESymFLD})", sBLK)
 	data.label= newlbl?.replace(" (A)", sBLK)
@@ -14334,57 +14294,3 @@ public Map getSettingsAndStateMap(){
 	return data
 }
 
-/*
-public static Map getAppDuplTypes(){ return appDuplicationTypesMapFLD }
-
-@Field static final Map appDuplicationTypesMapFLD= [
-		stat: [
-				bool: [	"annotation_inside", "install_device",
-						"graph_percent_fill", "graph_show_left_label", "graph_show_right_label", "graph_show_title", "graph_smoothing",
-						"graph_static_size", "graph_title_inside", "graph_y_orientation", "graph_z_orientation", "show_overlay"
-				],
-				enum: [	"attribute_", "fstreams", "fstream_", "graphType", "logging", "graph_update_rate",
-						"graph_point_span", "graph_refresh_rate", "graph_combine_rate", // "overlay_vertical_placement",
-						   "graph_timespan", //timeline
-						"q0", "q1","q2","q3","q4","q5","q6","q7","q8","q9",
-						"q0_type", "q1_type","q2_type","q3_type","q4_type","q5_type","q6_type","q7_type","q8_type","q9_type"
-				],
-				mode: [],
-				number: [	"graph_type", "graph_static_size", "num_highlights", "graph_timespan_ms"
-				],
-				text: ["app_name", "device_name", "graph_order", "gauge_units", "maxValue_", "minValue_",
-						"graph_title", "overlay_order"
-				]
-		],
-		starts:[
-		        enum: [ "attributes_", "graph_axis_number_", "graph_type_" ],
-				text: [ "graph_name_override_" ],
-				number: [ "graph_timespan_" ]
-		],
-		ends: [
-				bool: ["_transparent", "_bold", "_inside", "_show_value", "_boundary", "_major_ticks",
-						"_bad_value", "_custom_states", "_drop_line", "_extend_left", "_extend_right", "_plot_points"
-				],
-				enum: ["_decimals", "_quantization", "_quantization_decimals",
-					   //"_quantization_function",
-						"_inside_position", "_legend_position",
-						"_horizontal_placement", "_function", "_vertical_placement"
-				],
-				number: ["_line_size", "_font", "_opacity", "_percent", "_buffer", "_minor_tics", "_width",
-						"_point_size"
-				],
-				text: ["_scale", "_stream", "_number_format", "_title", "_units", "_start", "_end",
-					   "_q0attr", "_q1attr", "_q2attr", "_q3attr", "_q4attr", "_q5attr", "_q6attr", "_q7attr", "_q8attr", "_q9attr",
-				],
-				//mode: ["_modes"],
-				//time: ["_time_start", "_time_stop", "_time", "_scheduled_time"],
-				color: ["_color"]
-		],
-		caps: [
-				sensors: "",
-				sensor_: "",
-		],
-		dev: [
-				_scene: "sceneActivator",
-		]
-] */
