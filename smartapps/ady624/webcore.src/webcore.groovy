@@ -105,7 +105,7 @@ preferences{
 @CompileStatic
 private static Boolean eric(){ return false }
 @CompileStatic
-private static Boolean graphsOn(){ return true }
+private static Boolean graphsOn(){ return false }
 
 //#include ady624.webCoRElib1
 
