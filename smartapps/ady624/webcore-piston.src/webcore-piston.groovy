@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 04, 2022 for Hubitat
+ * Last update July 13, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -546,8 +546,10 @@ def pageRemove(){
 
 @CompileStatic
 static String doLineStrt(Integer level,List<Boolean>newLevel){
-	String lineStrt=sNWL
-	Boolean dB=false
+	String lineStrt
+	lineStrt=sNWL
+	Boolean dB
+	dB=false
 	for(Integer i=iZ;i<level;i++){
 		if(i+i1<level){
 			if(!newLevel[i]) {
@@ -561,8 +563,10 @@ static String doLineStrt(Integer level,List<Boolean>newLevel){
 
 @CompileStatic
 static String dumpListDesc(List data,final Integer level,List<Boolean> lastLevel,final String listLabel,Boolean html=false,Boolean reorder=true){
-	String str=sBLK
-	Integer cnt=i1
+	String str
+	str=sBLK
+	Integer cnt
+	cnt=i1
 	List<Boolean> newLevel=lastLevel
 
 	final List list1=data?.collect{it}
@@ -582,7 +586,8 @@ static String dumpListDesc(List data,final Integer level,List<Boolean> lastLevel
 			newLevel[level]=t1
 			str+=dumpMapDesc(newmap,level,newLevel,cnt,sz,!t1,html,reorder)
 		}else{
-			String lineStrt=doLineStrt(level,lastLevel)
+			String lineStrt
+			lineStrt=doLineStrt(level,lastLevel)
 			lineStrt+=cnt==i1 && sz>i1 ? sSPCST:(cnt<sz ? sSPCSM:sSPCSE)
 			if(html)str+=sSP
 			str+=lineStrt+lbl+": ${par} (${objType(par)})".toString()
@@ -6960,14 +6965,14 @@ private Boolean comp_changed			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=nu
 private Boolean comp_did_not_change		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !valueChanged(r9,lv,tv)}
 
 private static Boolean comp_is_any		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return true }
-private Boolean comp_is_before			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Long offset1=tv ? longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv))) :lZ; return (Long)cast(r9,longEvalExpr(r9,(Map)lv.v,sDTIME)+2000L,sMt((Map)lv.v))< (Long)cast(r9,longEvalExpr(r9,(Map)rv.v,sDTIME)+offset1,sMt((Map)lv.v))}
+private Boolean comp_is_before			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Long offset1=tv ? longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv))) :lZ; return (Long)cast(r9,longEvalExpr(r9,(Map)lv.v,sDTIME)/*+2000L*/,sMt((Map)lv.v))< (Long)cast(r9,longEvalExpr(r9,(Map)rv.v,sDTIME)+offset1,sMt((Map)lv.v))}
 private Boolean comp_is_after			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is_before(r9,lv,rv,rv2,tv,tv2)}
 private Boolean comp_is_between			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){
 	Map l=(Map)lv.v
 	String lvt=sMt(l)
 	Long offset1=tv ? longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv))) :lZ
 	Long offset2=tv2 ? longEvalExpr(r9,rtnMap1(tv2.v,sMvt(tv2))) :lZ
-	Long v=(Long)cast(r9,longEvalExpr(r9,l,sDTIME)+2000L,lvt)
+	Long v=(Long)cast(r9,longEvalExpr(r9,l,sDTIME)/*+2000L*/,lvt)
 	Long v1=(Long)cast(r9,longEvalExpr(r9,(Map)rv.v,sDTIME)+offset1,lvt)
 	Long v2=(Long)cast(r9,longEvalExpr(r9,(Map)rv2.v,sDTIME)+offset2,lvt)
 	return v1<v2 ? v>=v1 && v<v2 : v<v2 || v>=v1
@@ -10464,10 +10469,12 @@ private static com_cast(Map r9,ival,String dataType,String srcDt){
 					break
 				case sBOOLN: return (Double)(value ? d1:dZ)
 			}
-			Double result=dZ
+			Double result
 			try{
 				result= value as Double
-			}catch(ignored){}
+			}catch(ignored){
+				result=dZ
+			}
 			return result
 		case sINT:
 			switch(srcDt){
@@ -10533,9 +10540,11 @@ private static com_cast(Map r9,ival,String dataType,String srcDt){
 private cast(Map r9,ival,String dataTT,String isrcDT=sNL){
 	if(dataTT==sDYN)return ival
 
-	String dataType=dataTT
-	String srcDt=isrcDT
-	def value=ival
+	String dataType,srcDt
+	dataType=dataTT
+	srcDt=isrcDT
+	def value
+	value=ival
 
 	if(value==null){
 		if(dataType==sSTR) return sBLK
@@ -10579,7 +10588,8 @@ private cast(Map r9,ival,String dataTT,String isrcDT=sNL){
 		case sDEC:
 			return (Double)com_cast(r9,value,dataType,srcDt)
 		case sTIME:
-			Long d=srcDt==sSTR ? stringToTime(value):value.toLong()
+			Long d
+			d=srcDt==sSTR ? stringToTime(value):value.toLong()
 			if(d<lMSDAY)return d
 			Date t1=new Date(d)
 			d=Math.round((t1.hours*dSECHR+(Integer)t1.minutes*d60+t1.seconds)*d1000)
