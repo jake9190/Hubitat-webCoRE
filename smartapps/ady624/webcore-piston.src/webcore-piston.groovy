@@ -1382,7 +1382,7 @@ Map setCategory(String category){
 	return [(sCTGRY):category]
 }
 
-Map resumeHandler(){
+void resumeHandler(){
 	handleEvents([(sDATE): new Date(), (sDEV): gtLocation(), (sNM): 'pistonResume', (sVAL): wnow()])
 }
 
