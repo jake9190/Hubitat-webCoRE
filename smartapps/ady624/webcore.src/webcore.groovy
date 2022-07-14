@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update July 08, 2022 for Hubitat
+ * Last update July 14, 2022 for Hubitat
  */
 
 //file:noinspection unused
@@ -30,7 +30,7 @@
 //file:noinspection GrMethodMayBeStatic
 
 @Field static final String sVER='v0.3.114.20220203'
-@Field static final String sHVER='v0.3.114.20220428_HE'
+@Field static final String sHVER='v0.3.114.20220714_HE'
 
 static String version(){ return sVER }
 static String HEversion(){ return sHVER }
@@ -3462,7 +3462,7 @@ Boolean pausePiston(String pistonId,String src){
 Boolean resumePiston(String pistonId,String src){
 	def piston=findPiston(pistonId)
 	if(piston){
-		Map rtData=piston.resume()
+		Map rtData=piston.resume(null,true)
 		updateRunTimeData(rtData)
 		return true
 	}
@@ -4814,6 +4814,7 @@ private Map<String,Map> virtualDevices(Boolean updateCache=false){
 		ifttt:			[ (sN): 'IFTTT',			(sT): sSTR,						(sM): true	],
 		mode:			[ (sN): 'Location mode',	(sT): sENUM,	(sO): getLocationModeOptions(updateCache),	x: true],
 		tile:			[ (sN): 'Piston tile',		(sT): sENUM,	(sO): ['1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','10':'10','11':'11','12':'12','13':'13','14':'14','15':'15','16':'16'],		(sM): true	],
+		pistonResume: 	[ (sN): 'Piston Resumed',	(sT): sSTR,		x: true],
 // HE specific events
 		rule:			[ (sN): 'Rule',				(sT): sENUM,	(sO): getRuleOptions(updateCache),		(sM): true ],
 		systemStart:	[ (sN): 'System Start',		(sT): sSTR,		x: true],
