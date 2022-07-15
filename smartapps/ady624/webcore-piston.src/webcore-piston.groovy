@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 14, 2022 for Hubitat
+ * Last update July 15, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -2473,7 +2473,8 @@ private void sendLEvt(Map r9){
 
 @CompileStatic
 private Boolean executeEvent(Map r9,Map event){
-	String myS=sNL
+	String myS
+	myS=sNL
 	String evntName=(String)event[sNM]
 	if(isEric(r9)){
 		myS='executeEvent '+evntName+sSPC+event[sVAL].toString()
@@ -2576,7 +2577,7 @@ private Boolean executeEvent(Map r9,Map event){
 		r9.resumed=false
 		r9.terminated=false
 		r9.followCleanup=[]
-		if(evntName==sTIME)chgRun(r9,(Integer)es.i)
+		if(evntName==sTIME)chgRun(r9,(Integer)es.i) // IN1, IN3, IN5, or stmt #
 
 		if(isEric(r9)){
 			myDetail r9,sCUREVT+" $mEvt",iN2
@@ -2590,7 +2591,8 @@ private Boolean executeEvent(Map r9,Map event){
 			Boolean allowed=!pis.r || ((List)pis.r).size()==iZ || evaluateConditions(r9,pis,sR,true)
 			Boolean restr=!gtPOpt(r9,'aps') && !allowed //allowPreScheduled tasks to execute during restrictions
 			r9.restricted=restr
-			if(allowed || ffwd(r9)){
+
+			if(allowed || currun(r9) in [iN3,iN5] ) { //if(allowed || ffwd(r9)){   // no iN1 every block, ffwds >1 (waits)?
 				if(currun(r9) in [iN3,iN5]){
 					if(currun(r9)==iN3){
 						//device related time schedules
