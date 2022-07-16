@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 15, 2022 for Hubitat
+ * Last update July 16, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -2592,7 +2592,7 @@ private Boolean executeEvent(Map r9,Map event){
 			Boolean restr=!gtPOpt(r9,'aps') && !allowed //allowPreScheduled tasks to execute during restrictions
 			r9.restricted=restr
 
-			if(allowed || currun(r9) in [iN3,iN5] ) { //if(allowed || ffwd(r9)){   // no iN1 every block, ffwds >1 (waits)?
+			if(allowed || currun(r9) in [iN3,iN5,iN9] ) { //if(allowed || ffwd(r9)){   // allow save runs, no iN1 every block, ffwds >1 (waits)?
 				if(currun(r9) in [iN3,iN5]){
 					if(currun(r9)==iN3){
 						//device related time schedules
