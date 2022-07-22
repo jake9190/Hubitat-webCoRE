@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 21, 2022 for Hubitat
+ * Last update July 22, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -310,6 +310,9 @@ static Boolean eric1(){ return false }
 @Field static final String sVALUEN='(value1, value2,..., valueN)'
 @Field static final String sDATTRH='([device:attribute])'
 @Field static final String sDATTRHT='([device:attribute] [,.., [device:attribute]],threshold)'
+@Field static final String sPSTNRSM='pistonResume'
+@Field static final String sTILE='tile'
+
 @Field static final String sMULP='*'
 @Field static final String sQM='?'
 @Field static final String sCLN=':'
@@ -1307,7 +1310,7 @@ Map pausePiston(){
 	return nRtd
 }
 
-Map resume(LinkedHashMap piston=null,Boolean sndEvt=false){
+Map resume(LinkedHashMap piston=null,Boolean sndEvt=true){
 	state[sACT]=true
 	state.subscriptions=[:]
 	state[sSCHS]=[]
@@ -1339,8 +1342,7 @@ Map resume(LinkedHashMap piston=null,Boolean sndEvt=false){
 	nRtd.result=[(sACT):true,subscriptions:(Map)state.subscriptions]
 	tmpRtD=null
 	r9=null
-	// systemStart // pistonResume
-	if(sndEvt && (Boolean)state.allowResume)
+	if(sndEvt && (Boolean)state.allowResume) // pistonResume
 		wrunInMillis(600L,'resumeHandler',[data: [:]])
 	return nRtd
 }
@@ -1383,7 +1385,7 @@ Map setCategory(String category){
 }
 
 void resumeHandler(){
-	handleEvents([(sDATE): new Date(), (sDEV): gtLocation(), (sNM): 'pistonResume', (sVAL): wnow()])
+	handleEvents([(sDATE): new Date(), (sDEV): gtLocation(), (sNM): sPSTNRSM, (sVAL): wnow()])
 }
 
 Map test(){
@@ -1397,7 +1399,7 @@ Map execute(Map data,String src){
 }
 
 Map clickTile(tidx){
-	handleEvents([(sDATE):new Date(),(sDEV):gtLocation(),(sNM):'tile',(sVAL):tidx])
+	handleEvents([(sDATE):new Date(),(sDEV):gtLocation(),(sNM):sTILE,(sVAL):tidx])
 	return (Map)gtSt(sST) ?: [:]
 }
 
@@ -6314,7 +6316,7 @@ private evaluateOperand(Map r9,Map node,Map oper,Integer index=null,Boolean trig
 				case 'routine':
 					mv=rtnMapS((rEN=='routineExecuted' ? hashId(r9,evntVal):sNL))
 					break
-				case 'pistonResume':
+				case sPSTNRSM:
 				case 'systemStart':
 				case 'severeLoad':
 				case 'zigbeeOff':
@@ -6322,7 +6324,7 @@ private evaluateOperand(Map r9,Map node,Map oper,Integer index=null,Boolean trig
 				case 'zwaveCrashed':
 				case 'sunriseTime':
 				case 'sunsetTime':
-				case 'tile':
+				case sTILE:
 					mv=rtnMapS((rEN==oV ? evntVal:sNL))
 					break
 				case 'ifttt':
@@ -7371,11 +7373,14 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 					String operV=(String)operand.v
 					String tsubId=deviceId+operV
 					switch(operV){
+						case sPSTNRSM:
+							state.allowResume=true
+
 						case sTIME:
 						case sDATE:
 						case sDTIME:
 						case sMODE:
-						case 'tile':
+						case sTILE:
 						case 'powerSource':
 						case 'systemStart':
 						case 'severeLoad':
@@ -7386,9 +7391,6 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 						case 'sunsetTime':
 							subsId=tsubId
 							attr=operV
-							break
-						case 'pistonResume':
-							state.allowResume=true
 							break
 						case sHSMSTS:
 						case 'alarmSystemStatus':
@@ -7439,8 +7441,9 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 				case sX: // variable
 					String operX=(String)operand.x
 					if(operX && operX.startsWith(sAT)){
-						String subsId=operX
-						String attr="${(String)r9.instanceId}.${operX}".toString()
+						String subsId,attr,ct
+						subsId=operX
+						attr="${(String)r9.instanceId}.${operX}".toString()
 						if(operX.startsWith(sAT2)){
 							String vn=operX.substring(i2)
 							Map hg=wgetGlobalVar(vn) // check if it exists
@@ -7449,7 +7452,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 								attr=sVARIABLE+sCLN+vn
 							}else warn "hub varible not found while subscribing: $vn",r9
 						}
-						String ct=(String)subscriptions[subsId]?.t ?: sNL
+						ct=(String)subscriptions[subsId]?.t ?: sNL
 						if(ct==sTRIG || cmpTyp==sTRIG){
 							ct=sTRIG
 							hasTriggers=true
@@ -7476,9 +7479,12 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			curCondition=cndtn
 			String co=(String)cndtn.co
 			if(co){
-				Map comparison=Comparisons().conditions[co]
-				String cmpTyp=sCONDITION
-				Boolean isTrig=false
+				Map comparison
+				comparison=Comparisons().conditions[co]
+				String cmpTyp
+				cmpTyp=sCONDITION
+				Boolean isTrig
+				isTrig=false
 				if(comparison==null){
 					comparison=Comparisons().triggers[co]
 					if(comparison!=null) isTrig=true
@@ -7490,8 +7496,9 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 							hasTriggers=true
 							cmpTyp=sTRIG //subscription method
 						}
-						String m=sNL
-						String tm="trigger comparison type"
+						String m,tm
+						m=sNL
+						tm="trigger comparison type"
 						String tn=" that relies on runtime "
 						Boolean isTracking= !(co in lntrk)
 						Boolean isSub= co in ltsub
@@ -7531,7 +7538,8 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		restrictionTraverser={ Map restriction,Map parentRestriction,Map data ->
 			String rco=(String)restriction.co
 			if(rco){
-				Map comparison=Comparisons().conditions[rco]
+				Map comparison
+				comparison=Comparisons().conditions[rco]
 				if(comparison==null)comparison=Comparisons().triggers[rco]
 				if(comparison!=null){
 					Integer pCnt=comparison.p!=null ? (Integer)comparison.p: iZ
@@ -7548,7 +7556,8 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			dwnGrdTrig=data!=null && (Boolean)data.timer
 			if(node.r)traverseRestrictions(node.r,restrictionTraverser,node,data)
 			for(String mdeviceId in (List<String>)node.d){
-				String deviceId=mdeviceId
+				String deviceId
+				deviceId=mdeviceId
 				if(deviceId in oLIDS)deviceId=LID
 				devices[deviceId]=devices[deviceId] ?: [(sC):iZ]
 				if(doit && deviceId!=LID && deviceId.startsWith(sCLN) && !rawDevices[deviceId]){
@@ -7557,8 +7566,10 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 			}
 
 			String t=sMt(node)
-			Integer lastlvl=null
-			Map lastStatement=null
+			Integer lastlvl
+			lastlvl=null
+			Map lastStatement
+			lastStatement=null
 			if(t?.length()>i1){
 				lastStatement=curStatement
 				curStatement=node
@@ -7619,7 +7630,8 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		//device variables could be device type variable, or another type using device attributes to fill in
 		for(Map variable in ((List<Map>)r9p.v).findAll{ Map it -> /*(String)it.t==sDEV && */ it.v!=null && ((Map)it.v).d!=null && ((Map)it.v).d instanceof List}){
 			for(String mdeviceId in (List<String>)((Map)variable.v).d){
-				String deviceId=mdeviceId
+				String deviceId
+				deviceId=mdeviceId
 				if(deviceId in oLIDS)deviceId=LID
 				devices[deviceId]=[(sC): iZ+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:iZ)]
 				if(doit && deviceId!=LID && !rawDevices[deviceId]){
@@ -7631,14 +7643,15 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 		if(!LTHR)LTHR=fill_THR()
 		Map<String,Integer> dds=[:]
 		String always='always'
-		List<String>nosub=LT1+['tile']
+		List<String>nosub=[sTILE,sPSTNRSM]
 		Boolean des=gtPOpt(r9,'des')
 		for(subscription in subscriptions){
 			Map sub=(Map)subscription.value
 			List<Map> lsc=(List<Map>)sub.c
 			String sst=sMt(sub)
 			String devStr=(String)sub.d
-			String altSub=never
+			String altSub,m
+			altSub=never
 			if(doit && isEric(r9))myDetail r9,"evaluating sub: $subscription",iN2
 			for(Map cndtn in lsc){
 				if(cndtn){
@@ -7647,20 +7660,22 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 					altSub= tt0==always ? tt0:(altSub!=always && tt0!=never ? tt0:altSub)
 				}
 			}
-			String m=sBLK
+			m=sBLK
 			if(doit && lg>i2){
 				m= des ? 'disable event subscriptions, ':sBLK
 				m+= !des && !hasTriggers  ? 'no triggers, promoting conditions ':sBLK
 				m+= !des && altSub in [never,always] ? 'sub: '+altSub:sBLK
 				if(m)debug 'subscriptions: '+m,r9
 			}
-			Boolean skip=true
+			Boolean skip,allowA
+			skip=true
+			String a
+			a=sMa(sub)
+			allowA=(Boolean)sub.allowA
 			// check for disabled event subscriptions
 			if(!des && sst && !!lsc && altSub!=never && (sst==sTRIG || altSub==always || !hasTriggers)){
 				def device= devStr.startsWith(sCLN)? getDevice(r9,devStr):null
-				Boolean allowA=(Boolean)sub.allowA
 				allowA=!!allowA
-				String a=sMa(sub)
 				if(a in LTHR){
 					a=sTHREAX
 					allowA=false
@@ -7668,15 +7683,21 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 				if(device!=null){
 					for(Map cndtn in lsc){
 						if(cndtn){
-							String ct=(String)cndtn.ct
+							String ct,t1
+							ct=(String)cndtn.ct
+							t1=(String)cndtn.sm
 							if(sMt(cndtn)==sEVENT && ct==sNL){ cndtn.ct=sT; ct=sT } // modifies the code
-							String t1=(String)cndtn.sm
 							cndtn.s= t1!=never && (ct==sT || t1==always || !hasTriggers) // modifies the code
+							if((Boolean)cndtn.s && a==sPSTNRSM && !((Boolean)state.allowResume)){
+								state.allowResume=true
+								if(isEric(r9))myDetail r9,"Enabling piston resume event due to subscription control: $subscription",iN2
+							}
 							if(doit && isEric(r9))myDetail r9,"processed condition: $cndtn",iN2
 						}
 					}
-					if(!(a in nosub)){ // timers & tile events don't have subscription
-						Integer cnt=ss.events
+					Integer cnt
+					cnt=ss.events
+					if(!(a in (LT1+nosub) )){ // timers, tile, pistonResume events don't have hub subscription
 						List<String> avals=(List)sub.avals
 						if(allowA && avals.size()<i9){
 							for(String aval in avals){
@@ -7696,19 +7717,27 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 							}
 							cnt+=i1
 						}
-						ss.events=cnt
-						String didS=dString(device)
-						if(!dds[didS]){
-							ss.devices+=i1
-							dds[didS]=i1
-						}
+					}
+					if(a in nosub) cnt+=i1
+
+					ss.events=cnt
+					String didS=dString(device)
+					if(!dds[didS]){
+						ss.devices+=i1
+						dds[didS]=i1
 					}
 				}else{
 					if(doit)error "Failed subscribing to $devStr.${a}, device not found",r9
 				}
 			}else{
 				for(Map cndtn in lsc)
-					if(cndtn) cndtn.s=false // modifies the code
+					if(cndtn){
+						cndtn.s=false // modifies the code
+						if(a==sPSTNRSM && (Boolean)state.allowResume){
+							state.allowResume=false
+							if(isEric(r9))myDetail r9,"Disabled piston resume event due to subscription control: $subscription",iN2
+						}
+					}
 				if(devices[devStr])devices[devStr].c=(Integer)devices[devStr].c-i1
 			}
 			if(skip && doit && isEric(r9))myDetail r9,"SKIPPING sub: $subscription",iN2
