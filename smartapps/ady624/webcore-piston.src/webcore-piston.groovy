@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 16, 2022 for Hubitat
+ * Last update July 21, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -8560,32 +8560,32 @@ private static List<String> fill_TIM(){ return [sDTIME,sTIME,sDATE] }
 private static List<String> fill_LS(){ return [sSTR,sENUM,sERROR,sPHONE,sURI,sTEXT] }
 
 @CompileStatic
-private Double dblEvalExpr(Map r9,Map express,String dataType=sDEC){
-	return (Double)evaluateExpression(r9,express,dataType)[sV]
+private Double dblEvalExpr(Map r9,Map express,String rtndataType=sDEC){
+	return (evaluateExpression(r9,express,rtndataType)[sV]) as Double
 }
 
 @CompileStatic
-private Long longEvalExpr(Map r9,Map express,String dataType=sNL){
-	return (Long)evaluateExpression(r9,express,dataType)[sV]
+private Long longEvalExpr(Map r9,Map express,String rtndataType=sNL){
+	return (evaluateExpression(r9,express,rtndataType)[sV]) as Long
 }
 
 @CompileStatic
-private Integer intEvalExpr(Map r9,Map express,String dataType=sINT){
-	return (Integer)evaluateExpression(r9,express,dataType)[sV]
+private Integer intEvalExpr(Map r9,Map express,String rtndataType=sINT){
+	return (evaluateExpression(r9,express,rtndataType)[sV]) as Integer
 }
 
 @CompileStatic
-private Boolean boolEvalExpr(Map r9,Map express,String dataType=sBOOLN){
-	return (Boolean)evaluateExpression(r9,express,dataType)[sV]
+private Boolean boolEvalExpr(Map r9,Map express,String rtndataType=sBOOLN){
+	return !!(evaluateExpression(r9,express,rtndataType)[sV])
 }
 
 @CompileStatic
-private String strEvalExpr(Map r9,Map express,String dataType=sSTR){
-	return (String)evaluateExpression(r9,express,dataType)[sV]
+private String strEvalExpr(Map r9,Map express,String rtndataType=sSTR){
+	return (String)evaluateExpression(r9,express,rtndataType)[sV]
 }
 
 @CompileStatic
-private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
+private Map evaluateExpression(Map r9,Map express,String rtndataType=sNL){
 	//if dealing with an expression that has multiple items let's evaluate each item one by one
 	if(!L1opt){
 		//LT0=[sSTR,sTEXT]
@@ -8621,7 +8621,7 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 	String mySt
 	mySt=sNL
 	if(isEric(r9)){
-		mySt="evaluateExpression $expression dataType: $dataType".toString()
+		mySt="evaluateExpression $expression rtndataType: $rtndataType".toString()
 		myDetail r9,mySt,i1
 	}
 	Map result
@@ -8657,7 +8657,7 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 			result=rtnMapB(bcast(r9,exprV))
 			break
 		case sDYN:
-			if(dataType!=sSTR)break
+			if(rtndataType!=sSTR)break
 		case sSTR:
 		case sENUM:
 		case sERROR:
@@ -8789,7 +8789,7 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 							operand=iN1
 						}
 					}else{
-						//Map tmap= [:]+evaluateExpression(r9,item,dataType)
+						//Map tmap= [:]+evaluateExpression(r9,item,rtndataType)
 						Map tmap= [:]+evaluateExpression(r9,item)
 						a=items.push(tmap)
 						operand=items.size()-i1
@@ -9029,7 +9029,7 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 
 						// *,/ ** require decimals
 						if(o in pn1){ //[sMULP,sDIV,sPWR,sMINUS] number fixes
-							t= t1i&&t2i && dataType!=sDEC ? typIL(t1,t2):sDEC
+							t= t1i&&t2i && rtndataType!=sDEC ? typIL(t1,t2):sDEC
 							t1=t
 							t2=t
 						}else if(o in pn2){ //[sMOD1,sMOD,sAMP,sBOR,sBXOR,sBNAND,sBNOR,sBNXOR,sSBL,sSBR] int fixes
@@ -9094,11 +9094,11 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 			break
 	}
 
-	if(dataType){
+	if(rtndataType){
 		String ra=sMa(result)
 		def ri=result.i
 		//when dealing with devices they need to be "converted" unless the request is to return devices
-		if(dataType!=sDEV && sMt(result)==sDEV){
+		if(rtndataType!=sDEV && sMt(result)==sDEV){
 			List atL= (result.v instanceof List)?(List)result.v:[result.v]
 			switch(atL.size()){
 				case iZ: result=rtnMapE('Empty device list'); break
@@ -9111,12 +9111,12 @@ private Map evaluateExpression(Map r9,Map express,String dataType=sNL){
 		if(t0!=sERROR){
 			def t1
 			t1=result.v
-			Boolean match=(dataType in LS && t0 in LS && t1 instanceof String)
+			Boolean match=(rtndataType in LS && t0 in LS && t1 instanceof String)
 			if(!match){
-				if(!t0 || dataType==t0) match=matchCast(r9,t1,dataType)
-				if(!match)t1=cast(r9,t1,dataType,t0)
+				if(!t0 || rtndataType==t0) match=matchCast(r9,t1,rtndataType)
+				if(!match)t1=cast(r9,t1,rtndataType,t0)
 			}
-			result=rtnMap(dataType,t1)+((ra ? [(sA):ra]:[:]) as Map)+((ri!=null ? [(sI):ri]:[:]) as Map)
+			result=rtnMap(rtndataType,t1)+((ra ? [(sA):ra]:[:]) as Map)+((ri!=null ? [(sI):ri]:[:]) as Map)
 		}
 	}
 	result.d=elapseT(time)

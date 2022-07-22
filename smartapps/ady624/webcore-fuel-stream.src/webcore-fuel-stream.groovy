@@ -19,7 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last update July 11, 2022 for Hubitat
+ *  Last update July 14, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -42,7 +42,7 @@ import java.util.concurrent.Semaphore
 
 private static String handle(){ return "webCoRE" }
 @Field static final String sVER='v0.3.114.20220203'
-@Field static final String sHVER='v0.3.114.20220428_HE'
+@Field static final String sHVER='v0.3.114.20220714_HE'
 public static String version(){ return sVER }
 public static String HEversion(){ return sHVER }
 
@@ -3692,7 +3692,7 @@ def graphTimegraph(){
 
 		hubiForm_section("General Options", 1, sBLK, sBLK){
 
-			//input( type: "enum", name: "graph_timespan, title: "<b>Select Time span to Graph</b>", multiple: false, required: true, options: timespanEnum, defaultValue: "43200000")
+			//input( type: "enum", name: "graph_timespan", title: "<b>Select Time span to Graph</b>", multiple: false, required: true, options: timespanEnum, defaultValue: "43200000")
 			input( type: "enum", name: "graph_point_span", title: "<b>Integration Time</b><br><small>(The amount of time each data point covers)</small>",
 					multiple: false, required: true, options: timespanEnum2, defaultValue: "300000", submitOnChange: true)
 
