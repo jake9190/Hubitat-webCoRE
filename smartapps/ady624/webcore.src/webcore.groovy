@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update July 14, 2022 for Hubitat
+ * Last update July 23, 2022 for Hubitat
  */
 
 //file:noinspection unused
@@ -1910,7 +1910,7 @@ private api_intf_dashboard_piston_resume(){
 	if(verifySecurityToken((String)params.token)){
 		def piston=findPiston((String)params.id)
 		if(piston){
-			Map rtData=(Map)piston.resume()
+			Map rtData=(Map)piston.resume(null,true)
 			result=(Map)rtData.result
 			updateRunTimeData(rtData)
 			result.status=sSUCC

@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 22, 2022 for Hubitat
+ * Last update July 23, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -975,7 +975,7 @@ Map setup(LinkedHashMap data,Map<String,String>chunks){
 	Map r9=[:]
 	r9[sPIS]=piston
 	releaseTheLock(mSmaNm)
-	if((Integer)state[sBLD]==i1 || (Boolean)state[sACT])r9=resume(piston)
+	if((Integer)state[sBLD]==i1 || (Boolean)state[sACT])r9=resume(piston,false)
 	else clearMyCache(meth)
 	return [(sACT):(Boolean)state[sACT],(sBLD):(Integer)state[sBLD],(sMODFD):(Long)state[sMODFD],(sST):(Map)state[sST],rtData:r9]
 }
@@ -7003,16 +7003,37 @@ private Boolean comp_changed			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=nu
 private Boolean comp_did_not_change		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !valueChanged(r9,lv,tv)}
 
 private static Boolean comp_is_any		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return true }
-private Boolean comp_is_before			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ Long offset1=tv ? longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv))) :lZ; return (Long)cast(r9,longEvalExpr(r9,(Map)lv.v,sDTIME)/*+2000L*/,sMt((Map)lv.v))< (Long)cast(r9,longEvalExpr(r9,(Map)rv.v,sDTIME)+offset1,sMt((Map)lv.v))}
+private Boolean comp_is_before			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){
+	if(!LT1) LT1=fill_TIM()
+	Map l=(Map)lv.v
+	String lvt= sMt(l) in LT1 ? sMt(l) : sNL
+
+	Long ttv= longEvalExpr(r9,l,sDTIME)/*+2000L*/
+	Long v= lvt ? (Long)cast(r9,ttv,lvt) : ttv
+
+	Long offset1=tv ? longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv))) :lZ
+	Long ttv1= longEvalExpr(r9,(Map)rv.v,sDTIME)+offset1
+	Long v1= lvt ? (Long)cast(r9,ttv1,lvt) : ttv1
+
+	return v < v1
+}
 private Boolean comp_is_after			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is_before(r9,lv,rv,rv2,tv,tv2)}
 private Boolean comp_is_between			(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){
+	if(!LT1) LT1=fill_TIM()
 	Map l=(Map)lv.v
-	String lvt=sMt(l)
+	String lvt= sMt(l) in LT1 ? sMt(l) : sNL
+
+	Long ttv= longEvalExpr(r9,l,sDTIME)/*+2000L*/
+	Long v= lvt ? (Long)cast(r9,ttv,lvt) : ttv
+
 	Long offset1=tv ? longEvalExpr(r9,rtnMap1(tv.v,sMvt(tv))) :lZ
+	Long ttv1= longEvalExpr(r9,(Map)rv.v,sDTIME)+offset1
+	Long v1= lvt ? (Long)cast(r9,ttv1,lvt) : ttv1
+
 	Long offset2=tv2 ? longEvalExpr(r9,rtnMap1(tv2.v,sMvt(tv2))) :lZ
-	Long v=(Long)cast(r9,longEvalExpr(r9,l,sDTIME)/*+2000L*/,lvt)
-	Long v1=(Long)cast(r9,longEvalExpr(r9,(Map)rv.v,sDTIME)+offset1,lvt)
-	Long v2=(Long)cast(r9,longEvalExpr(r9,(Map)rv2.v,sDTIME)+offset2,lvt)
+	Long ttv2= longEvalExpr(r9,(Map)rv2.v,sDTIME)+offset2
+	Long v2= lvt ? (Long)cast(r9,ttv2,lvt) : ttv2
+
 	return v1<v2 ? v>=v1 && v<v2 : v<v2 || v>=v1
 }
 private Boolean comp_is_not_between		(Map r9,Map lv,Map rv=null,Map rv2=null,Map tv=null,Map tv2=null){ return !comp_is_between(r9,lv,rv,rv2,tv,tv2)}
@@ -8504,6 +8525,13 @@ private static Long matchCastL(Map r9,v){ Long res=matchCast(r9,v,sLONG) ? (Long
 @Field static List<String> mL1=[]
 
 @CompileStatic
+private static Boolean matchCastD(Map r9,v,String t){
+	if(!LT1) LT1=fill_TIM()
+	Boolean match= v!=null && t in LT1 && (v instanceof Long)
+	return match
+}
+
+@CompileStatic
 private static Boolean matchCast(Map r9,v,String t){
 	if(!mL){
 		if(!LS) LS=fill_LS()
@@ -8595,6 +8623,8 @@ private Double dblEvalExpr(Map r9,Map express,String rtndataType=sDEC){
 
 @CompileStatic
 private Long longEvalExpr(Map r9,Map express,String rtndataType=sNL){
+	if(!LT1) LT1=fill_TIM()
+	String rtn= rtndataType!=sSTR ? rtndataType : sNL
 	return (evaluateExpression(r9,express,rtndataType)[sV]) as Long
 }
 
@@ -9140,9 +9170,11 @@ private Map evaluateExpression(Map r9,Map express,String rtndataType=sNL){
 		if(t0!=sERROR){
 			def t1
 			t1=result.v
-			Boolean match=(rtndataType in LS && t0 in LS && t1 instanceof String)
+			Boolean match
+			match=(rtndataType in LS && t0 in LS && t1 instanceof String)
 			if(!match){
 				if(!t0 || rtndataType==t0) match=matchCast(r9,t1,rtndataType)
+				if(!match && t0 && rtndataType==t0) match=matchCastD(r9,t1,rtndataType)
 				if(!match)t1=cast(r9,t1,rtndataType,t0)
 			}
 			result=rtnMap(rtndataType,t1)+((ra ? [(sA):ra]:[:]) as Map)+((ri!=null ? [(sI):ri]:[:]) as Map)
@@ -10767,8 +10799,10 @@ private static Date localDate(){ return new Date() }
 @CompileStatic
 private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 	Long lnull=(Long)null
-	Long result=lnull
-	Integer cnt=iZ
+	Long result
+	result=lnull
+	Integer cnt
+	cnt=iZ
 	def a=dateOrTimeOrString
 	try{
 		if("$a".isNumber()){
@@ -10813,6 +10847,28 @@ private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 			}catch(ignored){ result=lnull }
 		}
 
+		// next 3 format local time formatting done by cast
+		if(result==lnull){
+			cnt=14
+			try{
+				result=(new Date()).parse( 'EEE, MMM d yyyy @ h:mm:ss a z',sdate).getTime()
+			}catch(ignored){ result=lnull }
+		}
+
+		if(result==lnull){
+			cnt=15
+			try{
+				result=(new Date()).parse( 'EEE, MMM d yyyy',sdate).getTime()
+			}catch(ignored){ result=lnull }
+		}
+
+		if(result==lnull){
+			cnt=16
+			try{
+				result=(new Date()).parse( 'h:mm:ss a z',sdate).getTime()
+			}catch(ignored){ result=lnull }
+		}
+
 		if(result==lnull){
 			cnt=i6
 			try{
@@ -10835,19 +10891,23 @@ private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 		if(result==lnull){
 			cnt=i8
 			try{
-				TimeZone tz=mTZ()
-				if(sdate =~ /\s[A-Z]{3}$/){ // is not the timezone  strings like CET are not unique.
+				TimeZone tz
+				tz=mTZ()
+				String nsdate,t0
+				nsdate=sdate
+				if(nsdate =~ /\s[A-Z]{3}$/){ // is not the timezone  strings like CET are not unique.
 					try{
-						tz=TimeZone.getTimeZone(sdate[-i3..-i1])
-						sdate=sdate[iZ..sdate.size()-i3].trim()
+						tz=TimeZone.getTimeZone(nsdate[-i3..-i1])
+						nsdate=nsdate[iZ..nsdate.size()-i3].trim()
 					}catch(ignored){}
 				}
 
-				String t0=sdate?.trim() ?: sBLK
+				t0=nsdate?.trim() ?: sBLK
 				t0=t0.toLowerCase()
-				Boolean hasMeridian=false
-				Boolean hasAM=false
-				Boolean hasPM=false
+				Boolean hasMeridian,hasAM,hasPM
+				hasMeridian=false
+				hasAM=false
+				hasPM=false
 				if(t0.endsWith('a.m.')){
 					t0=t0.replaceAll('a\\.m\\.','am')
 				}
@@ -10862,7 +10922,8 @@ private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 					hasMeridian=true
 					hasPM=true
 				}
-				Long time=lnull
+				Long time
+				time=lnull
 				if(hasMeridian)t0=t0[iZ..-i3].trim()
 
 				try{
@@ -10880,14 +10941,16 @@ private Long stringToTime(dateOrTimeOrString){ // convert to dtime
 				if(hasMeridian && time){
 					cnt=11
 					Date t1=new Date(time)
-					Integer hr=t1.hours
+					Integer hr
+					hr=t1.hours
 					Integer min=t1.minutes
 					Integer sec=t1.seconds
 					Boolean twelve=hr>=i12
 					if(twelve && hasAM)hr-=i12
 					if(!twelve && hasPM)hr+=i12
-					String str1="${hr}".toString()
-					String str2="${min}".toString()
+					String str1,str2
+					str1="${hr}".toString()
+					str2="${min}".toString()
 					if(hr<i10)str1=String.format('%02d',hr)
 					if(min<i10)str2=String.format('%02d',min)
 					String str=str1+sCLN+str2
