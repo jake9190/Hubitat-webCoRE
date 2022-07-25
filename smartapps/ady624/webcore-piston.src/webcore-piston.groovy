@@ -2839,8 +2839,7 @@ private void finalizeEvent(Map r9,Map iMsg,Boolean success=true){
 	else stats=(Map)gtSt(s)
 	stats=stats ?: [:]
 
-	List<Map> tlist
-	tlist=(List<Map>)stats.timing ?: []
+	List<Map> tlist=(List<Map>)stats.timing ?: []
 	Map lastST=tlist.size() ? [:]+tlist.last():null
 	Map newMap=[:]+(Map)((Map)r9.stats).timing
 	if(lastST && newMap){
