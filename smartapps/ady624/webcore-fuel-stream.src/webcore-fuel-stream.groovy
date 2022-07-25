@@ -19,7 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last update July 14, 2022 for Hubitat
+ *  Last update July 24, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -48,9 +48,9 @@ public static String HEversion(){ return sHVER }
 
 
 @CompileStatic
-static Boolean eric(){ return true }
+static Boolean eric(){ return false }
 @CompileStatic
-static Boolean eric1(){ return true }
+static Boolean eric1(){ return false }
 @CompileStatic
 private Boolean isEric(){ eric1() && isDbg() }
 
@@ -89,7 +89,7 @@ def installed(){
 	state[sDBGLVL]=iZ
 	state[sLOGNG]=iZ
 	if((Boolean)settings.duplicateFlag && !(Boolean)state.dupPendingSetup){
-		Boolean maybeDup= ((String)app?.getLabel())?.contains(" (Dup)")
+		Boolean maybeDup= ((String)app?.getLabel())?.contains(' (Dup)')
 		state.dupPendingSetup= true
 		runIn(2, "processDuplication")
 		if(maybeDup) info "installed found maybe a dup... ${(Boolean)settings.duplicateFlag}",null
@@ -100,7 +100,7 @@ def installed(){
 
 private void processDuplication(){
 	String al= (String)app?.getLabel()
-	String newLbl= "${al}${al?.contains(" (Dup)") ? "" : " (Dup)"}"
+	String newLbl= "${al}${al?.contains(' (Dup)') ? "" : ' (Dup)'}"
 	app?.updateLabel(newLbl)
 	state.dupPendingSetup= true
 
@@ -155,7 +155,7 @@ private removeChildDevices(delete){
 def updated(){
 	log.debug "updated() with settings: ${settings}"
 
-	Boolean maybeDup= ((String)app?.getLabel())?.contains(" (Dup)")
+	Boolean maybeDup= ((String)app?.getLabel())?.contains(' (Dup)')
 	if(maybeDup) info "updated found maybe a dup... ${(Boolean)settings.duplicateFlag}",null
 	if((Boolean)settings.duplicateFlag){
 		if((Boolean)state.dupOpenedByUser){ state.dupPendingSetup= false }
@@ -14282,7 +14282,7 @@ public Map getSettingsAndStateMap(){
 	Map data= [:]
 	String newlbl= app?.getLabel()?.toString() //?.replace(" (A ${sPAUSESymFLD})", sBLK)
 	data.label= newlbl?.replace(" (A)", sBLK)
-	List<String> setSkip=[]
+	List<String> setSkip=['install_device','device_name']
 	data.settings= setObjs.findAll{ !(it.key in setSkip) }
 
 	List<String> stateSkip= [

@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update July 23, 2022 for Hubitat
+ * Last update July 24, 2022 for Hubitat
  */
 
 //file:noinspection unused
@@ -105,7 +105,7 @@ preferences{
 @CompileStatic
 private static Boolean eric(){ return false }
 @CompileStatic
-private static Boolean graphsOn(){ return false }
+private static Boolean graphsOn(){ return true }
 
 //#include ady624.webCoRElib1
 
@@ -582,10 +582,14 @@ def graphDuplicationPage() {
 						childDupMapFLD[myId].graphs[grfId] = grfData
 						log.debug "Dup Data: ${childDupMapFLD[myId].graphs[grfId]}"
 					}
+					Map app_name= (Map)grfData.settings['app_name']
+					String nm="${grfData.label}"+' (Dup)' //app_name.value+' (Dup)'
+					app_name.value= nm
+					grfData.settings['app_name']= app_name
 					grfData.settings["duplicateFlag"] = [type: sBOOL, value: true]
 					// grfData?.settings["actionPause"] = [type: sBOOL, value: true]
 					grfData.settings["duplicateSrcId"] = [type: "text", value: grfId]
-					def a=addChildApp("ady624", handleFuelS(), "${grfData.label} (Dup)", [settings: grfData.settings])
+					def a=addChildApp("ady624", handleFuelS(), nm, [settings: grfData.settings])
 					paragraph "Graph Duplicated..." + "<br>Return to Graph Page and look for the App with '(Dup)' in the name..."
 					state.graphDuplicated = true
 				} else { paragraph "Graph not Found" }
@@ -2547,10 +2551,12 @@ def api_email(){
 }
 
 private api_execute(){
-	Map result=[:]
-	Map data=[:]
+	Map data,result
+	result=[:]
+	data=[:]
 	//def remoteAddr=isHubitat() ? "UNKNOWN" : request.getHeader("X-FORWARDED-FOR") ?: request.getRemoteAddr()
-	def remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
+	def remoteAddr
+	remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
 	if(remoteAddr==null)remoteAddr=request.'X-forwarded-for' ?: request.Host
 	if(remoteAddr==null)remoteAddr='just'
 	debug "Dashboard or web request received to execute a piston from IP $remoteAddr Referer: ${request.headers.Referer}"
@@ -2589,7 +2595,8 @@ void sendExecuteEvt(String pistonId,val,String desc, String desc1,Map data){
 
 // get webcore global variables
 private api_global(){
-	def remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
+	def remoteAddr
+	remoteAddr=request.headers.'X-forwarded-for' ?: request.headers.Host
 	if(remoteAddr==null)remoteAddr=request.'X-forwarded-for' ?: request.Host
 	if(remoteAddr==null)remoteAddr='just'
 	debug "web request received to get variable from IP $remoteAddr Referer: ${request.headers.Referer} | $params"
