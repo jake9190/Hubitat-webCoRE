@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 24, 2022 for Hubitat
+ * Last update July 30, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -6519,11 +6519,7 @@ private evaluateOperand(Map r9,Map node,Map oper,Integer index=null,Boolean trig
 			}
 			if(mv)break
 		case sE: //expression
-			if(ovt in [sMS,sS,sM,sH,sD,'w',sN,'y'])
-				mv=movt+evaluateExpression(r9,(Map)operand.exp)
-			else
-				mv=movt+evaluateExpression(r9,(Map)operand.exp,ovt)
-			//mv=movt+evaluateExpression(r9,(Map)operand.exp)
+			mv=movt+evaluateExpression(r9,(Map)operand.exp)
 			break
 		case sU: //argument
 			mv=getArgument(r9,(String)operand.u)
