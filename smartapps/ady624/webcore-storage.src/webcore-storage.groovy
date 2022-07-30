@@ -16,12 +16,15 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update February 3, 2022 for Hubitat
+ * Last update July 14, 2022 for Hubitat
  */
+
 //file:noinspection unused
+//file:noinspection GroovyUnusedAssignment
+//file:noinspection GrDeprecatedAPIUsage
 
 static String version(){ return 'v0.3.114.20220203' }
-static String HEversion(){ return 'v0.3.114.20220203_HE' }
+static String HEversion(){ return 'v0.3.114.20220714_HE' }
 /******************************************************************************/
 /*** webCoRE DEFINITION														***/
 /******************************************************************************/
@@ -111,6 +114,7 @@ private pageSelectDevices(){
 		section ('Select devices by capability'){
 			paragraph "If you cannot find a device by type, you may try looking for it by category below"
 			def d
+			d=null
 			for (capability in parent.capabilities().findAll{ (!(it.value.d in [null, 'actuators', 'sensors'])) }.sort{ it.value.d }){
 				if(capability.value.d != d) input "dev:${capability.key}", "capability.${capability.key}", multiple: true, title: "Which ${capability.value.d}", required: false, submitOnChange: true
 				d = capability.value.d
@@ -174,7 +178,7 @@ private void initialize(){
 	stateRemove("obs")
 	stateRemove('hash')
 }
-
+private gtSetting(String nm){ return settings."${nm}" }
 
 public void updateWeatherD(){
 	String myKey = (String)state.apixuKey ?: (String)null
@@ -204,7 +208,8 @@ public void updateWeatherD(){
 			myUri = 'https://api.darksky.net/forecast/'+myKey+'/' + myZip + '?units=us&exclude=minutely,flags'
 			break
 		case 'OpenWeatherMap':
-			myUri = 'https://api.openweathermap.org/data/2.5/onecall?lat=' + myZip + '&lon=' + myZip1 + '&exclude=minutely,hourly&mode=json&units=imperial&appid=' + myKey 
+			//myUri = 'https://api.openweathermap.org/data/2.5/onecall?lat=' + myZip + '&lon=' + myZip1 + '&exclude=minutely,hourly&mode=json&units=imperial&appid=' + myKey
+			myUri = 'https://api.openweathermap.org/data/2.5/onecall?lat=' + myZip + '&lon=' + myZip1 + '&exclude=minutely&mode=json&units=imperial&appid=' + myKey
 		}
 		if(myUri){
 			Map params = [ uri: myUri ]
@@ -220,8 +225,10 @@ public void updateWeatherD(){
 @Field static Map theObsFLD
 
 public void ahttpRequestHandler(resp, callbackData){
-	def json = [:]
-	def obs = [:]
+	def json
+	json = [:]
+	def obs
+	obs = [:]
 //	def err
 	String weatherType = (String)state.weatherType ?: (String)null
 	if((resp.status == 200) && resp.data){
@@ -258,7 +265,7 @@ public void ahttpRequestHandler(resp, callbackData){
 			def sunTimes = app.getSunriseAndSunset()
 			Long sunrise = sunTimes.sunrise.time
 			Long sunset = sunTimes.sunset.time
-			Long time = now()
+			Long time = wnow()
 
 			Boolean is_day = true
 			if(sunrise <= time && sunset >= time){
@@ -300,7 +307,7 @@ public void ahttpRequestHandler(resp, callbackData){
 			if(json.hourly && json.hourly.data){
 				List<Map> lt0=(List)json?.hourly?.data
 				List<Map> lt1=(List)json?.daily?.data
-				Integer hr = new Date(now()).hours
+				Integer hr = new Date(wnow()).hours
 				Integer indx = 0
 				for(Integer i = 0; i <= 50; i++){
 					Map t0 = (Map)lt0[i]
@@ -381,7 +388,7 @@ public void ahttpRequestHandler(resp, callbackData){
 	}
 	theObsFLD = json
 	def wdev=parent?.getWeatDev()
-	if(wdev) wdev.setVar('updated', "${now()}".toString())
+	if(wdev) wdev.setVar('updated', "${wnow()}".toString())
 	//log.debug "$json"
 }
 
@@ -556,7 +563,7 @@ Long GetTimeDiffSeconds(String strtDate, String stpDate=(String)null, String met
 		String stopVal = stpDate ? stpDate.toString() : formatDt(now)
 		Long start = Date.parse("E MMM dd HH:mm:ss z yyyy", strtDate).getTime()
 		Long stop = Date.parse("E MMM dd HH:mm:ss z yyyy", stopVal).getTime()
-		Long diff = (stop - start) / 1000L
+		Long diff = Math.round((stop - start) / 1000L)
 		return diff
 	}else{ return null }
 }
@@ -595,7 +602,7 @@ public void initData(devices, contacts){
 }
 
 public Map listAvailableDevices(Boolean raw=false, Integer offset=0){
-	Long time = now()
+	Long time = wnow()
 	Map response = [:]
 	List myDevices = (List)settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().sort{ it.getDisplayName() }
 	List devices = (List)myDevices.unique{ it.id }
@@ -608,7 +615,7 @@ public Map listAvailableDevices(Boolean raw=false, Integer offset=0){
 		if(devices){
 			devices = devices[offset..-1]
 			response.complete = !devices.indexed().find{ idx, dev ->
-//				log.debug "Loaded device at ${idx} after ${now() - time}ms. Data size is ${response.toString().size()}"
+//				log.debug "Loaded device at ${idx} after ${wnow() - time}ms. Data size is ${response.toString().size()}"
 				response.devices[hashId(dev.id)]=getDevDetails(dev, true)
 /*				response.devices[hashId(dev.id)] = [
 					n: dev.getDisplayName(),
@@ -629,7 +636,7 @@ public Map listAvailableDevices(Boolean raw=false, Integer offset=0){
 				if(responseLength > (50 * 1024)){
 					stop = true // Stop if large
 				}
-				if(now() - time > 4000) stop = true
+				if(wnow() - time > 4000) stop = true
 				if(stop && idx < devices.size()-1){
 					response.nextOffset = offset + idx + 1
 					return true
@@ -637,7 +644,7 @@ public Map listAvailableDevices(Boolean raw=false, Integer offset=0){
 				false
 			}
 		} else response.complete=true
-		log.debug "Generated list of ${offset}-${offset + devices.size()} of ${deviceCount} devices in ${now() - time}ms. Data size is ${response.toString().size()}"
+		log.debug "Generated list of ${offset}-${offset + devices.size()} of ${deviceCount} devices in ${wnow() - time}ms. Data size is ${response.toString().size()}"
 	}
 	return response
 }
@@ -676,7 +683,8 @@ private static String transformCommand(command, Map<String,Map> overrides){
 
 public Map getDashboardData(){
 	def value
-//	def start = now()
+	value=null
+//	def start = wnow()
 	return settings.findAll{ it.key.startsWith("dev:") }.collect{ it.value }.flatten().collectEntries{ dev -> [(hashId(dev.id)): dev]}.collectEntries{ id, dev ->
 		[ (id): dev.getSupportedAttributes().collect{ it.name }.unique().collectEntries{
 			try { value = dev.currentValue(it) } catch (ignored){ value = null}
@@ -730,8 +738,8 @@ private String hashId(id){
  	return hubUID != null
 }*/
 
-String getWUIconName(condition_code, Integer is_day=0)	 {
-	def cC = condition_code
+String getWUIconName(Integer condition_code, Integer is_day=0)	 {
+	Integer cC = condition_code
 	String wuIcon = (conditionFactor[cC] ? (String)conditionFactor[cC][2] : sBLK)
 	if(is_day != 1 && wuIcon) wuIcon = 'nt_' + wuIcon
 	return wuIcon
@@ -882,7 +890,10 @@ private String getImgName(Integer wCode, is_day){
 ]
 
 // From Darksky.net driver for HE https://community.hubitat.com/t/release-darksky-net-weather-driver-no-pws-required/22699
-static String getdsIconCode(String icon='unknown', String dcs='unknown', Boolean isNight=false){
+@SuppressWarnings('GroovyFallthrough')
+static String getdsIconCode(String iicon='unknown', String idcs='unknown', Boolean isNight=false){
+	String dcs=idcs
+	String icon=iicon
 	String unk='unknown'
 	if(dcs==null) dcs=unk
 	if(icon==null) icon=unk
@@ -978,12 +989,12 @@ static String getdsIconCode(String icon='unknown', String dcs='unknown', Boolean
 String getcondText(String wCode){
 	String code = wCode.contains('nt_') ? wCode.substring(3, wCode.size()-1) : wCode
 	//log.info("getImgName Input: wCode: " + code)
-	Map LUitem = LUTable.find{ (String)it.ccode == code }
+	Map LUitem = LUTable.find{ Map it -> (String)it.ccode == code }
 	return (LUitem ? (String)LUitem.ctext : sBLK)
 }
 
 String getStdIcon(String code){
-	Map LUitem = LUTable.find{ (String) it.ccode == code }
+	Map LUitem = LUTable.find{ Map it -> (String)it.ccode == code }
 	return (LUitem ? (String)LUitem.stdIcon : sBLK)
 }
 
@@ -1069,7 +1080,7 @@ String getStdIcon(String code){
 [ ccode: 'nt_windpartlycloudy', altIcon: '52.png', ctext: 'Windy and Partly Cloudy', owmIcon: '50n', stdIcon: 'nt_cloudy', luxpercent: 0 ],
 ]
 
-
+Long wnow(){ return (Long)now() }
 /******************************************************************************/
 /***																		***/
 /*** END OF CODE															***/
