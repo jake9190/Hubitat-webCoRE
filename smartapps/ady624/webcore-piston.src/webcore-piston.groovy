@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not see <http://www.gnu.org/licenses/>.
  *
- * Last update July 30, 2022 for Hubitat
+ * Last update July 31, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -2123,7 +2123,7 @@ void executeHandler(event){
 	scheduleRemain: 15000L, // this or longer remaining executionTime to process additional schedules
 	scheduleVariance: 63L,
 	executionTime: 40000L, // time we stop execution run
-	slTime: 6300L, // time before we start inserting pauses
+	slTime: 14300L, // time before we start inserting pauses
 	useBigDelay: 20000L, // transition from short delay to Long delay
 	taskShortDelay: 150L,
 	taskLongDelay: 500L,
@@ -7431,10 +7431,12 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 					if(hg){
 						subsId=vn
 						attr=sVARIABLE+sCLN+vn
+						waddInUseGlobalVar(r9,vn)
 					}else warn "hub varible not found while subscribing: $vn",r9
 				}else{
 					subsId=exprX
 					attr=(String)r9.instanceId+sDOT+exprX
+					waddInUseGlobalVar(r9,exprX,false)
 				}
 			}
 			if(subsId!=sNL && deviceId!=sNL){
@@ -7502,7 +7504,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 					String deviceId=LID
 					//if we have any trigger, it takes precedence over anything else
 					devices[deviceId]=[(sC):(cmpTyp ? i1:iZ)+(devices[deviceId]?.c ? (Integer)devices[deviceId].c:iZ)]
-					String subsId,attr
+					String subsId,attr,ct
 					subsId=sNL
 					attr=sNL
 					String operV=(String)operand.v
@@ -7562,8 +7564,7 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 							}
 							break
 					}
-					if(subsId!=sNL){
-						String ct
+					if(subsId!=sNL && attr!=sNL){
 						ct=(String)subscriptions[subsId]?.t ?: sNL
 						if(ct==sTRIG || cmpTyp==sTRIG){
 							ct=sTRIG
@@ -7577,22 +7578,29 @@ private void subscribeAll(Map r9,Boolean doit,Boolean inMem){
 					String operX=(String)operand.x
 					if(operX && operX.startsWith(sAT)){
 						String subsId,attr,ct
-						subsId=operX
-						attr="${(String)r9.instanceId}.${operX}".toString()
+						subsId=sNL
+						attr=sNL
 						if(operX.startsWith(sAT2)){
 							String vn=operX.substring(i2)
 							Map hg=wgetGlobalVar(vn) // check if it exists
 							if(hg){
 								subsId=vn
 								attr=sVARIABLE+sCLN+vn
+								waddInUseGlobalVar(r9,vn)
 							}else warn "hub varible not found while subscribing: $vn",r9
+						}else{
+							subsId=operX
+							attr="${(String)r9.instanceId}.${operX}".toString()
+							waddInUseGlobalVar(r9,operX,false)
 						}
-						ct=(String)subscriptions[subsId]?.t ?: sNL
-						if(ct==sTRIG || cmpTyp==sTRIG){
-							ct=sTRIG
-							hasTriggers=true
-						}else ct=ct ?: cmpTyp
-						subscriptions[subsId]=[(sD):LID,(sA):attr,(sT):ct,(sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(cmpTyp?[node]:[])]
+						if(subsId!=sNL && attr!=sNL){
+							ct=(String)subscriptions[subsId]?.t ?: sNL
+							if(ct==sTRIG || cmpTyp==sTRIG){
+								ct=sTRIG
+								hasTriggers=true
+							}else ct=ct ?: cmpTyp
+							subscriptions[subsId]=[(sD):LID,(sA):attr,(sT):ct,(sC):(subscriptions[subsId] ? (List)subscriptions[subsId].c:[])+(cmpTyp?[node]:[])]
+						}
 					}
 					break
 				case sC: //constant
@@ -8410,7 +8418,7 @@ private Map getVariable(Map r9,String name){
 			//get a variable
 			Map hg=wgetGlobalVar(vn)
 			if(hg){
-				waddInUseGlobalVar(vn)
+				waddInUseGlobalVar(r9,vn)
 				String typ=sNL
 				def vl=null
 				Map ta=fixHeGType(false,(String)hg.type,hg.value)
@@ -8427,6 +8435,7 @@ private Map getVariable(Map r9,String name){
 			def tresult=globalVarsVFLD[wName][tn]
 			if(!(tresult instanceof Map))res=err
 			else{
+				waddInUseGlobalVar(r9,tn,false)
 				res=(Map)tresult
 				String t=sMt(res)
 				def v=res.v
@@ -8533,7 +8542,7 @@ private Map setVariable(Map r9,String name,value){
 			String vn=tn.substring(i2)
 			Map hg=wgetGlobalVar(vn)
 			if(hg){ // we know it exists and if it has a value we can know its type (overloaded String, datetime)
-				waddInUseGlobalVar(vn)
+				waddInUseGlobalVar(r9,vn)
 				String typ,wctyp
 				typ=sNL
 				wctyp=sNL
@@ -8578,6 +8587,7 @@ private Map setVariable(Map r9,String name,value){
 				cache[tn]=variable
 				r9.gvCache=cache
 				releaseTheLock(semName)
+				waddInUseGlobalVar(r9,tn,false)
 				return variable
 			}
 			releaseTheLock(semName)
@@ -12177,9 +12187,53 @@ private Map wgetGlobalVar(String vn){
 	if(a) hg=[(sTYPE):(String)a.type,(sVAL): a.value]
 	return hg
 }
-private void waddInUseGlobalVar(String vn){ Boolean a=addInUseGlobalVar(vn) }
+
+@Field volatile static Map<String,Map<String,List>> globalVarsUseFLD=[:]
+
+private void waddInUseGlobalVar(Map r9,String vn, Boolean heglobal=true){
+	String wName=(String)r9.pId
+	Map<String,List> vars=globalVarsUseFLD[wName] ?: [:]
+	List<String> pstns= vars[vn] ?: []
+	String sa= sAppId()
+	if(!(sa in pstns)){
+		pstns << sa
+		vars[vn]= pstns
+		globalVarsUseFLD[wName]= vars
+		globalVarsUseFLD= globalVarsUseFLD
+		if(isEric(r9))myDetail r9,"added in use $vn $wName $sa  $pstns  $vars",iN2
+	}
+
+	if(heglobal) Boolean a=addInUseGlobalVar(vn)
+}
+
+Map<String,List> gtGlobalVarsInUse(){
+	String wName= sPAppId()
+	Map<String,List> vars=globalVarsUseFLD[wName] ?: [:]
+	//myDetail null,"current in use $vars",iN2
+	return vars
+}
+
 private Boolean wsetGlobalVar(String vn,vl){ setGlobalVar(vn,vl) }
-private void wremoveAllInUseGlobalVar(){ Boolean a=removeAllInUseGlobalVar() }
+
+private void wremoveAllInUseGlobalVar(){
+	String wName= sPAppId()
+	String sa= sAppId()
+	Map<String,List> vars=globalVarsUseFLD[wName] ?: [:]
+	vars.each{
+		String k= it.key
+		List<String> pstns
+		pstns= it.value //tvars[vn] ?: []
+		if(k && sa in pstns){
+			pstns = pstns - [sa]
+			vars[k]= pstns
+			//myDetail r9,"removing from in use $k $wName $sa  $pstns  $vars",iN2
+		}
+	}
+	globalVarsUseFLD[wName]= vars
+	globalVarsUseFLD= globalVarsUseFLD
+
+	Boolean a=removeAllInUseGlobalVar()
+}
 
 private void wunschedule(String m){ unschedule(m) }
 private void wunsubscribe(){ unsubscribe() }

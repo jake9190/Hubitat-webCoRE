@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update July 24, 2022 for Hubitat
+ * Last update July 31, 2022 for Hubitat
  */
 
 //file:noinspection unused
@@ -97,6 +97,7 @@ preferences{
 	page((sNM): "pageLogCleanups")
 	page((sNM): "pageUberCleanups")
 	page((sNM): "pageDumpR")
+	page((sNM): "pageDumpPR")
 	page((sNM): "pageRemove")
 	page((sNM): "graphDuplicationPage")
 	page((sNM):sPDPC)
@@ -542,6 +543,9 @@ def pageSettings(){
 			section("Dump dashload cache"){
 				href "pageDumpR",(sTIT):'Dump dashload Cache',description:sBLK
 			}
+			section("Dump global variables in use "){
+				href "pageDumpPR",(sTIT):'Dump global variables in use',description:sBLK
+			}
 		}
 
 		section("Uninstall"){
@@ -783,6 +787,41 @@ def pageDumpR(){
 	String message=getMapDescStr(t0)
 	return dynamicPage((sNM):"pageDumpR",(sTIT):sBLK,uninstall:false){
 		section('Dashboard Data Cache dump'){
+			paragraph message
+		}
+	}
+}
+
+def pageDumpPR(){
+	String n=handlePistn()
+	List t0
+	t0=wgetChildApps().findAll{ (String)it.name==n }
+	def t1=t0[0]
+	Map<String,List> t2
+	if(t1!=null) t2= t1.gtGlobalVarsInUse()
+	else t2=[:]
+	if(eric())warn "in use $t2"
+	Map newMap
+	newMap=[:]
+	t2.each {
+		String k= it.key
+		List<String> l= (List<String>)it.value
+		List<String> newLst
+		newLst=[]
+		l.each{ String pid ->
+			def pist= t0.find { tid -> tid.id.toString() == pid }
+			if(pist){
+				String nm= normalizeLabel(pist)
+				newLst << nm
+			}
+		}
+		newMap[k]= []+newLst
+	}
+	if(eric())warn "newMap is $newMap"
+
+	String message=getMapDescStr(newMap)
+	return dynamicPage((sNM):"pageDumpPR",(sTIT):sBLK,uninstall:false){
+		section('Global variable in use dump'){
 			paragraph message
 		}
 	}

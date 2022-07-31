@@ -1,3 +1,5 @@
+import groovy.transform.Field
+
 /*
  *  webCoRE - Community's own Rule Engine - Web Edition
  *
@@ -17,7 +19,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 public static String version() { return "v0.3.114.20220203" }
-public static String HEversion() { return "v0.3.114.20220203_HE" }
+public static String HEversion() { return "v0.3.114.20220714_HE" }
 
 /******************************************************************************/
 /*** webCoRE DEFINITION														***/
@@ -42,6 +44,7 @@ preferences {
 	page(name: "pageMain")
 }
 
+private gtSetting(String nm){ return settings."${nm}" }
 
 /******************************************************************************/
 /*** 																		***/
