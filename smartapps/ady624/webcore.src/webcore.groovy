@@ -18,7 +18,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * Last update July 31, 2022 for Hubitat
+ * Last update August 1, 2022 for Hubitat
  */
 
 //file:noinspection unused
@@ -800,11 +800,14 @@ def pageDumpPR(){
 	Map<String,List> t2
 	if(t1!=null) t2= t1.gtGlobalVarsInUse()
 	else t2=[:]
-	if(eric())warn "in use $t2"
+	//if(eric())warn "in use $t2"
 	Map newMap
 	newMap=[:]
+	Map<String,Map> glbs=listAvailableVariables1()
+	String nf= ' (VARIABLE NOT FOUND)'
 	t2.each {
-		String k= it.key
+		String k
+		k= it.key
 		List<String> l= (List<String>)it.value
 		List<String> newLst
 		newLst=[]
@@ -815,10 +818,12 @@ def pageDumpPR(){
 				newLst << nm
 			}
 		}
+		if(!glbs.containsKey(k)) k+= nf
+		else k+= " (${(String)glbs[k].t})"
 		newMap[k]= []+newLst
 	}
 	newMap = newMap.sort { (String)it.key }
-	if(eric())warn "newMap is $newMap"
+	//if(eric())warn "newMap is $newMap"
 
 	String message=getMapDescStr(newMap)
 	return dynamicPage((sNM):"pageDumpPR",(sTIT):sBLK,uninstall:false){
@@ -3108,7 +3113,8 @@ private Map listAvailableVariables1(){
 }
 
 private Map listAV(Map my, String meth){
-	Map<String,Map> myV=my ?: [:]
+	Map<String,Map> myV
+	myV=my ?: [:]
 	//'@@'
 	Map heV=AddHeGlobals(myV, meth)
 	myV=myV+heV
