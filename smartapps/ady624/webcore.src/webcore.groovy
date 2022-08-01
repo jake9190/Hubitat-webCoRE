@@ -817,6 +817,7 @@ def pageDumpPR(){
 		}
 		newMap[k]= []+newLst
 	}
+	newMap = newMap.sort { (String)it.key }
 	if(eric())warn "newMap is $newMap"
 
 	String message=getMapDescStr(newMap)

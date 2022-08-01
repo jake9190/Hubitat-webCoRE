@@ -6166,7 +6166,10 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 	myS=sBLK
 	Integer myC=stmtNum(cndtns)
 	if(isEric(r9)){
-		myS=("evaluateConditions #${myC} "+sffwdng(r9)+"$cndtns ").toString()
+		String s
+		s= "$cndtns".toString()
+		s= s.substring(0,Math.min(140,s.length()))
+		myS=("evaluateConditions #${myC} "+sffwdng(r9)+s+sBLK).toString()
 		myDetail r9,myS,i1
 	}
 	Long t
@@ -6275,9 +6278,11 @@ private Boolean evaluateConditions(Map r9,Map cndtns,String collection,Boolean a
 			Boolean canopt
 			canopt= !gtPOpt(r9,'cto') && grouping in [sOR,sAND]
 			if(canopt){
-				Integer i=iZ
+				Integer i
+				i=iZ
 				for(Map cndtn in cndtnsCOL){
-					if( sMt(cndtn)==sGROUP || (i!=iZ && ( (cndtn.ct==sT /*&& cndtn.s */) || (cndtn.ts || cndtn.fs) ) ) ){ canopt=false; break }
+					if( sMt(cndtn)!=sGROUP )
+						if( i!=iZ && ( (cndtn.ct==sT /*&& cndtn.s */) || (cndtn.ts || cndtn.fs) ) ){ canopt=false; break }
 					i++
 				}
 			}
@@ -12193,14 +12198,16 @@ private Map wgetGlobalVar(String vn){
 private void waddInUseGlobalVar(Map r9,String vn, Boolean heglobal=true){
 	String wName=(String)r9.pId
 	Map<String,List> vars=globalVarsUseFLD[wName] ?: [:]
-	List<String> pstns= vars[vn] ?: []
+	String nvn= heglobal ? sAT2+vn : vn
+	List<String> pstns
+	pstns= vars[nvn] ?: []
 	String sa= sAppId()
 	if(!(sa in pstns)){
 		pstns << sa
-		vars[vn]= pstns
+		vars[nvn]= pstns
 		globalVarsUseFLD[wName]= vars
 		globalVarsUseFLD= globalVarsUseFLD
-		if(isEric(r9))myDetail r9,"added in use $vn $wName $sa  $pstns  $vars",iN2
+		if(isEric(r9))myDetail r9,"added in use $nvn $wName $sa  $pstns  $vars",iN2
 	}
 
 	if(heglobal) Boolean a=addInUseGlobalVar(vn)
@@ -12209,7 +12216,6 @@ private void waddInUseGlobalVar(Map r9,String vn, Boolean heglobal=true){
 Map<String,List> gtGlobalVarsInUse(){
 	String wName= sPAppId()
 	Map<String,List> vars=globalVarsUseFLD[wName] ?: [:]
-	//myDetail null,"current in use $vars",iN2
 	return vars
 }
 
@@ -12226,7 +12232,6 @@ private void wremoveAllInUseGlobalVar(){
 		if(k && sa in pstns){
 			pstns = pstns - [sa]
 			vars[k]= pstns
-			//myDetail r9,"removing from in use $k $wName $sa  $pstns  $vars",iN2
 		}
 	}
 	globalVarsUseFLD[wName]= vars
