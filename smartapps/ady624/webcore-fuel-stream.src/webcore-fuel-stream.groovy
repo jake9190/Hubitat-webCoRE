@@ -19,7 +19,7 @@
  *  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
  *  for the specific language governing permissions and limitations under the License.
  *
- *  Last update July 24, 2022 for Hubitat
+ *  Last update July 31, 2022 for Hubitat
  */
 
 //file:noinspection GroovySillyAssignment
@@ -1583,13 +1583,14 @@ Double getLatestVal(Map ent, Boolean multiple=true){
  * @return doubleVal
  */
 private Double getValue(String id, String attr, val){
-	def reg= ~/[a-z,A-Z]+/
 	Double ret
+	String s
 	if(settings["attribute_${id}_${attr}_${val}"]!=null){
-		ret=Double.parseDouble(settings["attribute_${id}_${attr}_${val}"].toString())
+		s= settings["attribute_${id}_${attr}_${val}"].toString()
 	} else{
-		ret=Double.parseDouble("${val}" - reg )
+		s= "${val}".toString()
 	}
+	ret= extractNumber(s)
 	return ret
 }
 
