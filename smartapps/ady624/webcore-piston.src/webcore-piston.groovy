@@ -11408,9 +11408,9 @@ private void initSunriseAndSunset(Map r9){
 	}
 	if(t0==null){
 		Map sunTimes=app.getSunriseAndSunset()
+		Long t1=getMidnightTime()
 		if(sunTimes.sunrise==null){
 			warn 'Actual sunrise and sunset times are unavailable; please reset the location for your hub',r9
-			Long t1=getMidnightTime()
 			sunTimes.sunrise=new Date(Math.round(t1+7.0D*dMSECHR))
 			sunTimes.sunset=new Date(Math.round(t1+19.0D*dMSECHR))
 			t=lZ
@@ -11455,7 +11455,7 @@ private void initSunriseAndSunset(Map r9){
 		]
 		if(!good) warn 'Please update HE firmware to improve time handling',r9
 		r9.sunTimes=t0
-		if(t!=lZ){
+		if(t!=lZ && t0.sunrise > t1){
 			svSunTFLD=t0
 			mb()
 			if(eric())debug "updating global sunrise ${t0}",null
